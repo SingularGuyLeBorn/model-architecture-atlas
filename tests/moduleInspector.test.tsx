@@ -10,6 +10,25 @@ import { buildGraph, MhcMix } from "../src/compositions/DeepSeekV41Layer";
 import { createElement } from "react";
 
 describe("模块解释的显式开关", () => {
+  it("初始化与系数旁注明确完整复制、单次子层计算和动态权重", () => {
+    const init = explainModule({
+      kind: "hc-expand",
+      layer: 3,
+      phase: "decode",
+    }).paragraphs.join("\n");
+    expect(init).toContain("完整复制四份");
+    expect(init).toContain("1\\times4\\times5120");
+    expect(init).toContain("(1,0,0,0)");
+    expect(init).toContain("只计算一次");
+    const mhc = explainModule({
+      kind: "hc-mix",
+      layer: 3,
+      sublayer: "A",
+    }).paragraphs.join("\n");
+    expect(mhc).toContain("具体系数随层、token 和残差内容动态计算");
+    expect(mhc).toContain("$q$ 和 $C$ 用于当前子层回写");
+    expect(mhc).toContain("$p$ 留给下一次汇合");
+  });
   it("临时预览离开或换层收回，固定后离开保持", () => {
     const closed: InspectorState = { mode: "closed", nodeId: "q" };
     const preview = inspectorReducer(closed, { type: "preview" });

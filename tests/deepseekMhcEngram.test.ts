@@ -33,6 +33,43 @@ function render(element: ReactElement) {
 }
 
 describe("mHC 与 Engram 的真实主路径", () => {
+  it.each([1, 3, 15, 40])("第 %s 层说明单次计算及系数的跨子层用途", (layer) => {
+    for (const sublayer of ["A", "F"] as const) {
+      const pre = render(
+        createElement(MhcPre, { layer, sublayer, count: "N" }),
+      );
+      expect(
+        pre.root.querySelector("[data-mhc-single-pass]")?.textContent,
+      ).toContain("只计算一次");
+      if (layer !== 1 || sublayer !== "A") {
+        expect(pre.formulas).toContain("(0.2,0.4,0.6,0.8)\\cdot(1,2,3,4)=6");
+      }
+      const mix = render(createElement(MhcMix, { layer, sublayer }));
+      expect(
+        mix.root.querySelector("[data-mhc-coefficient-origin]")?.textContent,
+      ).toContain("系数随 token 与残差内容动态计算");
+      for (const symbol of ["q", "C"]) {
+        expect(
+          mix.root.querySelector(`[data-mhc-coefficient-output="${symbol}"]`)
+            ?.textContent,
+        ).toContain(
+          `第 ${layer} 层 ${sublayer === "A" ? "Attention" : "FFN"} 回写`,
+        );
+      }
+      const post = render(createElement(MhcPost, { layer, sublayer }));
+      const note = post.root.querySelector(
+        "[data-mhc-writeback-origin]",
+      )?.textContent;
+      expect(note).toContain("本子层计算前的四路残差");
+      expect(note).toContain(
+        sublayer === "A"
+          ? "本层 FFN 汇合"
+          : layer === 40
+            ? "主干末尾输出头前的汇合"
+            : `第 ${layer + 1} 层 Attention 汇合`,
+      );
+    }
+  });
   it.each([2, 15])(
     "第 %s 层的 Engram 求和读取明确的乘积，先声明局部变量",
     (layer) => {

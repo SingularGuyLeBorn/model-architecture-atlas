@@ -1170,10 +1170,10 @@ export function MhcMix({
               ? "供本层 FFN 汇合使用"
               : layer === 40
                 ? "供主干末尾四路汇合使用"
-                : "传给下一层 Attention 汇合"
+                : `传给下一层 Attention 汇合 · 第 ${layer + 1} 层`
             : symbol === "q"
-              ? "当前子层的输出 o 送往四路，各路乘自己的 q"
-              : "行 k 为来源路、列 j 为目标路；送入当前子层残差混合"}
+              ? `送入第 ${layer} 层 ${sublayer === "A" ? "Attention" : "FFN"} 回写：同一个输出 o 分给四路，各路乘自己的 q`
+              : `送入第 ${layer} 层 ${sublayer === "A" ? "Attention" : "FFN"} 回写：行 k 为旧残差来源路，列 j 为目标路`}
         </span>
       </div>
     );
@@ -1186,6 +1186,14 @@ export function MhcMix({
       <ModuleHeading>
         mHC 系数生成 · Layer {layer} · {sublayer === "A" ? "Attention" : "FFN"}
       </ModuleHeading>
+      <p data-mhc-coefficient-origin style={{ margin: 0 }}>
+        输入来自第 {layer} 层
+        {sublayer === "A" ? "Attention 前" : "Attention 回写后、FFN 前"}
+        的四路残差。 每个 token 的四个完整 5120
+        维向量拼接、归一化后，乘本子层训练得到的参数，再经缩放、偏置与各分支变换生成
+        p、q、C。 参数在推理时固定，系数随 token
+        与残差内容动态计算；各路权重由学习结果决定。
+      </p>
       <div data-notation-alias style={{ display: "grid", gap: 4 }}>
         <span>本模块固定当前层、token t 与子层；各分支的局部元素名对应：</span>
         <MathFormula
@@ -1263,6 +1271,7 @@ export function MhcPre({
         mHC 汇合 · 4 路 → {sublayer === "A" ? "Attention" : "FFN"} 的一路输入
       </ModuleHeading>
       <div
+        data-mhc-pre-weights
         style={{
           position: "relative",
           maxWidth: 560,
@@ -1287,6 +1296,12 @@ export function MhcPre({
               : "来自前一层 FFN 的系数分支"}
         </Box>
       </div>
+      <p data-mhc-single-pass style={{ margin: 0, lineHeight: 1.7 }}>
+        每个 token 的四路完整向量先按 p 加权求和，得到一个 5120 维输入。
+        {sublayer === "A" ? "Attention" : "FFN"} 对汇合后的输入只计算一次，
+        产生一个 5120 维输出，再由本子层的 q、C 回写成四路残差。
+        {sublayer === "F" && "FFN 内部按 Router 选择专家，再将专家输出汇总。"}
+      </p>
       <div data-notation-alias>
         本次汇合固定 token t：{" "}
         <MathFormula
@@ -1340,12 +1355,14 @@ export function MhcPre({
       </div>
       {/* [OM-FREEPLAY] 单个特征的数值例子说明加权汇合，不代表真实激活。 */}
       <span style={{ justifySelf: "center" }}>
-        单元素例：
+        {layer === 1 && sublayer === "A"
+          ? "首层首次汇合："
+          : "非等权示例（示意值）："}
         <MathFormula
           tex={
             layer === 1 && sublayer === "A"
               ? "(1,0,0,0)\\cdot(2,2,2,2)=2"
-              : "(0.25,0.25,0.25,0.25)\\cdot(1,2,3,4)=2.5"
+              : "(0.2,0.4,0.6,0.8)\\cdot(1,2,3,4)=6"
           }
         />
       </span>
@@ -1394,6 +1411,18 @@ export function MhcPost({
       <ModuleHeading>
         mHC 回写 · 残差混合与输出分发并行，再按目标路相加
       </ModuleHeading>
+      <p data-mhc-writeback-origin style={{ margin: 0, lineHeight: 1.7 }}>
+        第 {layer} 层 {sublayer === "A" ? "Attention" : "FFN"}{" "}
+        对汇合输入只计算一次， 同一个输出 o 由 q 分发到四路。q 与 C
+        都由本子层计算前的四路残差经 mHC 系数分支生成， C 混合旧状态，q
+        控制新输出的写入量；两项相加形成各路新状态。 同时生成的 p 送往
+        {sublayer === "A"
+          ? "本层 FFN 汇合"
+          : layer === 40
+            ? "主干末尾输出头前的汇合"
+            : `第 ${layer + 1} 层 Attention 汇合`}
+        。
+      </p>
       {/* [OM-FREEPLAY] 扩展为角色配色：紫色 C、玫瑰色 q、青色乘积；沿途保持同色。 */}
       <div
         data-mhc-color-legend
@@ -4845,6 +4874,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
   if (kind === "hc-expand")
     return (
       <div
+        data-mhc-initialization
         style={{
           ...panel,
           height: "auto",
@@ -4854,25 +4884,66 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         }}
       >
         {both}
-        <strong>Embedding → mHC 四路初始化</strong>
-        <Box tone="blue">
-          <MathFormula tex={`E\\in\\mathbb R^{${count}\\times5120}`} />
-        </Box>
-        <FlowStep>复制到 4 路；此时每路数值相同</FlowStep>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4,minmax(0,1fr))",
-            gap: 6,
-          }}
-        >
-          {HC_COPIES.map((c) => (
-            <Box key={c} tone="blue">
-              <MathFormula tex={`H_{1,${c}}^{\\mathrm{in}}=E`} />
-            </Box>
-          ))}
+        <ModuleHeading>首层初始化 · 复制四份完整向量</ModuleHeading>
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7 }}>
+          E 的每行对应一个 token 的完整 5120 维向量。复制后每路都保留全部 5120
+          个元素， 四路初值相同，token 行顺序保持不变。下面展示同一行 t
+          的代表元素。
+        </p>
+        <div style={{ display: "grid", gap: 0 }}>
+          <Box tone="blue">
+            <MathFormula tex={`E\\in\\mathbb R^{${count}\\times5120}`} />
+          </Box>
+          <SplitArrows count={4} />
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4,minmax(0,1fr))",
+              gap: 6,
+            }}
+          >
+            {HC_COPIES.map((c) => (
+              <div
+                key={c}
+                data-mhc-initial-copy={c}
+                style={{
+                  display: "grid",
+                  justifyItems: "center",
+                  gap: 5,
+                  fontSize: 13,
+                }}
+              >
+                <Box tone="blue" expanded>
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <TensorHeading
+                      name={`H_{1,${c}}^{\\mathrm{in}}=E`}
+                      shape={`${count}\\times5120`}
+                    />
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 4 }}
+                    >
+                      <Box tone="blue">
+                        <MathFormula tex="E_{t,1}" />
+                      </Box>
+                      <Box tone="blue">
+                        <MathFormula tex="E_{t,2}" />
+                      </Box>
+                      <MathFormula tex="\cdots" />
+                      <Box tone="blue">
+                        <MathFormula tex="E_{t,5120}" />
+                      </Box>
+                    </div>
+                  </div>
+                </Box>
+              </div>
+            ))}
+          </div>
         </div>
-        <MathFormula tex="\mathbf p_t^{\mathrm{init}}=(1,0,0,0)" />
+        <div data-mhc-initial-weights style={{ fontSize: 13, lineHeight: 1.7 }}>
+          <MathFormula tex="\mathbf p_t^{\mathrm{init}}=(1,0,0,0)" />
+          ：第 1 层 Attention 的首次汇合选取第 1 路，输入仍等于 E。
+          后续各次汇合读取前一子层根据残差内容生成的 p。
+        </div>
       </div>
     );
   if (kind === "hc-pre" || kind === "hc-mix")
@@ -5301,7 +5372,11 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           position={Position.Right}
           style={handle}
         />
-        <Title>层输入 · mHC 四路残差</Title>
+        <Title>
+          {layer === 1
+            ? "第 1 层初始化输入 · 四路完整副本"
+            : `第 ${layer} 层输入 · 来自第 ${layer - 1} 层回写`}
+        </Title>
         <div style={{ padding: 12, display: "grid", gap: 8 }}>
           <StreamTensor layer={layer} stage="\mathrm{in}" count={count} />
         </div>
@@ -6409,6 +6484,17 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           Layer {layer} · 64 Heads · 第 t 行 Q → 位置旋转 → QK 打分 → softmax →
           V 加权 → 逆旋转 → O
         </Title>
+        <p
+          data-attention-single-pass
+          style={{ margin: "10px 12px 0", fontSize: 13, lineHeight: 1.7 }}
+        >
+          本层四路残差先经 p 汇合，再归一化得到{" "}
+          <MathFormula tex={`X_{${layer}}`} />
+          ；Attention 对这份输入只计算一次。 下方 64 个 Head
+          属于这一次多头注意力，拼接、投影得到同一个输出{" "}
+          <MathFormula tex={`O_{${layer}}`} />
+          ，再交给本层 Attention 的 q、C 回写四路。
+        </p>
         <div
           style={{
             padding: 12,
@@ -7009,6 +7095,16 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           />
         ))}
         <Title>Layer {layer} · 专家层 · 得分为示意</Title>
+        <p
+          data-ffn-single-pass
+          style={{ margin: "10px 12px 0", fontSize: 13, lineHeight: 1.7 }}
+        >
+          四路 Attention 回写状态按本层{" "}
+          <MathFormula tex={`\\mathbf p_{${layer},t}^{A}`} />{" "}
+          汇合，归一化得到同一个 <MathFormula tex={`Y_{${layer}}`} />。 FFN
+          对这份输入只计算一次：共享专家与选中的路由专家在内部并行，汇总成一个输出，再由本层
+          FFN 的 q、C 回写四路。
+        </p>
         <div
           style={{
             padding: EXPERTS_PADDING,
@@ -7876,7 +7972,8 @@ export function buildGraph(
       800,
       embeddingHeight,
     ),
-    node("hc-expand", "hc-expand", layer, mode, 400, expandY, 800, 240),
+    // [OM-FREEPLAY] 四份代表向量按最长元素加内边距预留约 208px，外层保留 24px 内边距与 18px 列间距。
+    node("hc-expand", "hc-expand", layer, mode, 360, expandY, 880, 240),
     node("input", "tensor", layer, mode, 300, inputY, 1200, tensorHeight),
     {
       ...node("hc-pre-a", "hc-pre", layer, mode, 300, preAY, 980, 420),
@@ -9557,9 +9654,11 @@ function DiagramCanvas({
     let previousHeight = canvas.clientHeight;
     const reveal = () => {
       const flow = flowRef.current,
-        node = inspector.nodeId
-          ? flow?.getInternalNode(inspector.nodeId)
-          : undefined;
+        // 收起后的解释仅保留选择记录；画布尺寸变化时保持当前阅读位置，不再定位旧模块。
+        node =
+          (inspector.mode === "open" || inspector.preview) && inspector.nodeId
+            ? flow?.getInternalNode(inspector.nodeId)
+            : undefined;
       // 独立面板改变的是画布可用尺寸；按真实新尺寸摆放所选框，不用浮层盖住它。
       const width = canvas.clientWidth,
         height = canvas.clientHeight;
