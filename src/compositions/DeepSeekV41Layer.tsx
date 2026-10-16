@@ -1166,7 +1166,7 @@ function StreamTensor({
         data-four-stream-row
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4,minmax(0,1fr))",
+          gridTemplateColumns: "repeat(4,minmax(max-content,1fr))",
           gap: 8,
         }}
       >
@@ -2100,7 +2100,8 @@ export function LayerHandoff({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0,3fr) minmax(0,1fr)",
+          gridTemplateColumns:
+            "minmax(min-content,3fr) minmax(min-content,1fr)",
           gap: 24,
           alignItems: "start",
         }}
@@ -8181,7 +8182,14 @@ function DiagramNodeView({ id, data, selected }: NodeProps<DiagramNode>) {
           ? {
               minHeight: "100%",
               display: "grid",
-              gridTemplateColumns: "minmax(0,1fr)",
+              gridTemplateColumns: [
+                "tensor",
+                "state1",
+                "output",
+                "next-inputs",
+              ].includes(data.kind)
+                ? "minmax(min-content,1fr)"
+                : "minmax(0,1fr)",
             }
           : {}),
         position: "relative",
@@ -8228,6 +8236,10 @@ function node(
       ...(["add1", "add2"].includes(kind) ? { minWidth: 2800 } : {}),
       // [OM-FREEPLAY] 权重行、四路矩阵、输出行与运算符按内容排列，840px 留出完整下标和必要间距。
       ...(kind === "hc-pre" ? { minWidth: 840 } : {}),
+      // 四路矩阵保持同排；由内部实际内容决定最小宽度，旧保存尺寸也不能压破外框。
+      ...(["tensor", "state1", "output", "next-inputs"].includes(kind)
+        ? { minWidth: "min-content" }
+        : {}),
     },
     deletable: false,
   };

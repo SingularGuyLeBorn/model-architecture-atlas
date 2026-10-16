@@ -469,10 +469,10 @@ export function RowMatrix({
       data-content-width={contentWidth || undefined}
       data-uniform-matrix={columnSubgrid || undefined}
       style={{
-        minWidth: 0,
+        // 内容宽度包含行名、共享列轨道、标题、内边距和边框，不能被父栏压窄。
+        minWidth: contentWidth ? "max-content" : 0,
         width: contentWidth ? "max-content" : undefined,
         justifySelf: "center",
-        maxWidth: contentWidth ? "100%" : undefined,
         padding: 6,
         border: `1.3px solid ${frameColor(palette.color)}`,
         borderRadius: 7,
