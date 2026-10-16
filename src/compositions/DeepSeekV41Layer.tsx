@@ -4624,7 +4624,10 @@ function SelectedGlobalRows({
     { label: "M", selected: false },
   ];
   return (
-    <div style={{ display: "grid", gap: 5, minWidth: 0 }}>
+    <div
+      data-selected-global-rows
+      style={{ display: "grid", gap: 5, minWidth: 0 }}
+    >
       <div
         style={{
           display: "grid",
@@ -4664,20 +4667,36 @@ function SelectedGlobalRows({
             borderBottom: `2px solid ${COLORS.ink}`,
           }}
         />
-        <div style={{ display: "grid", gap: 3, minWidth: 0 }}>
+        <div
+          style={{
+            display: "grid",
+            gap: 3,
+            minWidth: 0,
+            width: "max-content",
+            justifySelf: "center",
+            gridAutoRows: "1fr",
+            gridTemplateColumns:
+              "max-content repeat(2, minmax(max-content, 1fr)) 24px minmax(max-content, 1fr)",
+          }}
+        >
           {rows.map((row, rowIndex) => (
             <div
               key={`${row.label}-values-${rowIndex}`}
               style={{
                 minWidth: 0,
                 minHeight: 28,
-                padding: 2,
+                padding: "2px 0",
                 textAlign: "center",
                 fontSize: 9.5,
+                display: "grid",
+                gridColumn: "1 / -1",
+                gridTemplateColumns: "subgrid",
               }}
             >
               {row.ellipsis ? (
-                <MathFormula tex="\vdots" />
+                <span style={{ gridColumn: "1 / -1", alignSelf: "center" }}>
+                  <MathFormula tex="\vdots" />
+                </span>
               ) : (
                 <VectorStrip
                   name={`\\mathbf g_{${kvSource},${row.label}}`}
@@ -4688,6 +4707,8 @@ function SelectedGlobalRows({
                   }
                   tone="green"
                   selected={row.selected}
+                  columnSubgrid
+                  uniformCells
                   compact
                 />
               )}
@@ -6418,12 +6439,18 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               data-selection-example
               style={{
                 display: "grid",
-                gap: 5,
+                gap: 3,
+                width: "max-content",
+                justifySelf: "center",
+                gridTemplateColumns:
+                  "max-content repeat(2, minmax(max-content, 1fr)) 24px minmax(max-content, 1fr)",
                 fontSize: 10,
                 color: COLORS.green,
               }}
             >
-              <strong>例：选中行号 3、7、12</strong>
+              <strong style={{ gridColumn: "1 / -1" }}>
+                例：选中行号 3、7、12
+              </strong>
               {[3, 7, 12].map((row) => (
                 <VectorStrip
                   key={row}
@@ -6433,6 +6460,8 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   elementTex={(column) => `g_{${kvSource},${row},${column}}`}
                   tone="green"
                   selected
+                  columnSubgrid
+                  uniformCells
                   compact
                 />
               ))}

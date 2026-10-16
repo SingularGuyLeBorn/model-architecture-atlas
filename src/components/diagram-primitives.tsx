@@ -191,6 +191,7 @@ export function VectorStrip({
   outlineSelection = true,
   contentWidth = true,
   columnSubgrid = false,
+  uniformCells = false,
   cellPadding = 8,
 }: {
   name: string;
@@ -205,6 +206,7 @@ export function VectorStrip({
   outlineSelection?: boolean;
   contentWidth?: boolean;
   columnSubgrid?: boolean;
+  uniformCells?: boolean;
   cellPadding?: number;
 }) {
   const palette = tonePalette(selected ? "amber" : tone);
@@ -224,9 +226,9 @@ export function VectorStrip({
         gridTemplateColumns: columnSubgrid
           ? "subgrid"
           : `${nameWidth ?? (compact ? 52 : 92)}px ${contentWidth ? "max-content" : "minmax(0,1fr)"}`,
-        gap: 5,
-        alignItems: "center",
-        padding: compact ? 2 : 5,
+        gap: uniformCells ? 3 : 5,
+        alignItems: uniformCells ? "stretch" : "center",
+        padding: uniformCells ? "2px 0" : compact ? 2 : 5,
         fontSize: compact ? 9 : 10.5,
         lineHeight: 1.2,
         outline:
@@ -243,6 +245,7 @@ export function VectorStrip({
           color: palette.color,
           fontSize: compact ? 9 : 10.5,
           lineHeight: nameLineHeight,
+          alignSelf: uniformCells ? "center" : undefined,
           fontWeight: 800,
           overflow: "hidden",
         }}
@@ -288,6 +291,8 @@ export function VectorStrip({
               data-vector-cell
               style={{
                 minWidth: 0,
+                display: uniformCells ? "grid" : undefined,
+                placeItems: uniformCells ? "center" : undefined,
                 padding: contentWidth
                   ? compact
                     ? `2px ${cellPadding}px`
