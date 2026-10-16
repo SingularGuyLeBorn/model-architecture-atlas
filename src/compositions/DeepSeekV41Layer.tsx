@@ -1,4 +1,5 @@
 import { frameColor } from "../components/diagram-appearance";
+import { IndexScoreColumns } from "../components/IndexScoreColumns";
 import { inspectInternalTarget } from "../components/internal-selection";
 import {
   MathFormula,
@@ -3009,6 +3010,7 @@ function IndexProjection({
   layer,
   inputSymbol,
   outputSymbol,
+  sourceNote,
 }: {
   title: string;
   input: string;
@@ -3021,6 +3023,7 @@ function IndexProjection({
   layer: number;
   inputSymbol: string;
   outputSymbol: string;
+  sourceNote?: ReactNode;
 }) {
   const indices = rows === "1" ? ["t"] : ["1", "2", "\\vdots", rows];
   return (
@@ -3029,6 +3032,11 @@ function IndexProjection({
       style={{ display: "grid", gap: 7, minWidth: 0 }}
     >
       <ModuleHeading>{title}</ModuleHeading>
+      {sourceNote && (
+        <div data-index-input-origin style={{ fontSize: 12, lineHeight: 1.6 }}>
+          {sourceNote}
+        </div>
+      )}
       <div
         style={{
           display: "grid",
@@ -3226,7 +3234,9 @@ export function IndexScoreProcess({
         t 是当前 token 的位置；i 是压缩缓存行号；h 是索引 Head 编号。
         <MathFormula tex="\eta" />
         （eta）是 Head 权重，
-        <MathFormula tex="a^I" /> 是 ReLU 后的分数（拉丁字母 a）。
+        <MathFormula tex="a^I" /> 是 ReLU 后的分数（拉丁字母 a）。 每个 token 的
+        Q 分别评价可见缓存行 i = 1、2、…、M；Head 是匹配分支，Top-K
+        沿缓存列选择。
       </div>
       <div
         style={{
@@ -3321,14 +3331,11 @@ export function IndexScoreProcess({
           </React.Fragment>
         ))}
       </div>
-      <div style={{ position: "relative" }}>
-        <SumJunction count={3} />
-        <span
-          style={{ position: "absolute", left: "calc(50% + 42px)", top: 82 }}
-        >
-          <MathFormula tex="\sum_{h=1}^{32}" /> · 32 路同一位置相加
-        </span>
+      <div style={{ textAlign: "center" }}>
+        取上方各 Head 加权结果的同一列，分别沿 Head 轴求和（展示 1、2、32，省略
+        3–31）：
       </div>
+      <IndexScoreColumns layer={layer} />
       <div
         data-index-result-flow
         style={{
@@ -3361,16 +3368,22 @@ export function IndexScoreProcess({
           tex={`S_{${layer}}`}
           contentWidth
           shape={`${count}\\times M`}
+          columnLabels={[
+            "\\text{缓存行 }1",
+            "\\text{缓存行 }2",
+            "\\cdots",
+            "\\text{缓存行 }M",
+          ]}
           rows={
             count === "1"
-              ? ["\\mathbf s_t"]
+              ? [`\\mathbf s_{${layer},t}`]
               : [
-                  "\\mathbf s_1",
-                  "\\mathbf s_2",
+                  `\\mathbf s_{${layer},1}`,
+                  `\\mathbf s_{${layer},2}`,
                   "\\vdots",
-                  "\\mathbf s_t",
+                  `\\mathbf s_{${layer},t}`,
                   "\\vdots",
-                  "\\mathbf s_N",
+                  `\\mathbf s_{${layer},N}`,
                 ]
           }
           selected={count === "1" ? 0 : 3}
@@ -3379,6 +3392,11 @@ export function IndexScoreProcess({
             `s_{${layer},${count === "1" ? "t" : ["1", "2", "", "t", "", "N"][r]},${i}}`
           }
         />
+        <div data-index-score-axes style={{ textAlign: "center" }}>
+          行 t ↓：发起查询的 token；列 i
+          →：被评分的压缩缓存行。上方三个结果填入第 t 行的第 1、2、M
+          列；每一行独立选 Top-K。
+        </div>
         {children && (
           <>
             <Operator tex="\downarrow" />
@@ -5541,6 +5559,12 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           position={Position.Bottom}
           style={{ ...handle, left: "85%", background: COLORS.amber }}
         />
+        <Handle
+          id="index-weights"
+          type="source"
+          position={Position.Right}
+          style={{ ...handle, top: "65%", background: COLORS.blue }}
+        />
         <RmsNormProcess
           input={`Z_{${layer}}^{A}`}
           output={`X_{${layer}}`}
@@ -6202,13 +6226,21 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           id="query"
           type="target"
           position={Position.Top}
-          style={{ ...handle, left: "30%", background: COLORS.blue }}
+          style={{ ...handle, left: "16.67%", background: COLORS.blue }}
         />
+        {writesIndex && (
+          <Handle
+            id="weight-input"
+            type="target"
+            position={Position.Top}
+            style={{ ...handle, left: "50%", background: COLORS.blue }}
+          />
+        )}
         <Handle
           id="global-matrix"
           type="target"
           position={Position.Top}
-          style={{ ...handle, left: "70%" }}
+          style={{ ...handle, left: "83.33%" }}
         />
         <Handle
           id="matrix"
@@ -6254,6 +6286,18 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   inputSymbol="q^r"
                   outputSymbol={"\\widetilde q^I"}
                   title="Query → 32 个索引 Head"
+                  sourceNote={
+                    <>
+                      来源：本层 Query 低秩投影与归一化的输出。
+                      <div>
+                        <MathFormula
+                          tex={`Q_{${layer}}^r=\\operatorname{RMSNorm}(X_{${layer}}W_{${layer}}^{Q\\downarrow})`}
+                        />
+                      </div>
+                      第 t 行对应发起查询的 token；每行生成自己的 32 个索引
+                      Query。
+                    </>
+                  }
                   input={`Q_{${layer}}^r`}
                   inputWidth="1280"
                   weight={`W_{${layer}}^{IQ}`}
@@ -6267,13 +6311,25 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   inputSymbol="x"
                   outputSymbol={"\\widehat\\eta"}
                   title="每个 Head 的加权系数"
+                  sourceNote={
+                    <>
+                      来源：四路残差经 mHC 汇合，再做 Attention 输入归一化。
+                      <div>
+                        <MathFormula
+                          tex={`X_{${layer}}=\\operatorname{RMSNorm}(Z_{${layer}}^A)`}
+                        />
+                      </div>
+                      与左侧 Q 共用同一批 token；第 t 行生成本 token 的 32 个
+                      η。
+                    </>
+                  }
                   input={`X_{${layer}}`}
                   inputWidth="5120"
                   weight={`W_{${layer}}^{IW}`}
                   output={`\\widehat\\eta_{${layer}}`}
                   outputWidth="32"
                   rows={count}
-                  scale={`\\eta_{${layer}}=\\widehat\\eta_{${layer}}/\\sqrt{32}`}
+                  scale={`\\eta_{${layer}}=\\frac{\\widehat\\eta_{${layer}}}{\\sqrt{32}}`}
                 />
                 {mode === "full" ? (
                   <IndexProjection
@@ -6281,6 +6337,21 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     inputSymbol={"\\bar g"}
                     outputSymbol={"\\widehat k^I"}
                     title="压缩潜向量 → 索引 Key"
+                    sourceNote={
+                      <>
+                        来源：上方 Layer {kvSource} Compressor，读取{" "}
+                        <MathFormula tex={`X_{${kvSource}}`} />。
+                        <div>
+                          {compressionRatioForLayer(kvSource) === 2
+                            ? "每行先投影到 512 维，相邻两行逐元素加权汇合，再归一化；一行代表一组完整的两个 token。"
+                            : "每行投影到 512 维后归一化；压缩比 1，保留每个 token 一行。"}
+                        </div>
+                        <MathFormula tex={`\\bar G_{${kvSource}}`} /> 是 RoPE
+                        前分支；缓存分支旋转后得到{" "}
+                        <MathFormula tex={`G_{${kvSource}}`} />
+                        ，两者行号 i 对应。
+                      </>
+                    }
                     input={`\\bar G_{${kvSource}}`}
                     inputWidth="512"
                     weight={`W_{${kvSource}}^{IK}`}
@@ -6289,20 +6360,32 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     rows="M"
                   />
                 ) : (
-                  <RowMatrix
-                    tex={`K_{${kvSource}}^{I\\prime}`}
-                    shape="M\times128"
-                    rows={[
-                      "\\mathbf k_1",
-                      "\\mathbf k_2",
-                      "\\vdots",
-                      "\\mathbf k_M",
-                    ]}
-                    rowLength="128"
-                    elementTex={(r, d) =>
-                      `k^I_{${["1", "2", "", "M"][r]},${d}}`
-                    }
-                  />
+                  <div
+                    data-index-cache-origin
+                    style={{ display: "grid", gap: 8 }}
+                  >
+                    <div>
+                      读取 Layer {kvSource} 已生成的索引 Key 缓存；来自该层
+                      Compressor 的{" "}
+                      <MathFormula tex={`\\bar G_{${kvSource}}`} />
+                      ，与全局 <MathFormula tex={`G_{${kvSource}}`} /> 共用行号
+                      i。本层只重算 Q 和 η。
+                    </div>
+                    <RowMatrix
+                      tex={`K_{${kvSource}}^{I\\prime}`}
+                      shape="M\times128"
+                      rows={[
+                        "\\mathbf k_1",
+                        "\\mathbf k_2",
+                        "\\vdots",
+                        "\\mathbf k_M",
+                      ]}
+                      rowLength="128"
+                      elementTex={(r, d) =>
+                        `k^I_{${["1", "2", "", "M"][r]},${d}}`
+                      }
+                    />
+                  </div>
                 )}
               </div>
               <strong>② K 逐行归一化 → Q / K 位置旋转</strong>
@@ -9126,6 +9209,12 @@ export function buildGraph(
       );
     if (mode === "full" || mode === "reindex")
       edges.push(
+        mathEdge("norm-index-weights", "norm1", "indexer", `X_{${layer}}`, {
+          sourceHandle: "index-weights",
+          targetHandle: "weight-input",
+          style: { stroke: COLORS.blue, strokeWidth: 2.2 },
+          markerEnd: architectureArrowMarker(COLORS.blue),
+        }),
         mathEdge(
           "q-low-rank-indexer",
           "q-rmsnorm",

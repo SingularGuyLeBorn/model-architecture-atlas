@@ -171,6 +171,23 @@ it("Compressor 的归一化分支与缓存矩阵使用不同真实出口", () =>
   }
 });
 
+it("Indexer 权重输入直接来自归一化 X，复用层不重复接入", () => {
+  for (const layer of [3, 15, 25, 29]) {
+    const edge = buildGraph(layer).edges.find(
+      (edge) => edge.id === "norm-index-weights",
+    );
+    expect(edge).toMatchObject({
+      source: "norm1",
+      target: "indexer",
+      sourceHandle: "index-weights",
+      targetHandle: "weight-input",
+    });
+  }
+  expect(
+    buildGraph(4).edges.some((edge) => edge.id === "norm-index-weights"),
+  ).toBe(false);
+});
+
 it("全层箭头独立于线宽，箭翼不占满相邻通道，转角到端口留足直线", () => {
   const marker = architectureArrowMarker("#123456");
   expect(marker.markerUnits).toBe("userSpaceOnUse");

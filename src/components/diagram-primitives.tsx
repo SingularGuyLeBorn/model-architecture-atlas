@@ -413,6 +413,7 @@ export function RowMatrix({
   rowLength,
   elementTex,
   elementColumns,
+  columnLabels,
   headerLineHeight,
   contentWidth = true,
 }: {
@@ -424,6 +425,7 @@ export function RowMatrix({
   rowLength?: string;
   elementTex?: (rowIndex: number, column: string) => string;
   elementColumns?: string[];
+  columnLabels?: string[];
   headerLineHeight?: number;
   contentWidth?: boolean;
 }) {
@@ -468,6 +470,23 @@ export function RowMatrix({
             : undefined,
         }}
       >
+        {columnSubgrid && columnLabels && (
+          <div
+            data-matrix-column-labels
+            style={{
+              display: "grid",
+              gridColumn: "1 / -1",
+              gridTemplateColumns: "subgrid",
+              fontSize: 10,
+              textAlign: "center",
+            }}
+          >
+            <span>查询行</span>
+            {columnLabels.map((label, i) => (
+              <MathFormula key={i} tex={label} />
+            ))}
+          </div>
+        )}
         {rows.map((row, index) =>
           row === "\\vdots" ? (
             <div

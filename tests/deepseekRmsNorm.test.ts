@@ -9,14 +9,33 @@ import {
 } from "../src/compositions/DeepSeekV41Layer";
 
 describe("RMSNorm 的逐行结构与来源", () => {
-  it("Indexer 展示的三个 Head 分别接入方形累加器", () => {
+  it("Indexer 的首、次、末候选列分别汇合三个代表 Head", () => {
     const root = document.createElement("div");
     root.innerHTML = renderToStaticMarkup(
       createElement(IndexScoreProcess, { layer: 15, kvSource: 15 }),
     );
-    expect(root.querySelectorAll("[data-sum-input]")).toHaveLength(3);
-    expect(root.querySelector("[data-sum-node]")).not.toBeNull();
+    expect(root.querySelectorAll("[data-sum-input]")).toHaveLength(9);
+    expect(root.querySelectorAll("[data-sum-node]")).toHaveLength(3);
     expect(root.querySelector("[data-sum-output]")).not.toBeNull();
+    for (const i of ["1", "2", "M"]) {
+      const column = root.querySelector(`[data-index-score-column="${i}"]`)!;
+      expect(column.querySelectorAll("[data-sum-input]")).toHaveLength(3);
+      expect(column.querySelectorAll("[data-sum-omitted]")).toHaveLength(1);
+      const formulas = [...column.querySelectorAll("[aria-label]")].map((el) =>
+        el.getAttribute("aria-label"),
+      );
+      for (const h of [1, 2, 32])
+        expect(formulas).toContain(`\\eta_{15,t,${h}}\\cdot a^I_{${h},t,${i}}`);
+      expect(formulas).toContain(
+        `s_{15,t,${i}}=\\sum_{h=1}^{32}\\eta_{15,t,h}\\cdot a^I_{h,t,${i}}`,
+      );
+    }
+    expect(
+      root.querySelector("[data-matrix-column-labels]")?.textContent,
+    ).toContain("缓存行");
+    expect(
+      root.querySelector("[data-index-score-axes]")?.textContent,
+    ).toContain("每一行独立选 Top-K");
     const products = [
       ...root.querySelectorAll("[data-index-head] [aria-label]"),
     ]
