@@ -47,6 +47,9 @@ a {
   overflow: auto;
 }
 .navigation-rail {
+  --rail-width: 258px;
+  width: 52px;
+  overflow: clip;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -60,10 +63,10 @@ a {
   flex: 1;
   min-height: 0;
 }
-.navigation-rail[data-expanded="false"] .sidebar {
-  display: none;
-}
 .inspector-rail {
+  --rail-width: clamp(340px, 29vw, 460px);
+  width: 52px;
+  overflow: clip;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -71,16 +74,65 @@ a {
   background: #fbfaf7;
 }
 .inspector-rail[data-expanded="true"] {
-  width: clamp(340px, 29vw, 460px);
+  width: var(--rail-width);
 }
 .inspector-rail .module-inspector {
   flex: 1;
+  width: 100%;
+}
+.inspector-slide-body {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  width: var(--rail-width);
+}
+/* [OM-FREEPLAY] 240ms 缓出；轨道和内容同步滑动，正文始终拥有独立空间。 */
+.navigation-rail,
+.inspector-rail,
+.source-rail {
+  transition:
+    width 240ms cubic-bezier(0.2, 0, 0, 1),
+    flex-basis 240ms cubic-bezier(0.2, 0, 0, 1),
+    visibility 240ms;
+}
+.navigation-rail[data-expanded="true"],
+.source-rail[data-expanded="true"] {
+  width: var(--rail-width);
+}
+.navigation-rail .sidebar,
+.inspector-slide-body,
+.source-drawer {
+  transition:
+    transform 240ms cubic-bezier(0.2, 0, 0, 1),
+    visibility 240ms;
+}
+.navigation-rail[data-expanded="false"] .sidebar {
+  transform: translateX(-100%);
+  visibility: hidden;
+}
+.inspector-rail[data-expanded="false"] .inspector-slide-body,
+.source-rail[data-expanded="false"] .source-drawer {
+  transform: translateX(100%);
+  visibility: hidden;
+}
+@media (min-width: 761px) and (max-width: 1150px) {
+  .navigation-rail {
+    --rail-width: 220px;
+  }
 }
 .inspector-preview-trigger {
   align-self: flex-end;
   margin: 8px;
 }
 @media (max-width: 900px) {
+  .diagram-workspace {
+    flex-direction: column;
+  }
+  .inspector-rail {
+    --rail-width: 100%;
+    width: 100%;
+    flex: 0 0 48px;
+  }
   .inspector-rail[data-expanded="true"] {
     width: 100%;
     flex: 0 0 42%;
@@ -89,12 +141,20 @@ a {
 @media (max-width: 760px) {
   .navigation-rail {
     width: 0;
+    overflow: visible;
   }
-  .navigation-toggle {
+  .navigation-rail .navigation-toggle {
     display: none;
   }
-  .navigation-rail[data-expanded="false"] .sidebar.open {
-    display: block;
+  .navigation-rail[data-expanded] {
+    width: 0;
+  }
+  .navigation-rail .sidebar:not(.open) {
+    visibility: hidden;
+  }
+  .navigation-rail[data-expanded] .sidebar.open {
+    transform: translateX(0);
+    visibility: visible;
   }
 }
 .brand {
@@ -645,21 +705,46 @@ h1 {
   overflow: auto;
 }
 .source-rail {
+  --rail-width: clamp(280px, 29vw, 460px);
+  width: 52px;
+  overflow: clip;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   min-height: 0;
+}
+.source-rail[data-available="false"] {
+  width: 0;
+  visibility: hidden;
 }
 .source-rail > button {
   align-self: flex-end;
   margin: 8px;
 }
 @media (max-width: 760px) {
-  .source-rail:has(.source-drawer) {
-    position: fixed;
-    inset: 50% 0 0;
-    z-index: 45;
-    background: #fff;
+  .app-shell:has(.source-rail[data-available="true"]) {
+    flex-wrap: wrap;
+  }
+  .app-shell:has(.source-rail[data-available="true"]) > .main {
+    flex-basis: 100%;
+    min-height: 0;
+    height: 55%;
+  }
+  .source-rail[data-expanded] {
+    width: 100%;
+    --rail-width: 100%;
+    height: 45%;
+  }
+  .source-rail[data-expanded="false"] {
+    height: 48px;
+  }
+  .source-rail[data-available="false"] {
+    width: 0;
+    height: 0;
+  }
+  .app-shell:has(.source-rail[data-available="true"][data-expanded="false"])
+    > .main {
+    height: calc(100% - 48px);
   }
   .source-rail .source-drawer {
     width: 100%;
@@ -669,6 +754,16 @@ h1 {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .navigation-rail,
+  .inspector-rail,
+  .source-rail,
+  .navigation-rail .sidebar,
+  .inspector-slide-body,
+  .source-drawer {
+    transition: none;
+  }
 }
 .source-drawer h2 {
   font-size: 20px;

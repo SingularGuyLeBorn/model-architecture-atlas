@@ -45,7 +45,8 @@ test("内部元素与汇合线可独立点击，关闭面板后保持关闭", as
     return { x: p.x, y: p.y };
   });
   await page.mouse.click(point.x, point.y);
-  await expect(panel).toHaveCount(0);
+  await expect(panel).toBeHidden();
+  await expect(panel.locator("..")).toHaveAttribute("inert", "");
   await expect(sum.locator('[data-sum-input="0"]')).toHaveAttribute(
     "data-internal-selected",
     "true",

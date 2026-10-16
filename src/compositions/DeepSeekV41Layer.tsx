@@ -53,6 +53,7 @@ import {
   type InspectorState,
   type ModuleConnection,
 } from "../components/ModuleInspector";
+import { useRailIntent } from "../components/useRailIntent";
 import {
   Background,
   ConnectionMode,
@@ -9046,16 +9047,25 @@ function DiagramCanvas({
     mode: "auto",
     nodeId: null,
   } satisfies InspectorState);
+  const inspectorIntent = useRailIntent(
+    () => dispatchInspector({ type: "preview" }),
+    () => dispatchInspector({ type: "leave" }),
+    inspector.mode !== "open",
+  );
+  const dismissInspectorPreview = inspectorIntent.dismiss;
+  const cancelInspectorIntent = inspectorIntent.cancel;
+  const inspectorTriggerRef = useRef<HTMLButtonElement>(null);
   const selectedInternalRef = useRef<Element | null>(null);
   useEffect(
     () => () =>
       selectedInternalRef.current?.removeAttribute("data-internal-selected"),
     [],
   );
-  const closeInspector = useCallback(
-    () => dispatchInspector({ type: "close" }),
-    [],
-  );
+  const closeInspector = useCallback(() => {
+    inspectorTriggerRef.current?.focus({ preventScroll: true });
+    dismissInspectorPreview();
+    dispatchInspector({ type: "close" });
+  }, [dismissInspectorPreview]);
   const inspectedNode = nodes.find((node) => node.id === inspector.nodeId);
   let moduleNode = inspectedNode;
   while (moduleNode?.parentId)
@@ -9228,6 +9238,7 @@ function DiagramCanvas({
 
   useEffect(() => {
     let graph = initialGraph;
+    cancelInspectorIntent();
     dispatchInspector({ type: "context-change" });
     selectedInternalRef.current?.removeAttribute("data-internal-selected");
     selectedInternalRef.current = null;
@@ -9273,7 +9284,7 @@ function DiagramCanvas({
     resetConnectionRef.current?.();
     setClickConnectionPreview(null);
     setHistoryRevision((value) => value + 1);
-  }, [initialGraph, storageKey, geometryCache]);
+  }, [initialGraph, storageKey, geometryCache, cancelInspectorIntent]);
 
   // 内容尺寸由 React Flow 的 ResizeObserver 测量；下游位置由同一布局函数推导。
   // 只移动自动布局基线的差值，保留用户拖动产生的偏移，不清除已保存的布局。
@@ -9534,18 +9545,41 @@ function DiagramCanvas({
   }, []);
 
   useLayoutEffect(() => {
-    if ((inspector.mode !== "open" && !inspector.preview) || !inspector.nodeId)
-      return;
     const canvas = canvasRef.current;
     if (!canvas) return;
+    let previousWidth = canvas.clientWidth;
+    let previousHeight = canvas.clientHeight;
     const reveal = () => {
       const flow = flowRef.current,
-        node = flow?.getInternalNode(inspector.nodeId!);
-      if (!flow || !node?.measured.width || !node.measured.height) return;
+        node = inspector.nodeId
+          ? flow?.getInternalNode(inspector.nodeId)
+          : undefined;
       // 独立面板改变的是画布可用尺寸；按真实新尺寸摆放所选框，不用浮层盖住它。
       const width = canvas.clientWidth,
         height = canvas.clientHeight;
       if (!width || !height) return;
+      const centerDx = (width - previousWidth) / 2;
+      const centerDy = (height - previousHeight) / 2;
+      previousWidth = width;
+      previousHeight = height;
+      if (!flow) return;
+      if (!node?.measured.width || !node.measured.height) {
+        // [OM-FREEPLAY] 无选中对象时保留正在阅读的画布中心与倍率，避免侧栏把当前区域挤出视野。
+        if (centerDx || centerDy) {
+          const viewport = flow.getViewport();
+          flow
+            .setViewport(
+              {
+                ...viewport,
+                x: viewport.x + centerDx,
+                y: viewport.y + centerDy,
+              },
+              { duration: 0 },
+            )
+            .catch(() => {});
+        }
+        return;
+      }
       // [OM-FREEPLAY] 内部选择保留阅读缩放，仅把当前对象移入可视区，避免为父框整体缩小画布。
       const selectedObject = selectedInternalRef.current;
       if (inspector.detail && selectedObject?.isConnected) {
@@ -9990,39 +10024,44 @@ function DiagramCanvas({
       <div
         className="inspector-rail"
         data-expanded={inspector.mode === "open" || !!inspector.preview}
-        onMouseLeave={() => dispatchInspector({ type: "leave" })}
+        onMouseEnter={inspectorIntent.cancel}
+        onMouseLeave={inspectorIntent.leave}
         onClick={(event) => {
           if ((event.target as HTMLElement).closest("a[href]"))
-            dispatchInspector({ type: "leave" });
+            inspectorIntent.dismiss();
         }}
-        onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget))
-            dispatchInspector({ type: "leave" });
-        }}
+        onBlur={inspectorIntent.blur}
         onKeyDown={(event) => {
           if (event.key === "Escape") closeInspector();
         }}
       >
-        {inspector.mode !== "open" && (
-          <button
-            className="inspector-preview-trigger"
-            aria-label="固定展开右栏"
-            aria-expanded={!!inspector.preview}
-            onMouseEnter={() => dispatchInspector({ type: "preview" })}
-            onFocus={() => dispatchInspector({ type: "preview" })}
-            onClick={() => dispatchInspector({ type: "open" })}
-          >
-            <BookOpen size={16} />
-          </button>
-        )}
-        {(inspector.mode === "open" || inspector.preview) && (
+        <button
+          className="inspector-preview-trigger"
+          ref={inspectorTriggerRef}
+          aria-label={inspector.mode === "open" ? "收起右栏" : "固定展开右栏"}
+          aria-expanded={inspector.mode === "open" || !!inspector.preview}
+          onMouseEnter={inspectorIntent.enter}
+          onMouseLeave={inspectorIntent.cancelOpening}
+          onFocus={inspectorIntent.focus}
+          onClick={() => {
+            inspectorIntent.dismiss();
+            if (inspector.mode === "open") closeInspector();
+            else dispatchInspector({ type: "open" });
+          }}
+        >
+          <BookOpen size={16} />
+        </button>
+        <div
+          className="inspector-slide-body"
+          inert={inspector.mode !== "open" && !inspector.preview}
+        >
           <ModuleInspector
             data={inspectedData}
             detail={inspector.detail}
             connections={moduleConnections}
             onClose={closeInspector}
           />
-        )}
+        </div>
       </div>
     </div>
   );

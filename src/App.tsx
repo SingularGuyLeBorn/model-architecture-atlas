@@ -19,6 +19,7 @@ import {
 import { recipeFor, type Phase } from "./templates/recipes";
 import { RecipeCanvas } from "./templates/RecipeCanvas";
 import { MathFormula } from "./components/diagram-primitives";
+import { useRailIntent } from "./components/useRailIntent";
 
 const DetailedLayer = lazy(() =>
   import("./compositions/DeepSeekV41Layer").then((module) => ({
@@ -44,14 +45,26 @@ export function App() {
   const [menu, setMenu] = useState(false);
   const [navPinned, setNavPinned] = useState(true);
   const [navPreview, setNavPreview] = useState(false);
+  const navIntent = useRailIntent(
+    () => setNavPreview(true),
+    () => setNavPreview(false),
+    !navPinned,
+  );
+  const sourceIntent = useRailIntent(
+    () => setSourcePreview(true),
+    () => setSourcePreview(false),
+    !sources,
+  );
   useEffect(() => {
     const syncRoute = () => {
+      navIntent.dismiss();
+      sourceIntent.dismiss();
       setRoute(routeFromUrl());
       setLayer(1);
     };
     window.addEventListener("hashchange", syncRoute);
     return () => window.removeEventListener("hashchange", syncRoute);
-  }, []);
+  }, [navIntent.dismiss, sourceIntent.dismiss]);
   const model = models.find((item) => item.id === route.id)!;
   const recipe = useMemo(
     () =>
@@ -66,8 +79,8 @@ export function App() {
     setRoute({ id, chapter: selected });
     setLayer(1);
     setMenu(false);
-    setNavPreview(false);
-    setSourcePreview(false);
+    navIntent.dismiss();
+    sourceIntent.dismiss();
     history.replaceState(null, "", `#model=${id}&chapter=${selected}`);
   };
   return (
@@ -75,15 +88,14 @@ export function App() {
       <div
         className="navigation-rail"
         data-expanded={navPinned || navPreview}
-        onMouseLeave={() => setNavPreview(false)}
-        onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget))
-            setNavPreview(false);
-        }}
+        onMouseEnter={navIntent.cancel}
+        onMouseLeave={navIntent.leave}
+        onBlur={navIntent.blur}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             setNavPinned(false);
-            setNavPreview(false);
+            event.currentTarget.querySelector("button")?.focus();
+            navIntent.dismiss();
           }
         }}
       >
@@ -91,15 +103,12 @@ export function App() {
           className="navigation-toggle icon-button"
           aria-label={navPinned ? "收起左栏" : "固定展开左栏"}
           aria-expanded={navPinned || navPreview}
-          onMouseEnter={() => {
-            if (!navPinned) setNavPreview(true);
-          }}
-          onFocus={() => {
-            if (!navPinned) setNavPreview(true);
-          }}
+          onMouseEnter={navIntent.enter}
+          onMouseLeave={navIntent.cancelOpening}
+          onFocus={navIntent.focus}
           onClick={() => {
             setNavPinned(!navPinned);
-            setNavPreview(false);
+            navIntent.dismiss();
           }}
         >
           {navPinned ? (
@@ -108,7 +117,10 @@ export function App() {
             <PanelLeftOpen size={18} />
           )}
         </button>
-        <aside className={`sidebar ${menu ? "open" : ""}`}>
+        <aside
+          inert={!navPinned && !navPreview && !menu}
+          className={`sidebar ${menu ? "open" : ""}`}
+        >
           <div className="brand">
             <Layers size={26} />
             <div>
@@ -270,79 +282,80 @@ export function App() {
           </ReactFlowProvider>
         </section>
       </main>
-      {(route.chapter !== "layer" || sources) && (
-        <div
-          className="source-rail"
-          onMouseLeave={() => setSourcePreview(false)}
-          onClick={(event) => {
-            if ((event.target as HTMLElement).closest("a[href]"))
-              setSourcePreview(false);
+      <div
+        className="source-rail"
+        data-available={route.chapter !== "layer" || sources}
+        inert={route.chapter === "layer" && !sources}
+        data-expanded={sources || sourcePreview}
+        onMouseEnter={sourceIntent.cancel}
+        onMouseLeave={sourceIntent.leave}
+        onBlur={sourceIntent.blur}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            sourceIntent.dismiss();
+            setSources(false);
+          }
+        }}
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest("a[href]"))
+            sourceIntent.dismiss();
+        }}
+      >
+        <button
+          className="icon-button"
+          aria-label={sources ? "收起来源栏" : "固定展开来源栏"}
+          aria-expanded={sources || sourcePreview}
+          onMouseEnter={sourceIntent.enter}
+          onMouseLeave={sourceIntent.cancelOpening}
+          onFocus={sourceIntent.focus}
+          onClick={() => {
+            sourceIntent.dismiss();
+            setSources(!sources);
           }}
         >
-          {!sources && (
+          <BookOpen size={18} />
+        </button>
+        <aside className="source-drawer" inert={!sources && !sourcePreview}>
+          <header>
+            <h2>核对依据</h2>
             <button
               className="icon-button"
-              aria-label="固定展开来源栏"
-              aria-expanded={sourcePreview}
-              onMouseEnter={() => setSourcePreview(true)}
-              onFocus={() => setSourcePreview(true)}
+              aria-label="关闭来源"
               onClick={() => {
-                setSourcePreview(false);
-                setSources(true);
+                sourceIntent.dismiss();
+                setSources(false);
               }}
             >
-              <BookOpen size={18} />
+              <X size={20} />
             </button>
-          )}
-          {(sources || sourcePreview) && (
-            <aside className="source-drawer">
-              <header>
-                <h2>核对依据</h2>
-                <button
-                  className="icon-button"
-                  aria-label="关闭来源"
-                  onClick={() => {
-                    setSourcePreview(false);
-                    setSources(false);
-                  }}
-                >
-                  <X size={20} />
-                </button>
-              </header>
-              <p>数学关系与官方来源。数值例子用于演示计算过程。</p>
-              {(
-                recipe?.references ?? [
-                  { title: "官方配置", url: model.provenance.url },
-                  {
-                    title: "官方推理实现",
-                    url: `https://huggingface.co/deepseek-ai/${model.source}/tree/main/inference`,
-                  },
-                ]
-              ).map((ref) => (
-                <a
-                  key={ref.url}
-                  href={ref.url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {ref.title}
-                  <ExternalLink size={14} />
-                </a>
-              ))}
-              {recipe?.stages
-                .filter((stage) => stage.formula)
-                .map((stage) => (
-                  <section key={stage.id}>
-                    <h3>{stage.title}</h3>
-                    <MathFormula tex={stage.formula!} display />
-                  </section>
-                ))}
-              <p>校验日期：{model.provenance.checkedAt}</p>
-              <pre>{JSON.stringify(model.config, null, 2)}</pre>
-            </aside>
-          )}
-        </div>
-      )}
+          </header>
+          <p>数学关系与官方来源。数值例子用于演示计算过程。</p>
+          {(
+            recipe?.references ?? [
+              { title: "官方配置", url: model.provenance.url },
+              {
+                title: "官方推理实现",
+                url: `https://huggingface.co/deepseek-ai/${model.source}/tree/main/inference`,
+              },
+            ]
+          ).map((ref) => (
+            <a key={ref.url} href={ref.url} target="_blank" rel="noreferrer">
+              {ref.title}
+              <ExternalLink size={14} />
+            </a>
+          ))}
+          {recipe?.stages
+            .filter((stage) => stage.formula)
+            .map((stage) => (
+              <section key={stage.id}>
+                <h3>{stage.title}</h3>
+                <MathFormula tex={stage.formula!} display />
+              </section>
+            ))}
+          <p>校验日期：{model.provenance.checkedAt}</p>
+          <pre>{JSON.stringify(model.config, null, 2)}</pre>
+        </aside>
+      </div>
     </div>
   );
 }
