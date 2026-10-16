@@ -800,22 +800,30 @@ export function StackedSum({
   omittedBefore?: number;
 }) {
   const { ref, height } = useDiagramSize();
-  const slots = children.length + (omittedBefore === undefined ? 0 : 1);
+  const omittedHeight = omittedBefore === undefined ? 0 : 18;
+  const tracks = children.flatMap((_, i) =>
+    i === omittedBefore ? ["18px", "minmax(0,1fr)"] : ["minmax(0,1fr)"],
+  );
   return (
     <div
       data-stacked-sum
       style={{
         display: "grid",
-        gridTemplateColumns: "minmax(0,1fr) 64px",
+        gridTemplateColumns: "max-content 64px",
         gridTemplateRows: "1fr 22px",
         minWidth: 0,
+        width: "fit-content",
+        maxWidth: "100%",
+        alignSelf: "center",
+        justifySelf: "center",
+        marginInline: "auto",
         flex: 1,
       }}
     >
       <div
         style={{
           display: "grid",
-          gridTemplateRows: `repeat(${slots},minmax(0,1fr))`,
+          gridTemplateRows: tracks.join(" "),
         }}
       >
         {children.map((child, i) => (
@@ -829,6 +837,7 @@ export function StackedSum({
               </div>
             )}
             <div
+              data-sum-operand={i}
               style={{
                 padding: "4px 0",
                 display: "flex",
@@ -848,9 +857,11 @@ export function StackedSum({
           style={{ position: "absolute", width: "100%", height: "100%" }}
         >
           {children.map((_, i) => {
-            const slot =
-              i + (omittedBefore !== undefined && i >= omittedBefore ? 1 : 0);
-            const startY = ((slot + 0.5) * height) / slots;
+            const startY =
+              ((i + 0.5) * (height - omittedHeight)) / children.length +
+              (omittedBefore !== undefined && i >= omittedBefore
+                ? omittedHeight
+                : 0);
             const offset =
               children.length === 1
                 ? 0

@@ -1648,7 +1648,7 @@ export function MhcPost({
                       data-mhc-residual-product={`${j}-${k}`}
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "38px 18px minmax(0,1fr)",
+                        gridTemplateColumns: "max-content 18px max-content",
                         gap: 4,
                         alignItems: "center",
                       }}
@@ -3908,7 +3908,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
               key={row}
               style={{
                 display: "grid",
-                gridTemplateColumns: "70px 24px minmax(0,1fr)",
+                gridTemplateColumns: "max-content 24px max-content",
                 gap: 6,
                 alignItems: "center",
               }}
@@ -4250,6 +4250,8 @@ export function Expert({
                     key={tex}
                     data-silu-operand
                     style={{
+                      background:
+                        tex === "z" ? COLORS.greenSoft : COLORS.cyanSoft,
                       width: "fit-content",
                       justifySelf: "center",
                       border: `1px solid ${frameColor(color)}`,

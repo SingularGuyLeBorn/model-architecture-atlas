@@ -22,12 +22,31 @@ test("简单平方合并、汇入线正交、透明矩阵保留有色元素", as
       await expect(path).toHaveAttribute("d", /^M[^LQC]*[HV]/);
     }
     if (id === "hc-mix-f") {
+      const rowNorm = node.locator("[data-mhc-row-normalize]");
+      const formulas = await rowNorm
+        .locator("[aria-label]")
+        .evaluateAll((elements) =>
+          elements.map((el) => el.getAttribute("aria-label")),
+        );
+      expect(formulas).not.toContain("\\downarrow\\; -m_1");
+      expect(formulas).toContain("e_{1j}=\\exp(a^C_{1j}-m_1),\\quad j=1,2,3,4");
       await expect(node.locator("[data-mhc-sigmoid] [aria-label]")).toHaveCount(
         1,
       );
       await expect(
         node.locator("[data-mhc-sigmoid] [aria-label]"),
       ).toHaveAttribute("aria-label", "\\sigma(a)=\\frac{1}{1+e^{-a}}");
+    }
+    if (id === "experts") {
+      const operands = node.locator("[data-silu-operand]");
+      expect(await operands.count()).toBeGreaterThan(0);
+      for (const operand of await operands.all()) {
+        const fill = await operand.evaluate(
+          (el) => getComputedStyle(el).backgroundColor,
+        );
+        expect(fill).not.toBe("rgba(0, 0, 0, 0)");
+        expect(fill).not.toBe("rgb(255, 255, 255)");
+      }
     }
     if (id === "concat") {
       const tensors = node.locator("[data-attention-tensor]");

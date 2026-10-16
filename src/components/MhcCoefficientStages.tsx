@@ -544,15 +544,12 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
             elementTex={(j) => `a^C_{1${j}}`}
             tone={MHC_AFFINE_TONES.result}
           />
-          <span>先减去本行最大值 m₁，避免指数溢出</span>
+          <span>m₁ 是本行最大值；各项先减去 m₁ 再取指数，得到 e。</span>
+          <MathFormula tex="e_{1j}=\exp(a^C_{1j}-m_1),\quad j=1,2,3,4" />
           <div style={grid4}>
             {copies.map((j) => (
               <div key={j} style={{ display: "grid", gap: 5 }}>
-                <Operator tex="\downarrow\; -m_1" />
-                <Box tone={MHC_AFFINE_TONES.result}>
-                  <MathFormula tex={`a^C_{1${j}}-m_1`} />
-                </Box>
-                <Operator tex="\downarrow\;\exp" />
+                <Operator tex="\downarrow" />
                 <Box tone="violet">
                   <MathFormula tex={`e_{1${j}}`} />
                 </Box>
