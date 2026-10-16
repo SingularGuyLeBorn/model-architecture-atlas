@@ -531,6 +531,7 @@ function routeScore(
   obstacles: Obstacle[],
   reserved: ReservedSegment[],
   upperBound = Infinity,
+  completePoints = points,
 ) {
   let crossings = 0;
   let crowding = 0;
@@ -540,7 +541,7 @@ function routeScore(
       Math.abs(points[index].x - points[index - 1].x) +
       Math.abs(points[index].y - points[index - 1].y);
   // 长度与折点已经给出成本下界；劣于当前解的候选无需再逐个检查全图障碍。
-  const complexity = routeComplexityScore(points.length, length);
+  const complexity = routeComplexityScore(completePoints.length, length);
   if (complexity >= upperBound) return Infinity;
   for (let index = 0; index < points.length - 1; index += 1) {
     const start = points[index];
@@ -719,9 +720,13 @@ function defaultOrthogonalPoints(
     const points = simplifyOrthogonalPoints(candidate);
     // 端口引入段也是路径约束：禁止先越过引入点，再沿原线倒车形成箭头尾刺。
     // 在候选阶段拒绝，不能事后删点破坏落线方向或用户保存的折点。
-    if (ports && hasRouteBacktrack([ports.source, ...points, ports.target]))
-      return;
-    const score = routeScore(points, obstacles, reserved, bestScore);
+    const complete = ports
+      ? simplifyOrthogonalPoints([ports.source, ...points, ports.target])
+      : points;
+    if (hasRouteBacktrack(complete)) return;
+    // 折点按实际出线到落线的完整路径计算，端口引出段不能在评分时被漏掉。
+    // 避障仍检查框外中段，首尾引出段允许穿出自身所属框。
+    const score = routeScore(points, obstacles, reserved, bestScore, complete);
     if (score < bestScore) {
       best = points;
       bestScore = score;
@@ -756,6 +761,40 @@ function defaultOrthogonalPoints(
         { x: targetX, y: targetY },
       ]);
     }
+  // 两端已有扇出通道时，出线高度和入线高度必须能独立选择。
+  // 只枚举一个 y 会迫使一端与已有线重叠，即使另一条空闲通道就在旁边。
+  if (bestScore >= 800) {
+    const nearest = (channels: number[], coordinate: number) =>
+      [...channels]
+        .sort((a, b) => Math.abs(a - coordinate) - Math.abs(b - coordinate))
+        .slice(0, 4);
+    const exitYs = nearest(horizontalChannels, sourceY),
+      entryYs = nearest(horizontalChannels, targetY),
+      exitXs = nearest(verticalChannels, sourceX),
+      entryXs = nearest(verticalChannels, targetX);
+    for (const x of nearX)
+      for (const exitY of exitYs)
+        for (const entryY of entryYs)
+          consider([
+            { x: sourceX, y: sourceY },
+            { x: sourceX, y: exitY },
+            { x, y: exitY },
+            { x, y: entryY },
+            { x: targetX, y: entryY },
+            { x: targetX, y: targetY },
+          ]);
+    for (const y of nearY)
+      for (const exitX of exitXs)
+        for (const entryX of entryXs)
+          consider([
+            { x: sourceX, y: sourceY },
+            { x: exitX, y: sourceY },
+            { x: exitX, y },
+            { x: entryX, y },
+            { x: entryX, y: targetY },
+            { x: targetX, y: targetY },
+          ]);
+  }
   return best;
 }
 

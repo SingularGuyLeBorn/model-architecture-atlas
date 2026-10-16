@@ -34,10 +34,14 @@ test("所有纵向求和线贴合真实输入，乘积行与省略行保持紧�
                 const segments = path
                   .getAttribute("d")!
                   .match(/^M0 ([\d.-]+) H([\d.-]+) V([\d.-]+) H([\d.-]+)$/);
+                const straight = path
+                  .getAttribute("d")!
+                  .match(/^M0 ([\d.-]+) H([\d.-]+)$/);
                 if (
-                  !segments ||
-                  Number(segments[2]) < 12 ||
-                  Number(segments[4]) - Number(segments[2]) < 10
+                  !straight &&
+                  (!segments ||
+                    Number(segments[2]) < 12 ||
+                    Number(segments[4]) - Number(segments[2]) < 10)
                 )
                   failures.push(`右侧出线或箭头净空不足: ${index}`);
                 const row = sum.querySelector(`[data-sum-operand="${index}"]`)!;

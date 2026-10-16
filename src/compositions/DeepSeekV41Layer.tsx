@@ -588,6 +588,7 @@ export function RmsNormProcess({
   label,
   rowIndex,
   horizontal = false,
+  outputHandle,
 }: {
   input: string;
   output: string;
@@ -597,6 +598,7 @@ export function RmsNormProcess({
   label: string;
   rowIndex?: string;
   horizontal?: boolean;
+  outputHandle?: string;
 }) {
   const { phase } = useExecutionAxis();
   const row =
@@ -629,8 +631,12 @@ export function RmsNormProcess({
       const sourceStage = source
         .closest('[data-rmsnorm-stage="root"]')!
         .getBoundingClientRect();
+      const targetStage = target
+        .closest('[data-rmsnorm-stage="scale"]')!
+        .getBoundingClientRect();
       // 通道位于两段结构之间，不能取两个小框中心的中点而穿过左侧输入矩阵。
-      const mid = ((sourceStage.right - bounds.left) / scale + x2) / 2;
+      const mid =
+        (sourceStage.right + targetStage.left - 2 * bounds.left) / (2 * scale);
       const path = `M${x1} ${y1} H${mid} V${y2} H${x2}`;
       const arrow = `M${x2 - 6} ${y2 - 5} L${x2} ${y2} L${x2 - 6} ${y2 + 5}`;
       setTransfer((current) =>
@@ -918,7 +924,23 @@ export function RmsNormProcess({
             <span>本处只除以均方根，无可学习缩放参数。</span>
           )}
           <FlowStep>各输出行组成</FlowStep>
-          {matrix(output, "y", "green")}
+          <div
+            style={{
+              position: "relative",
+              width: "fit-content",
+              maxWidth: "100%",
+            }}
+          >
+            {matrix(output, "y", "green")}
+            {outputHandle && (
+              <Handle
+                id={outputHandle}
+                type="source"
+                position={Position.Right}
+                style={handle}
+              />
+            )}
+          </div>
         </div>
         {horizontal && transfer && (
           <svg
@@ -5572,12 +5594,6 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           position={Position.Top}
           style={handle}
         />
-        <Handle
-          id="to-indexer"
-          type="source"
-          position={Position.Bottom}
-          style={handle}
-        />
         <Title>
           {writesKv ? (
             <>全局 KV 生成 · Layer {layer} Compressor</>
@@ -5832,6 +5848,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 gamma={`\\boldsymbol\\gamma_{${layer}}^c`}
                 label="压缩 KV"
                 horizontal
+                outputHandle="to-indexer"
               />
               <FlowStep>
                 <MathFormula tex={`\\bar G_{${layer}}`} /> 分支送入
@@ -5845,20 +5862,47 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 compact
               />
             </>
+          ) : mode === "reindex" ? (
+            <div style={{ position: "relative", width: "fit-content" }}>
+              <Box tone="blue">
+                <strong>读取源层 Indexer K 缓存</strong>
+                <MathFormula tex={`K_{${kvSource}}^{I\\prime}`} />
+              </Box>
+              <Handle
+                id="to-indexer"
+                type="source"
+                position={Position.Right}
+                style={handle}
+              />
+            </div>
           ) : (
             <Box tone="blue">
               <strong>读取源层输出矩阵</strong>
             </Box>
           )}
-          <Matrix
-            tex={`G_{${kvSource}}`}
-            shape={`M\\times512,\\;M=\\lfloor ${phase === "prefill" ? "N" : "t"}/${ratio}\\rfloor`}
-            rowTex={(row) => `\\mathbf g_{${kvSource},${row}}`}
-            elementTex={(row, column) => `g_{${kvSource},${row},${column}}`}
-            vectorLength="512"
-            lastRow="M"
-            tone="green"
-          />
+          <div
+            style={{
+              position: "relative",
+              width: "fit-content",
+              maxWidth: "100%",
+            }}
+          >
+            <Matrix
+              tex={`G_{${kvSource}}`}
+              shape={`M\\times512,\\;M=\\lfloor ${phase === "prefill" ? "N" : "t"}/${ratio}\\rfloor`}
+              rowTex={(row) => `\\mathbf g_{${kvSource},${row}}`}
+              elementTex={(row, column) => `g_{${kvSource},${row},${column}}`}
+              vectorLength="512"
+              lastRow="M"
+              tone="green"
+            />
+            <Handle
+              id="global-kv-out"
+              type="source"
+              position={Position.Bottom}
+              style={handle}
+            />
+          </div>
         </div>
       </div>
     );
@@ -8672,7 +8716,7 @@ export function buildGraph(
         "compressor",
         "global-select",
         `G_{${kvSource}}`,
-        { sourceHandle: "to-indexer", targetHandle: "matrix" },
+        { sourceHandle: "global-kv-out", targetHandle: "matrix" },
       ),
     );
     edges.push(

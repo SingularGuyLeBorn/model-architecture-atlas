@@ -45,6 +45,47 @@ it("无遮挡右出上入优先一次转折，垂直对齐优先零转折", () =
   }
 });
 
+it("绕障时出入通道独立选择，不为少拐而重叠既有线", () => {
+  const existing = [
+    [
+      { x: -60, y: 40 },
+      { x: 300, y: 40 },
+    ],
+    [
+      { x: -60, y: 260 },
+      { x: 300, y: 260 },
+    ],
+  ];
+  const route = automaticOrthogonalPoints(
+    60,
+    0,
+    200,
+    300,
+    Position.Bottom,
+    Position.Top,
+    [{ left: -10, right: 240, top: 80, bottom: 220 }],
+    existing.map(([start, end]) => ({ start, end })),
+    [{ left: -10, right: 110, top: -40, bottom: 40 }],
+    [{ left: 150, right: 250, top: 260, bottom: 340 }],
+  );
+  for (const line of existing) expect(sharedRouteLength(route, line)).toBe(0);
+  expect(route.length - 2).toBe(4);
+  expect(route[1].x).toBe(60);
+  expect(route.at(-2)!.x).toBe(200);
+});
+
+it("Compressor 的归一化分支与缓存矩阵使用不同真实出口", () => {
+  for (const layer of [15, 29]) {
+    const edges = buildGraph(layer).edges;
+    expect(
+      edges.find((edge) => edge.id === "compressor-indexer")?.sourceHandle,
+    ).toBe("to-indexer");
+    expect(
+      edges.find((edge) => edge.id === "indexer-matrix")?.sourceHandle,
+    ).toBe("global-kv-out");
+  }
+});
+
 it("全层箭头独立于线宽，箭翼不占满相邻通道，转角到端口留足直线", () => {
   const marker = architectureArrowMarker("#123456");
   expect(marker.markerUnits).toBe("userSpaceOnUse");

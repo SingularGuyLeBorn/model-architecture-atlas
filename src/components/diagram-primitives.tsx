@@ -886,7 +886,11 @@ export function StackedSum({
               <g key={i}>
                 <path
                   data-sum-input={i}
-                  d={`M0 ${startY} H${laneX} V${y} H${x}`}
+                  d={
+                    Math.abs(startY - y) < 0.01
+                      ? `M0 ${startY} H${x}`
+                      : `M0 ${startY} H${laneX} V${y} H${x}`
+                  }
                   fill="none"
                   stroke={COLORS.cyan}
                   strokeWidth="1.5"
