@@ -12,6 +12,7 @@ import {
   MhcPost,
   MhcPre,
   LayerHandoff,
+  nextLayerDependencies,
   RmsNormProcess,
 } from "../src/compositions/DeepSeekV41Layer";
 
@@ -35,7 +36,7 @@ describe("mHC 与 Engram 的真实主路径", () => {
     "Layer %s 的状态与 p 分框传递，后续先乘再汇合",
     (layer) => {
       const { root, formulas } = render(
-        createElement(LayerHandoff, { layer, count: "N" }),
+        createElement(LayerHandoff, { layer, count: "N", preview: true }),
       );
       expect(
         root
@@ -80,6 +81,14 @@ describe("mHC 与 Engram 的真实主路径", () => {
       expect(has("hc-mix-a", "add1")).toBe(true);
       expect(has("hc-mix-f", "add2")).toBe(true);
       expect(has("hc-mix-f", "output")).toBe(true);
+      expect(graph.nodes.some((node) => node.id === "next-inputs")).toBe(true);
+      expect(
+        graph.edges
+          .filter(
+            (edge) => edge.source === "output" && edge.target === "next-inputs",
+          )
+          .map((edge) => edge.sourceHandle),
+      ).toEqual(["state-next", "pre-next"]);
       expect(has("input", "norm1")).toBe(false);
       expect(has("state1", "norm2")).toBe(false);
       if (hasEngram(layer)) {
@@ -91,6 +100,43 @@ describe("mHC 与 Engram 的真实主路径", () => {
       }
     }
   });
+
+  it.each([
+    [2, null, null, null, null],
+    [3, 3, 3, null, null],
+    [8, null, null, null, null],
+    [14, null, null, null, null],
+    [20, null, null, null, null],
+    [24, 21, null, 21, 21],
+    [25, 21, 25, null, null],
+    [40, null, null, null, null],
+  ])(
+    "Layer %s 的交接清单只列下一层实际读取的共享对象",
+    (layer, kv, indices, indexKey, candidates) => {
+      const dependencies = nextLayerDependencies(layer!);
+      expect(dependencies).toMatchObject({ kv, indices, indexKey, candidates });
+      const { root } = render(
+        createElement(LayerHandoff, {
+          layer: layer!,
+          count: "N",
+          preview: true,
+        }),
+      );
+      for (const [selector, value] of [
+        ["data-next-global-kv", kv],
+        ["data-next-indices", indices],
+        ["data-next-index-key", indexKey],
+        ["data-next-candidates", candidates],
+      ] as const) {
+        expect(root.querySelector(`[${selector}]`) !== null).toBe(
+          value !== null,
+        );
+      }
+      expect(root.querySelector("[data-layer-next-use]")).not.toBeNull();
+      expect(nextLayerDependencies(14).engram).toBe(true);
+      expect(nextLayerDependencies(40).next).toBeNull();
+    },
+  );
 
   it("四路混合完整展示 4×4 矩阵、20 轮归一化，以及向下一子层传递的 p", () => {
     const { root, formulas } = render(

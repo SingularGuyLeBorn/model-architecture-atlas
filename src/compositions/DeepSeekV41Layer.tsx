@@ -12,6 +12,7 @@ import {
   SumCircle,
   SumJunction,
   StackedSum,
+  SerialFlow,
   FeatureVector,
   TensorHeading,
   SplitArrows,
@@ -118,6 +119,7 @@ type NodeKind =
   | "moe-output"
   | "add2"
   | "output"
+  | "next-inputs"
   | "structure"
   | "structure-group"
   | "structure-operator";
@@ -292,6 +294,7 @@ for (const kind of [
   "tensor",
   "state1",
   "output",
+  "next-inputs",
   "add1",
   "add2",
 ] as const)
@@ -335,6 +338,31 @@ function globalIndexSourceLayer(layer: number) {
   if (layer < 33) return 29;
   if (layer < 37) return 33;
   return 37;
+}
+
+// 只列下一子层实际读取的跨层对象；Full 层会重建全局 KV 与索引。
+export function nextLayerDependencies(layer: number) {
+  const next = layer + 1;
+  if (layer === 40)
+    return {
+      next: null,
+      kv: null,
+      indices: null,
+      indexKey: null,
+      candidates: null,
+      engram: false,
+    };
+  const mode = modeForLayer(next);
+  const kv =
+    mode === "reuse" || mode === "reindex" ? globalKvSourceLayer(next) : null;
+  return {
+    next,
+    kv,
+    indices: mode === "reuse" ? globalIndexSourceLayer(next) : null,
+    indexKey: mode === "reindex" ? kv : null,
+    candidates: mode === "reindex" ? 21 : null,
+    engram: hasEngram(next),
+  };
 }
 
 function compressionRatioForLayer(layer: number) {
@@ -1877,11 +1905,14 @@ export function LayerHandoff({
   layer,
   count,
   connected = false,
+  preview = false,
 }: {
   layer: number;
   count: string;
   connected?: boolean;
+  preview?: boolean;
 }) {
+  const dependencies = nextLayerDependencies(layer);
   const next = layer + 1;
   const engram = layer < 40 && hasEngram(next);
   const state =
@@ -1913,6 +1944,14 @@ export function LayerHandoff({
               style={handle}
             />
           )}
+          {connected && !preview && (
+            <Handle
+              id="state-next"
+              type="source"
+              position={Position.Bottom}
+              style={handle}
+            />
+          )}
           <strong>① 四路残差状态 · 来自本层 FFN 回写</strong>
           <StreamTensor layer={layer} stage="\mathrm{out}" count={count} />
         </div>
@@ -1936,7 +1975,29 @@ export function LayerHandoff({
               style={handle}
             />
           )}
+          {connected && !preview && (
+            <Handle
+              id="pre-next"
+              type="source"
+              position={Position.Bottom}
+              style={handle}
+            />
+          )}
           <strong>② 下次汇合的四个权重 · 来自本层 FFN 的 mHC 系数分支</strong>
+          {count !== "1" && (
+            <RowMatrix
+              tex={`P_{${layer}}^{F}`}
+              shape="N\times4"
+              rows={[
+                `\\mathbf p_{${layer},1}^{F}`,
+                `\\mathbf p_{${layer},2}^{F}`,
+                "\\vdots",
+                `\\mathbf p_{${layer},N}^{F}`,
+              ]}
+              rowLength="4"
+              elementTex={(i, d) => `p_{${["1", "2", "", "N"][i]},${d}}`}
+            />
+          )}
           <TensorHeading
             name={`\\mathbf p_{${layer},t}^{F}`}
             shape="1\times4"
@@ -1958,96 +2019,246 @@ export function LayerHandoff({
           </span>
         </div>
       </div>
-      <section
-        data-layer-next-use
-        style={{
-          borderTop: `1px solid ${COLORS.line}`,
-          paddingTop: 12,
-          display: "grid",
-          gap: 0,
-        }}
-      >
-        <strong style={{ marginBottom: 8 }}>
-          {layer === 40
-            ? "主干末尾：四路汇合后进入最终归一化与输出头"
-            : `下一层 Layer ${next}：Attention 前的四路汇合（展开同一 token t）`}
-        </strong>
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            alignItems: "center",
-            marginBottom: 10,
-          }}
-        >
-          <MathFormula tex={`\\mathcal H_{${layer}}^{\\mathrm{out}}`} />
-          <Operator tex="\to" />
-          {layer === 40 ? (
-            <span>直接使用这四路</span>
-          ) : (
-            <>
-              <MathFormula tex={`\\mathcal H_{${next}}^{\\mathrm{in}}`} />
-              {engram && (
-                <>
-                  <Operator tex="\to" />
-                  <Box tone="green">Layer {next} Engram 门控注入</Box>
-                  <Operator tex="\to" />
-                  <MathFormula tex={`\\mathcal H_{${next}}^{E}`} />
-                </>
-              )}
-            </>
-          )}
-          <span>；p 原样交给下方四个乘法，不经过 Engram。</span>
-        </div>
-        <div
-          data-handoff-products
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4,minmax(0,1fr))",
-            gap: 12,
-          }}
-        >
-          {HC_COPIES.map((j) => (
-            <div key={j} style={{ display: "grid", gap: 5 }}>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "42px 20px minmax(0,1fr)",
-                  alignItems: "center",
-                  gap: 5,
-                }}
-              >
-                <Box tone="green">
-                  <MathFormula tex={`p_${j}`} />
-                </Box>
-                <Operator tex="\times" />
-                <FeatureVector
-                  name={state.replace(",j,", `,${j},`)}
-                  scalar={(d) => `h_{${j},${d}}`}
+      {preview && (
+        <>
+          <div
+            data-next-layer-inventory
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2,minmax(0,1fr))",
+              gap: 16,
+            }}
+          >
+            {dependencies.kv !== null && (
+              <div data-next-global-kv style={{ display: "grid", gap: 6 }}>
+                <strong>
+                  共享全局 KV · 来自 Layer {dependencies.kv}，下一层直接读取
+                </strong>
+                <RowMatrix
+                  tex={`G_{${dependencies.kv}}`}
+                  shape="M\times512"
+                  rows={[
+                    "\\mathbf g_1",
+                    "\\mathbf g_2",
+                    "\\vdots",
+                    "\\mathbf g_M",
+                  ]}
+                  rowLength="512"
+                  elementTex={(i, d) => `g_{${["1", "2", "", "M"][i]},${d}}`}
+                />
+                <span>全局历史共有 M 行；与只属于本层的 SWA 窗口分开。</span>
+              </div>
+            )}
+            {dependencies.indices !== null && (
+              <div data-next-indices style={{ display: "grid", gap: 6 }}>
+                <strong>
+                  已选行号 · 来自 Layer {dependencies.indices}
+                  ，下一层复用选择结果
+                </strong>
+                <RowMatrix
+                  tex={`I_{${dependencies.indices}}`}
+                  shape={`${count}\\times K_t`}
+                  rows={
+                    count === "1"
+                      ? [`I_{${dependencies.indices},t}`]
+                      : [
+                          `I_{${dependencies.indices},1}`,
+                          `I_{${dependencies.indices},2}`,
+                          "\\vdots",
+                          `I_{${dependencies.indices},N}`,
+                        ]
+                  }
+                  rowLength="K_t"
+                  elementTex={(i, d) =>
+                    `i_{${count === "1" ? "t" : ["1", "2", "", "N"][i]},${d}}`
+                  }
+                />
+                <span>
+                  每个 token 一组行号，Kₜ ≤ 512；用于从上面的 G 取行，不是 KV
+                  向量。
+                </span>
+              </div>
+            )}
+            {dependencies.indexKey !== null && (
+              <div data-next-index-key style={{ display: "grid", gap: 6 }}>
+                <strong>
+                  Indexer Key 缓存 · 来自 Layer {dependencies.indexKey}
+                  ，下一层重新打分
+                </strong>
+                <RowMatrix
+                  tex={`K_{${dependencies.indexKey}}^{I\\prime}`}
+                  shape="M\times128"
+                  rows={[
+                    "\\mathbf k^I_1",
+                    "\\mathbf k^I_2",
+                    "\\vdots",
+                    "\\mathbf k^I_M",
+                  ]}
+                  rowLength="128"
+                  elementTex={(i, d) => `k^I_{${["1", "2", "", "M"][i]},${d}}`}
                 />
               </div>
-              <Operator tex="\downarrow" />
-              <Box tone="cyan">
-                <MathFormula
-                  tex={`p_${j}\\cdot ${state.replace(",j,", `,${j},`)}`}
+            )}
+            {dependencies.candidates !== null && (
+              <div data-next-candidates style={{ display: "grid", gap: 6 }}>
+                <strong>
+                  候选位置掩码 · Layer 21 生成，下一层只在候选范围重选
+                </strong>
+                <RowMatrix
+                  tex="\mathcal B_{21}"
+                  shape={`${count}\\times M`}
+                  rows={
+                    count === "1"
+                      ? ["\\mathbf b_t"]
+                      : [
+                          "\\mathbf b_1",
+                          "\\mathbf b_2",
+                          "\\vdots",
+                          "\\mathbf b_N",
+                        ]
+                  }
+                  rowLength="M"
+                  elementTex={(i, d) =>
+                    `b_{${count === "1" ? "t" : ["1", "2", "", "N"][i]},${d}}\\in\\{0,1\\}`
+                  }
                 />
-              </Box>
+                <span>
+                  此处 B 表示候选掩码：先选至多 2048 个块，每块 8
+                  个位置，再展开成可选位置。
+                </span>
+              </div>
+            )}
+          </div>
+          <div
+            data-next-context
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 12,
+              alignItems: "center",
+              fontSize: 12,
+            }}
+          >
+            <strong>同一请求的公共输入（不是本层新产物）：</strong>
+            {layer < 40 ? (
+              <>
+                <Box tone="neutral">位置 t / start_pos → RoPE 与因果范围</Box>
+                <Box tone="neutral">图像位置掩码 → 下一层 MoE 路由</Box>
+                {dependencies.engram && (
+                  <Box tone="blue">
+                    Token IDs / 历史 token → 下一层 Engram 检索
+                  </Box>
+                )}
+              </>
+            ) : (
+              <span>
+                末尾消费四路状态与 p，不再读取共享 KV / Indexer 缓存。
+              </span>
+            )}
+          </div>
+          {layer < 40 && (
+            <span style={{ fontSize: 12 }}>
+              下一层使用自己的参数和本地 SWA 缓存；本层
+              U、Query、专家中间结果不会作为下一层输入传递。
+              {modeForLayer(next) === "full"
+                ? "下一层是 Full 层，将重新生成全局 KV 和索引。"
+                : ""}
+            </span>
+          )}
+          <section
+            data-layer-next-use
+            style={{
+              borderTop: `1px solid ${COLORS.line}`,
+              paddingTop: 12,
+              display: "grid",
+              gap: 0,
+            }}
+          >
+            <strong style={{ marginBottom: 8 }}>
+              {layer === 40
+                ? "主干末尾：四路汇合后进入最终归一化与输出头"
+                : `下一层 Layer ${next}：Attention 前的四路汇合（展开同一 token t）`}
+            </strong>
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                alignItems: "center",
+                marginBottom: 10,
+              }}
+            >
+              <MathFormula tex={`\\mathcal H_{${layer}}^{\\mathrm{out}}`} />
+              <Operator tex="\to" />
+              {layer === 40 ? (
+                <span>直接使用这四路</span>
+              ) : (
+                <>
+                  <MathFormula tex={`\\mathcal H_{${next}}^{\\mathrm{in}}`} />
+                  {engram && (
+                    <>
+                      <Operator tex="\to" />
+                      <Box tone="green">Layer {next} Engram 门控注入</Box>
+                      <Operator tex="\to" />
+                      <MathFormula tex={`\\mathcal H_{${next}}^{E}`} />
+                    </>
+                  )}
+                </>
+              )}
+              <span>；p 原样交给下方四个乘法，不经过 Engram。</span>
             </div>
-          ))}
-        </div>
-        <SumJunction count={4} />
-        <div style={{ width: 500, maxWidth: "100%", justifySelf: "center" }}>
-          <FeatureVector
-            name={
-              layer === 40
-                ? "\\mathbf h_t^{\\mathrm{head}}"
-                : `\\mathbf h_{${next},t}^{\\mathrm{in}}`
-            }
-            scalar={(d) => `h_{t,${d}}`}
-            tone="green"
-          />
-        </div>
-      </section>
+            <div
+              data-handoff-products
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4,minmax(0,1fr))",
+                gap: 12,
+              }}
+            >
+              {HC_COPIES.map((j) => (
+                <div key={j} style={{ display: "grid", gap: 5 }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "42px 20px minmax(0,1fr)",
+                      alignItems: "center",
+                      gap: 5,
+                    }}
+                  >
+                    <Box tone="green">
+                      <MathFormula tex={`p_${j}`} />
+                    </Box>
+                    <Operator tex="\times" />
+                    <FeatureVector
+                      name={state.replace(",j,", `,${j},`)}
+                      scalar={(d) => `h_{${j},${d}}`}
+                    />
+                  </div>
+                  <Operator tex="\downarrow" />
+                  <Box tone="cyan">
+                    <MathFormula
+                      tex={`p_${j}\\cdot ${state.replace(",j,", `,${j},`)}`}
+                    />
+                  </Box>
+                </div>
+              ))}
+            </div>
+            <SumJunction count={4} />
+            <div
+              style={{ width: 500, maxWidth: "100%", justifySelf: "center" }}
+            >
+              <FeatureVector
+                name={
+                  layer === 40
+                    ? "\\mathbf h_t^{\\mathrm{head}}"
+                    : `\\mathbf h_{${next},t}^{\\mathrm{in}}`
+                }
+                scalar={(d) => `h_{t,${d}}`}
+                tone="green"
+              />
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }
@@ -2936,101 +3147,119 @@ function LocalKvProjection({ layer }: { layer: number }) {
         style={handle}
       />
       <Title>Layer {layer} · 本层独立 KV</Title>
-      <div style={{ padding: 9, display: "grid", gap: 14 }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 18px 1.15fr 18px 1fr",
-            gap: 4,
-            alignItems: "center",
-          }}
-        >
-          <RowMatrix
-            tex={`X_{${layer}}`}
-            shape={`${count}\\times5120`}
-            rows={rowNames("\\mathbf x")}
-            tone="blue"
-          />
-          <Operator tex="\times" />
-          <div
-            style={{
-              padding: 5,
-              border: `1.3px solid ${COLORS.amber}`,
-              borderRadius: 7,
-              background: COLORS.amberSoft,
-              display: "grid",
-              gap: 5,
-              fontSize: 9,
-              minWidth: 0,
-              textAlign: "center",
-            }}
-          >
-            <MathFormula tex={`W_{${layer}}^{KV,\\mathrm{SWA}}`} />
-            <MathFormula tex="5120\times512" />
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr .4fr 1fr",
-                gap: 3,
-                alignItems: "center",
-              }}
-            >
-              {["1", "2", "\\cdots", "512"].map((column) =>
-                column === "\\cdots" ? (
-                  <MathFormula key={column} tex={column} />
-                ) : (
+      <div data-local-kv-flow style={{ padding: 12 }}>
+        <SerialFlow returnColumn>
+          {[
+            <React.Fragment key="projection">
+              <strong>① 输入 × 本层参数 → 未归一化 KV</strong>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 18px 1.15fr 18px 1fr",
+                  gap: 4,
+                  alignItems: "center",
+                }}
+              >
+                <RowMatrix
+                  tex={`X_{${layer}}`}
+                  shape={`${count}\\times5120`}
+                  rows={rowNames("\\mathbf x")}
+                  tone="blue"
+                />
+                <Operator tex="\times" />
+                <div
+                  style={{
+                    padding: 5,
+                    border: `1.3px solid ${COLORS.amber}`,
+                    borderRadius: 7,
+                    background: COLORS.amberSoft,
+                    display: "grid",
+                    gap: 5,
+                    fontSize: 9,
+                    minWidth: 0,
+                    textAlign: "center",
+                  }}
+                >
+                  <MathFormula tex={`W_{${layer}}^{KV,\\mathrm{SWA}}`} />
+                  <MathFormula tex="5120\times512" />
                   <div
-                    key={column}
                     style={{
-                      border: `1px solid ${COLORS.amber}`,
-                      borderRadius: 4,
-                      padding: "20px 0",
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr .4fr 1fr",
+                      gap: 3,
+                      alignItems: "center",
                     }}
                   >
-                    <MathFormula tex={`\\mathbf w_{${layer},${column}}`} />
+                    {["1", "2", "\\cdots", "512"].map((column) =>
+                      column === "\\cdots" ? (
+                        <MathFormula key={column} tex={column} />
+                      ) : (
+                        <div
+                          key={column}
+                          style={{
+                            border: `1px solid ${COLORS.amber}`,
+                            borderRadius: 4,
+                            padding: "20px 0",
+                          }}
+                        >
+                          <MathFormula
+                            tex={`\\mathbf w_{${layer},${column}}`}
+                          />
+                        </div>
+                      ),
+                    )}
                   </div>
-                ),
-              )}
-            </div>
-          </div>
-          <Operator tex="=" />
-          <RowMatrix
-            tex={`\\widehat U_{${layer}}`}
-            shape={`${count}\\times512`}
-            rows={rowNames("\\widehat{\\mathbf u}")}
-          />
-        </div>
-        <FlowStep>投影结果进入归一化</FlowStep>
-        <RmsNormProcess
-          input={`\\widehat U_{${layer}}`}
-          output={`\\bar U_{${layer}}`}
-          dimension={512}
-          rowCount={count}
-          gamma={`\\boldsymbol\\gamma_{${layer}}^{KV}`}
-          label="本地 KV"
-          horizontal
-        />
-        <FlowStep>归一化结果按每行自身位置旋转</FlowStep>
-        <RotaryProcess
-          input={`\\bar{\\mathbf u}_{${layer},${phase === "prefill" ? "s" : "t"}}`}
-          output={`\\mathbf u_{${layer},${phase === "prefill" ? "s" : "t"}}`}
-          position={phase === "prefill" ? "s-1" : "t-1"}
-          layer={layer}
-          compact
-        />
-        <FlowStep>
-          {phase === "prefill"
-            ? "s = 1, 2, …, N：每行按自己的位置生成 KV"
-            : "仅生成当前位置 t 的新 KV；下方写入历史窗口"}
-        </FlowStep>
-        <RowMatrix
-          tex={`U_{${layer}}`}
-          shape={`${count}\\times512`}
-          rows={rowNames("\\mathbf u")}
-          rowLength="512"
-          elementColumns={["1", "2", "3", "4", "\\cdots", "512"]}
-          elementTex={(row, column) => `u_{${layer},${rows[row]},${column}}`}
-        />
+                </div>
+                <Operator tex="=" />
+                <RowMatrix
+                  tex={`\\widehat U_{${layer}}`}
+                  shape={`${count}\\times512`}
+                  rows={rowNames("\\widehat{\\mathbf u}")}
+                />
+              </div>
+            </React.Fragment>,
+            <React.Fragment key="normalization">
+              <strong>② 逐行归一化 · 读取①的投影结果</strong>
+              <RmsNormProcess
+                input={`\\widehat U_{${layer}}`}
+                output={`\\bar U_{${layer}}`}
+                dimension={512}
+                rowCount={count}
+                gamma={`\\boldsymbol\\gamma_{${layer}}^{KV}`}
+                label="本地 KV"
+                horizontal
+              />
+            </React.Fragment>,
+            <React.Fragment key="rotation">
+              <strong>③ 位置旋转 · 读取②的归一化结果</strong>
+              <RotaryProcess
+                input={`\\bar{\\mathbf u}_{${layer},${phase === "prefill" ? "s" : "t"}}`}
+                output={`\\mathbf u_{${layer},${phase === "prefill" ? "s" : "t"}}`}
+                position={phase === "prefill" ? "s-1" : "t-1"}
+                layer={layer}
+                compact
+              />
+            </React.Fragment>,
+            <React.Fragment key="output">
+              <strong>④ 本层 KV 矩阵 · 送入本层窗口</strong>
+              <div>
+                {phase === "prefill"
+                  ? "s = 1, 2, …, N：每行按自己的位置生成 KV"
+                  : "仅生成当前位置 t 的新 KV；下方写入历史窗口"}
+              </div>
+              <RowMatrix
+                tex={`U_{${layer}}`}
+                shape={`${count}\\times512`}
+                rows={rowNames("\\mathbf u")}
+                rowLength="512"
+                elementColumns={["1", "2", "3", "4", "\\cdots", "512"]}
+                elementTex={(row, column) =>
+                  `u_{${layer},${rows[row]},${column}}`
+                }
+              />
+            </React.Fragment>,
+          ]}
+        </SerialFlow>
       </div>
     </div>
   );
@@ -4747,6 +4976,25 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
       <div style={{ ...panel, height: "auto" }}>
         <Title>本层交接 · 状态与权重分别传递</Title>
         <LayerHandoff layer={layer} count={count} connected />
+      </div>
+    );
+
+  if (kind === "next-inputs")
+    return (
+      <div
+        data-next-layer-frame
+        style={{
+          ...panel,
+          height: "auto",
+          border: `2px dashed ${COLORS.green}`,
+        }}
+      >
+        <Title>
+          {layer === 40
+            ? "主干末尾输出头要用到的输入"
+            : `下一层 Layer ${layer + 1} 要用到的输入 · 虚线交接清单`}
+        </Title>
+        <LayerHandoff layer={layer} count={count} connected preview />
       </div>
     );
 
@@ -7366,7 +7614,7 @@ export function buildGraph(
       mode,
       920,
       projectionY,
-      800,
+      1600,
       localKvProjectionHeight,
     ),
     node(
@@ -7457,6 +7705,16 @@ export function buildGraph(
     ),
     node("add2", "add2", layer, mode, 300, add2Y, 2600, add2Height),
     node("output", "output", layer, mode, 300, outputY, 1600, tensorHeight),
+    node(
+      "next-inputs",
+      "next-inputs",
+      layer,
+      mode,
+      300,
+      outputY + (contentHeights.get("output") ?? tensorHeight) + mainGap,
+      1600,
+      1000,
+    ),
   ];
   if (layer > 1) {
     nodes.push(
@@ -7825,7 +8083,7 @@ export function buildGraph(
         "compressor",
         layer,
         mode,
-        1820,
+        2620,
         projectionY,
         800,
         compressorHeight,
@@ -8056,6 +8314,20 @@ export function buildGraph(
       ...skipStyle,
     }),
     makeEdge("add2-output", "add2", "output"),
+    mathEdge(
+      "output-next-state",
+      "output",
+      "next-inputs",
+      `\\mathcal H_{${layer}}^{\\mathrm{out}}`,
+      { sourceHandle: "state-next", targetHandle: "main-in", ...skipStyle },
+    ),
+    mathEdge(
+      "output-next-pre",
+      "output",
+      "next-inputs",
+      phase === "prefill" ? `P_{${layer}}^{F}` : `\\mathbf p_{${layer},t}^{F}`,
+      { sourceHandle: "pre-next", targetHandle: "coefficients" },
+    ),
   ];
   if (hasEngram(layer))
     edges.push(
@@ -9038,7 +9310,9 @@ function DiagramCanvas({
             ["router", "Router"],
             ["experts", "专家内部"],
             ["add2", "FFN 回写"],
-            ["output", "本层交接与下次汇合"],
+            ["output", "本层输出"],
+            ["next-inputs", "下一层输入清单"],
+            ["kv", "本层 KV 横向流程"],
           ]
             .filter(([id]) => nodes.some((node) => node.id === id))
             .map(([id, label]) => (

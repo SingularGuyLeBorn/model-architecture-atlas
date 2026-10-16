@@ -474,6 +474,153 @@ function arrowTip(x: number, y: number, angle: number) {
   return `M${backX + 4 * Math.sin(angle)} ${backY - 4 * Math.cos(angle)} L${x} ${y} L${backX - 4 * Math.sin(angle)} ${backY + 4 * Math.cos(angle)}`;
 }
 
+/** 串行步骤可横排并折行；箭头依赖实际框边，不把换行误画成并行。 */
+// [OM-FREEPLAY] 每段最小 680px、净空 48px 是排版取值；折回线占半个净空，窄框自动退回单列。
+export function SerialFlow({
+  children,
+  returnColumn = false,
+}: {
+  children: ReactNode[];
+  returnColumn?: boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [wide, setWide] = useState(false);
+  const packed = returnColumn && children.length === 4 && wide;
+  const [paths, setPaths] = useState<Array<{ line: string; arrow: string }>>(
+    [],
+  );
+  useLayoutEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    const steps = [
+      ...root.querySelectorAll<HTMLElement>(":scope > [data-serial-step]"),
+    ];
+    const measure = () => {
+      const bounds = root.getBoundingClientRect();
+      if (!bounds.width || !root.offsetWidth) return;
+      setWide(root.offsetWidth >= 680 * 2 + 48);
+      const scale = bounds.width / root.offsetWidth;
+      const rects = steps.map((step) => {
+        const r = step.getBoundingClientRect();
+        return {
+          left: (r.left - bounds.left) / scale,
+          right: (r.right - bounds.left) / scale,
+          top: (r.top - bounds.top) / scale,
+          bottom: (r.bottom - bounds.top) / scale,
+          width: r.width / scale,
+          height: r.height / scale,
+        };
+      });
+      const next = rects.slice(1).map((to, i) => {
+        const from = rects[i];
+        if (packed && i === 1) {
+          const y2 = to.top + to.height / 2;
+          const mid = (from.left + to.right) / 2;
+          return {
+            line: `M${from.left + from.width / 2} ${from.bottom} V${from.bottom + 24} H${mid} V${y2} H${to.right}`,
+            arrow: arrowTip(to.right, y2, Math.PI),
+          };
+        }
+        if (Math.abs(from.top - to.top) < 2) {
+          const y1 = from.top + from.height / 2,
+            y2 = packed
+              ? Math.min(to.bottom - 12, Math.max(to.top + 12, y1))
+              : to.top + to.height / 2,
+            mid = (from.right + to.left) / 2;
+          return {
+            line: `M${from.right} ${y1} H${mid} V${y2} H${to.left}`,
+            arrow: arrowTip(to.left, y2, 0),
+          };
+        }
+        const rowBottom = packed
+          ? from.bottom
+          : Math.max(
+              ...rects
+                .filter((rect) => Math.abs(rect.top - from.top) < 2)
+                .map((rect) => rect.bottom),
+            );
+        const x1 = from.left + from.width / 2,
+          x2 = to.left + to.width / 2,
+          mid = (rowBottom + to.top) / 2;
+        return {
+          line: `M${x1} ${from.bottom} V${mid} H${x2} V${to.top}`,
+          arrow: arrowTip(x2, to.top, Math.PI / 2),
+        };
+      });
+      setPaths((current) =>
+        JSON.stringify(current) === JSON.stringify(next) ? current : next,
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    [root, ...steps].forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, [children.length, packed]);
+  return (
+    <div
+      ref={ref}
+      data-serial-flow={packed ? "return-column" : "rows"}
+      style={{
+        position: "relative",
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,680px),1fr))",
+        gap: 48,
+        alignItems: "start",
+      }}
+    >
+      {children.map((child, i) => (
+        <section
+          key={i}
+          data-serial-step={i + 1}
+          style={{
+            minWidth: 0,
+            display: "grid",
+            gap: 8,
+            ...(packed
+              ? {
+                  gridColumn: i === 1 ? 2 : 1,
+                  gridRow: i === 1 ? "1 / span 3" : i === 0 ? 1 : i,
+                }
+              : {}),
+          }}
+        >
+          {child}
+        </section>
+      ))}
+      <svg
+        aria-hidden
+        data-serial-links
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none",
+          overflow: "visible",
+        }}
+      >
+        {paths.map((path, i) => (
+          <g key={i}>
+            <path
+              data-serial-link={i}
+              d={path.line}
+              fill="none"
+              stroke={COLORS.green}
+              strokeWidth={1.5}
+            />
+            <path
+              d={path.arrow}
+              fill="none"
+              stroke={COLORS.green}
+              strokeWidth={1.5}
+            />
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 export function SumJunction({ count }: { count: number }) {
   const { ref, width } = useDiagramSize();
   const center = width / 2;

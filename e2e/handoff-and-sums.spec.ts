@@ -8,7 +8,7 @@ test("投影参数有来源，层间状态与权重分框，求和输入箭头�
   await page.setViewportSize({ width: 2200, height: 1700 });
   await page.goto("/#model=v41&chapter=layer");
   const focus = page.getByRole("combobox", { name: "定位模块" });
-  for (const target of ["concat", "heads", "add2", "output"]) {
+  for (const target of ["concat", "heads", "add2", "output", "next-inputs"]) {
     await focus.selectOption(target);
     const node = page.locator(`.react-flow__node[data-id="${target}"]`);
     await expect(node).toBeVisible();
@@ -100,6 +100,13 @@ test("投影参数有来源，层间状态与权重分框，求和输入箭头�
           "[data-layer-state-output] .react-flow__handle[data-handleid=main-in]",
         ),
       ).toHaveCount(1);
+      await expect(node.locator("[data-layer-next-use]")).toHaveCount(0);
+    }
+    if (target === "next-inputs") {
+      await expect(node.locator("[data-next-layer-frame]")).toHaveCSS(
+        "border-top-style",
+        "dashed",
+      );
       await expect(node.locator("[data-layer-next-use]")).toContainText(
         "Layer 2 Engram",
       );
@@ -110,7 +117,7 @@ test("投影参数有来源，层间状态与权重分框，求和输入箭头�
   await page
     .getByRole("button", { name: "Decode · 单步一行", exact: true })
     .click();
-  await focus.selectOption("output");
+  await focus.selectOption("next-inputs");
   await expect(page.locator("[data-layer-next-use]")).toContainText("主干末尾");
   await expect(page.locator("[data-layer-next-use]")).not.toContainText(
     "Layer 41",
