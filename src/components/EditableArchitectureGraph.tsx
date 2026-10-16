@@ -470,12 +470,18 @@ function segmentCrossesObstacle(
   return true;
 }
 
-function simplifyOrthogonalPoints(points: XYPosition[]) {
-  return points.filter((point, index) => {
-    if (index === 0 || index === points.length - 1) return true;
-    const before = points[index - 1];
-    const after = points[index + 1];
-    if (point.x === before.x && point.y === before.y) return false;
+export function simplifyOrthogonalPoints(points: XYPosition[]) {
+  // 先去重再判断共线：在 [A,B,B,C] 上同时过滤会删掉两个 B，把直角变成斜线。
+  const distinct = points.filter(
+    (point, index) =>
+      index === 0 ||
+      point.x !== points[index - 1].x ||
+      point.y !== points[index - 1].y,
+  );
+  return distinct.filter((point, index) => {
+    if (index === 0 || index === distinct.length - 1) return true;
+    const before = distinct[index - 1];
+    const after = distinct[index + 1];
     // 同向共线才可合并；端口引入段发生折返时必须保留，保证箭头沿新边法向进入。
     return !(
       (before.x === point.x &&
@@ -1151,10 +1157,10 @@ export function labelPointOnPath(
   return points.at(-1) ?? { x: 0, y: 0 };
 }
 
-function moveSegment(
+export function moveSegment(
   points: XYPosition[],
   segmentIndex: number,
-  pointer: XYPosition,
+  delta: XYPosition,
 ) {
   const next = points.map((point) => ({ ...point }));
   let startIndex = segmentIndex;
@@ -1162,6 +1168,7 @@ function moveSegment(
   const start = next[startIndex];
   const end = next[endIndex];
   const horizontal = Math.abs(end.x - start.x) >= Math.abs(end.y - start.y);
+  const pointer = { x: start.x + delta.x, y: start.y + delta.y };
 
   if (startIndex === 0) {
     next.splice(
@@ -1806,6 +1813,7 @@ function EditableOrthogonalEdgeView({
       current.map((edge) => ({ ...edge, selected: edge.id === id })),
     );
     const start = { x: event.clientX, y: event.clientY };
+    const origin = screenToFlowPosition(start);
     let changed = false;
     const move = (pointerEvent: PointerEvent) => {
       if (
@@ -1822,7 +1830,10 @@ function EditableOrthogonalEdgeView({
         x: pointerEvent.clientX,
         y: pointerEvent.clientY,
       });
-      const waypoints = moveSegment(points, segmentIndex, pointer);
+      const waypoints = moveSegment(points, segmentIndex, {
+        x: pointer.x - origin.x,
+        y: pointer.y - origin.y,
+      });
       setEdges((current) =>
         current.map((edge) =>
           edge.id === id

@@ -88,8 +88,13 @@ it("Sinkhorn 的指数、分母、行结果和首轮矩阵区分，前后引用�
   expect(backgrounds(root, "d_1=e_{11}+e_{12}+e_{13}+e_{14}")).toEqual([
     color("amber"),
   ]);
-  expect(backgrounds(root, "T_{11}")).toEqual([color("cyan"), color("cyan")]);
-  expect(backgrounds(root, "d^{col}_1")).toEqual(Array(4).fill(color("amber")));
+  expect(backgrounds(root, "T_{11}")).toEqual([color("cyan")]);
+  expect(backgrounds(root, "\\frac{T_{11}}{d^{col}_1}")).toEqual([
+    color("cyan"),
+  ]);
+  expect(
+    backgrounds(root, "d^{col}_1=T_{11}+T_{21}+T_{31}+T_{41}+\\epsilon_{HC}"),
+  ).toEqual([color("amber")]);
   expect(backgrounds(root, "C^{(1)}_{11}")).toEqual([color("blue")]);
   expect(backgrounds(root, "c^{(1)}_{11}")).toEqual([color("blue")]);
 });

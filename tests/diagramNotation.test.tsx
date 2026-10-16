@@ -27,6 +27,11 @@ it.each(["A", "F"] as const)(
     )) {
       const alias = branch.querySelector("[data-notation-alias]")!;
       expect(
+        branch.querySelectorAll(
+          '[data-broadcast-omissions] [aria-label="\\\\vdots"]',
+        ),
+      ).toHaveLength(3);
+      expect(
         alias.querySelector("[aria-label]")!.getAttribute("aria-label"),
       ).toBe(
         `o_d:=o_{15,t,d}${sublayer === "F" ? "^{\\mathrm{FFN}}" : ""},\\quad d=1,\\ldots,5120`,
@@ -80,4 +85,31 @@ it("参数标签按内容定宽定高，归一化稳定项直接写进结果等�
   ).toEqual([]);
   expect(tex).toContain("T_{11}=\\frac{e_{11}}{d_1}+\\epsilon_{HC}");
   expect(tex).toContain("d^{col}_1=T_{11}+T_{21}+T_{31}+T_{41}+\\epsilon_{HC}");
+  expect(
+    tex.some((value) => value.includes("\\div") || value.includes("÷")),
+  ).toBe(false);
+  expect(
+    sinkhorn.querySelectorAll('[data-mhc-sinkhorn-loop] [aria-label="\\\\to"]'),
+  ).toHaveLength(0);
 });
+
+it.each(["A", "F"] as const)(
+  "%s 的 s 与 b 明确展示参数来源、形状、共享范围与别名",
+  (sub) => {
+    const root = render(<MhcProjection layer={15} sub={sub} />);
+    const origin = root.querySelector("[data-mhc-parameter-origin]")!;
+    expect(origin.textContent).toContain("训练时学习");
+    expect(origin.textContent).toContain("所有 token 共用");
+    expect(origin.textContent).toContain(
+      `hc_${sub === "A" ? "attn" : "ffn"}_scale`,
+    );
+    const tex = [...origin.querySelectorAll("[aria-label]")].map((e) =>
+      e.getAttribute("aria-label"),
+    );
+    expect(tex).toContain("1\\times3");
+    expect(tex).toContain("1\\times24");
+    expect(tex).toContain(
+      `s_j:=(\\mathbf s_{15}^{HC,${sub}})_j,\\quad b_j:=(\\mathbf b_{15}^{HC,${sub}})_j`,
+    );
+  },
+);

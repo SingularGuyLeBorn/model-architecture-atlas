@@ -568,7 +568,7 @@ function AttentionTensor({
   );
 }
 
-function FlowStep({ children }: { children: ReactNode }) {
+function FlowStep({ children }: { children?: ReactNode }) {
   return (
     <div
       style={{
@@ -784,10 +784,8 @@ export function RmsNormProcess({
                 }}
               >
                 <MathFormula
-                  tex={`\\sum_{j=1}^{${dimension}}z_{${row},j}^{2}`}
+                  tex={`\\frac{\\sum_{j=1}^{d}z_{${row},j}^{2}}{d},\\quad d=${dimension}`}
                 />
-                <Operator tex="\div" />
-                <MathFormula tex={String(dimension)} />
                 <Operator tex="=" />
                 <Box tone="green">
                   <MathFormula tex={`m_{${row}}`} />
@@ -1858,7 +1856,21 @@ export function MhcPost({
                   </div>
                   {["1", "2", "\\cdots", "5120"].map((d) =>
                     d === "\\cdots" ? (
-                      <div key={d} style={{ textAlign: "center" }}>
+                      <div
+                        key={d}
+                        data-broadcast-omissions
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            "38px 18px minmax(0,1fr) 18px minmax(0,1fr)",
+                          gap: 4,
+                          textAlign: "center",
+                        }}
+                      >
+                        <MathFormula tex="\vdots" />
+                        <span />
+                        <MathFormula tex="\vdots" />
+                        <span />
                         <MathFormula tex="\vdots" />
                       </div>
                     ) : (
@@ -3860,7 +3872,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
         }}
       >
         <AttentionTensor
-          tex="K"
+          tex={`K=\\mathrm{KV}_{${layer},t}`}
           rows="L_t"
           columns="512"
           scalar={(row, column) => `k_{${row},${column}}`}
@@ -3875,7 +3887,8 @@ function Head({ index, layer }: { index: number; layer: number }) {
       </div>
       <span style={{ color: COLORS.muted }}>
         同一份已旋转 KV：K 用于打分，V 用于加权；
-        <MathFormula tex="L_t" /> 为当前可见 KV 行数。
+        <MathFormula tex="L_t" /> 为当前可见 KV 行数；
+        <MathFormula tex="d_k=512" /> 是每个 Head 的特征维度。
       </span>
       <div
         data-attention-dot-products
@@ -3891,11 +3904,9 @@ function Head({ index, layer }: { index: number; layer: number }) {
             {i === 2 && <Operator tex="\cdots" />}
             <div style={{ display: "grid", gap: 5, textAlign: "center" }}>
               <MathFormula
-                tex={`\\mathbf q'\\cdot\\mathbf k_{${row}}^{\\mathsf T}`}
+                tex={`\\frac{\\mathbf q'\\cdot\\mathbf k_{${row}}^{\\mathsf T}}{\\sqrt{d_k}}`}
               />
-              <FlowStep>
-                <MathFormula tex="\div\sqrt{512}" />
-              </FlowStep>
+              <FlowStep />
               <Box tone="amber">
                 <MathFormula tex={`z_{${row}}`} />
               </Box>
@@ -3911,13 +3922,14 @@ function Head({ index, layer }: { index: number; layer: number }) {
           padding: 8,
         }}
       >
-        <strong>任意第 i 行：对应元素相乘，再把全部 512 项累加</strong>
+        <strong>任意第 i 行：累加全部 dₖ 个特征乘积，dₖ = 512</strong>
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(3,minmax(0,1fr))",
             gap: 8,
             marginTop: 6,
+            position: "relative",
           }}
         >
           {["1", "2", "512"].map((column) => (
@@ -3939,6 +3951,17 @@ function Head({ index, layer }: { index: number; layer: number }) {
               </Box>
             </div>
           ))}
+          <span
+            data-dot-product-omission
+            style={{
+              position: "absolute",
+              left: "66.67%",
+              top: "50%",
+              transform: "translate(-50%,-50%)",
+            }}
+          >
+            <MathFormula tex="\cdots" />
+          </span>
         </div>
         <SumJunction count={3} />
         <div
@@ -3949,8 +3972,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
             gap: 8,
           }}
         >
-          <MathFormula tex="\sum_{d=1}^{512}q'_d\cdot k_{i,d}" />
-          <Operator tex="\div\sqrt{512}" />
+          <MathFormula tex="\frac{\sum_{d=1}^{d_k}q'_d\,k_{i,d}}{\sqrt{d_k}}" />
           <Operator tex="=" />
           <Box tone="amber">
             <MathFormula tex="z_i" />
@@ -4015,27 +4037,23 @@ function Head({ index, layer }: { index: number; layer: number }) {
         data-attention-softmax
         style={{
           display: "grid",
-          gridTemplateColumns: "max-content 26px max-content 26px max-content",
+          gridTemplateColumns: "max-content 26px max-content",
           justifyContent: "center",
           gap: 5,
           alignItems: "center",
         }}
       >
         <Box tone="amber">
-          <MathFormula tex="e^{z_i}" />
+          <MathFormula tex="\frac{e^{z_i}}{D}" />
         </Box>
-        <Operator tex="\div" />
-        <div style={{ display: "grid", gap: 4, textAlign: "center" }}>
-          <Box tone="amber">
-            <MathFormula tex="D" />
-          </Box>
-          <span style={{ fontSize: 11 }}>上方累加得到的同一个分母</span>
-        </div>
         <Operator tex="=" />
         <Box tone="green">
           <MathFormula tex="a_i" />
         </Box>
       </div>
+      <span style={{ textAlign: "center", fontSize: 11 }}>
+        D 是上方累加得到的同一个分母（包含 sink 项）。
+      </span>
       <AttentionTensor
         tex="\mathbf a"
         rows="1"
@@ -6623,6 +6641,37 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                       组 {group} · Head {(group - 1) * 8 + 1}–{group * 8}{" "}
                       沿列拼接
                     </strong>
+                    <div
+                      data-head-concat-sources={group}
+                      style={{
+                        display: "flex",
+                        gap: 4,
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      {[0, 1, 7].map((j) => (
+                        <React.Fragment key={j}>
+                          {j === 7 && (
+                            <>
+                              <Operator tex="\mid" />
+                              <Operator tex="\cdots" />
+                            </>
+                          )}
+                          {j > 0 && <Operator tex="\mid" />}
+                          <Box tone="green">
+                            <MathFormula
+                              tex={`O_{${layer},${(group - 1) * 8 + j + 1}}`}
+                            />
+                          </Box>
+                        </React.Fragment>
+                      ))}
+                    </div>
+                    <span style={{ textAlign: "center", fontSize: 12 }}>
+                      每块 {count} × dₖ，dₖ = 512；保留 token 行，按 Head
+                      顺序接列
+                    </span>
+                    <FlowStep />
                     <AttentionTensor
                       tex={`C_{${group}}`}
                       rows={count}
@@ -6631,6 +6680,21 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                         `c^{(${group})}_{${row},${column}}`
                       }
                     />
+                    <div
+                      data-head-concat-map={group}
+                      style={{
+                        display: "grid",
+                        justifyItems: "center",
+                        gap: 4,
+                        fontSize: 12,
+                      }}
+                    >
+                      <MathFormula
+                        tex={`c^{(${group})}_{t,(j-1)d_k+d}=o_{${layer},${group === 1 ? "j" : `${8 * (group - 1)}+j`},t,d}`}
+                      />
+                      <MathFormula tex="j=1,\ldots,8,\quad d=1,\ldots,d_k" />
+                      <span>只改列索引，不改变元素值；8dₖ = 4096 列</span>
+                    </div>
                     <Operator tex="\times" />
                     <AttentionTensor
                       tex={`W^{O\\!,\\mathrm{A}}_{${layer},${group}}`}
@@ -6654,6 +6718,50 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             </div>
             <FlowStep>8 组沿列拼接 → 8192 维 → 最终线性投影</FlowStep>
             <div
+              data-b-concat-blocks
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: 6,
+                alignItems: "center",
+              }}
+            >
+              {[1, 2, 8].map((group) => (
+                <React.Fragment key={group}>
+                  {group === 8 && (
+                    <>
+                      <Operator tex="\mid" />
+                      <Operator tex="\cdots" />
+                    </>
+                  )}
+                  {group > 1 && <Operator tex="\mid" />}
+                  <AttentionTensor
+                    tex={`B_{${group}}`}
+                    rows={count}
+                    columns="1024"
+                    scalar={(r, c) => `b^{(${group})}_{${r},${c}}`}
+                  />
+                </React.Fragment>
+              ))}
+            </div>
+            <div
+              data-b-concat-map
+              style={{
+                display: "grid",
+                gap: 6,
+                justifyItems: "center",
+                fontSize: 14,
+              }}
+            >
+              <MathFormula tex="B=[B_1\mid B_2\mid\cdots\mid B_8]" />
+              <MathFormula tex="B_{t,(g-1)r+j}=b^{(g)}_{t,j},\quad r=1024,\quad g=1,\ldots,8,\quad j=1,\ldots,r" />
+              <span>
+                上标 (g) 保留原组号。B 的全局列号 = (g−1)r+j；同一 token
+                行横向拼接，不相加、不重算。
+              </span>
+            </div>
+            <FlowStep />
+            <div
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 26px 1fr 26px 1fr",
@@ -6662,10 +6770,12 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               }}
             >
               <AttentionTensor
-                tex="B=[B_1\mid B_2\mid\cdots\mid B_8]"
+                tex="B"
                 rows={count}
                 columns="8192"
-                scalar={(row, column) => `b_{${row},${column}}`}
+                scalar={(row, column) =>
+                  `b^{(${column === "8192" ? 8 : 1})}_{${row},${column === "8192" ? "1024" : column}}`
+                }
               />
               <Operator tex="\times" />
               <AttentionTensor
@@ -7449,11 +7559,18 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             key={branch.key}
             id={`term-${branch.key}`}
             type="target"
-            position={Position.Top}
+            position={
+              index === 0
+                ? Position.Left
+                : index === 3
+                  ? Position.Right
+                  : Position.Top
+            }
             style={{
               ...handle,
-              top: "calc(50% - 32px)",
-              left: `calc(50% + ${-24 + index * 16}px)`,
+              top: index === 0 || index === 3 ? "50%" : "calc(50% - 32px)",
+              left: `calc(50% + ${index === 0 ? -32 : index === 3 ? 32 : index === 1 ? -12 : 12}px)`,
+              right: "auto",
             }}
           />
         ))}

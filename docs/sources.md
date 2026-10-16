@@ -11,6 +11,8 @@
 | V4 Pro | [固定版本配置](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro/blob/b5968e9190ef611bbf34a7229255be88a0e937c1/config.json) |
 | V4.1 Flash | [官方模型卡](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash)、[固定版本配置](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/5254448103b6254fc646dacbca1cbbf20e9216c1/config.json)、[技术报告](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/main/DeepSeek_V41_Tech_Report.pdf) |
 
+V4.1 的 mHC 参数来自同版本[官方推理实现](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/5254448103b6254fc646dacbca1cbbf20e9216c1/inference/model.py)：`hc_attn_scale`、`hc_ffn_scale` 各含 3 个可学习缩放值，`hc_attn_base`、`hc_ffn_base` 各含 24 个可学习偏置。图中的 s、b 对应这些参数，u 则来自当前输入的投影。
+
 ## 不能混用的机制
 
 - R1 页面对应原始 R1，不是 R1-Distill，也不是 R1-0528。训练产生推理能力，推理主干仍是 V3 系列结构。

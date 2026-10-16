@@ -40,6 +40,19 @@ test("完整复杂层的自动线不穿过无关模块", async ({ page }, info) 
           ),
           matrix = path?.getScreenCTM();
         if (!path || !matrix) continue;
+        const segments = [
+          ...(path.getAttribute("d") ?? "").matchAll(
+            /([ML])\s*([-\d.]+)\s+([-\d.]+)/g,
+          ),
+        ];
+        segments.slice(1).forEach((match, i) => {
+          if (
+            match[1] === "L" &&
+            Math.abs(+match[2] - +segments[i][2]) > 0.01 &&
+            Math.abs(+match[3] - +segments[i][3]) > 0.01
+          )
+            hits.push(`${edge.dataset.id} / 斜线`);
+        });
         const points = [
           ...(path.getAttribute("d") ?? "").matchAll(
             /[ML]\s*([-\d.]+)\s+([-\d.]+)/g,

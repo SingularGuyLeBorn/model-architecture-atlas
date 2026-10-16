@@ -82,9 +82,7 @@ describe("RMSNorm 的逐行结构与来源", () => {
         (el) => el.getAttribute("aria-label"),
       );
       expect(operations).toEqual([
-        `\\sum_{j=1}^{${dimension}}z_{s,j}^{2}`,
-        "\\div",
-        String(dimension),
+        `\\frac{\\sum_{j=1}^{d}z_{s,j}^{2}}{d},\\quad d=${dimension}`,
         "=",
         "m_{s}",
         "\\downarrow",

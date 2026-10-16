@@ -28,6 +28,15 @@ test("完整层逐模块截图、同级框碰撞和内部溢出审查", async ({
       await focus.selectOption(id);
       const node = page.locator(`.react-flow__node[data-id="${id}"]`);
       await expect(node.locator("[data-detail-suspended]")).toHaveCount(0);
+      expect(
+        await node
+          .locator("[aria-label]")
+          .evaluateAll((items) =>
+            items
+              .map((el) => el.getAttribute("aria-label") ?? "")
+              .filter((tex) => tex.includes("\\div") || tex.includes("÷")),
+          ),
+      ).toEqual([]);
       // 两帧后读取浏览器实际布局，避免把初次测量中的占位当最终尺寸。
       await page.evaluate(
         () =>

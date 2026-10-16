@@ -9,8 +9,57 @@ import {
   projectLabelOntoPath,
   sharedRouteLength,
   pathWithLabelGap,
+  moveSegment,
+  simplifyOrthogonalPoints,
 } from "../src/components/EditableArchitectureGraph";
 import { buildGraph } from "../src/compositions/DeepSeekV41Layer";
+
+it("重合折点化简保留直角，不能删成斜线", () => {
+  const a = { x: 0, y: 0 },
+    b = { x: 0, y: 100 },
+    c = { x: 900, y: 100 };
+  expect(simplifyOrthogonalPoints([a, b, b, c])).toEqual([a, b, c]);
+  expect(simplifyOrthogonalPoints([a, a, b, b, b, c, c])).toEqual([a, b, c]);
+});
+
+it("拖动长折线以初始路径的法向位移为准，往返不漂移，端点不变", () => {
+  const points = [
+    { x: 0, y: 0 },
+    { x: 0, y: 100 },
+    { x: 900, y: 100 },
+    { x: 900, y: 200 },
+  ];
+  for (const y of [0, 6, 70, -120, 13, 0]) {
+    const path = [
+      points[0],
+      ...moveSegment(points, 1, { x: 200, y }),
+      points[3],
+    ];
+    expect(path).toEqual([
+      points[0],
+      { x: 0, y: 100 + y },
+      { x: 900, y: 100 + y },
+      points[3],
+    ]);
+    path
+      .slice(1)
+      .forEach((p, i) =>
+        expect(p.x === path[i].x || p.y === path[i].y).toBe(true),
+      );
+  }
+  for (const segment of [0, 2]) {
+    const path = [
+      points[0],
+      ...moveSegment(points, segment, { x: 30, y: 0 }),
+      points[3],
+    ];
+    path
+      .slice(1)
+      .forEach((p, i) =>
+        expect(p.x === path[i].x || p.y === path[i].y).toBe(true),
+      );
+  }
+});
 
 it("相向端口安全区重叠时仍然直连，不产生窄 U 形尾刺", () => {
   const source = { left: -100, right: 44, top: -80, bottom: 80 };

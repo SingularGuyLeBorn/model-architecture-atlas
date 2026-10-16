@@ -175,18 +175,15 @@ export function MhcJointNorm() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns:
-                "max-content 22px max-content 22px max-content",
+              gridTemplateColumns: "max-content 22px max-content",
               gap: 6,
               justifyContent: "center",
               alignItems: "center",
             }}
           >
             <Box tone="cyan">
-              <MathFormula tex="\sum_{d=1}^{20480}f_{t,d}^2" />
+              <MathFormula tex="\frac{\sum_{d=1}^{D}f_{t,d}^2}{D},\quad D=20480" />
             </Box>
-            <Operator tex="\div" />
-            <Box tone="neutral">20480</Box>
             <Operator tex="=" />
             <Box tone="cyan">
               <MathFormula tex="m_t" />
@@ -211,19 +208,14 @@ export function MhcJointNorm() {
               data-mhc-normalized-element
               style={{
                 display: "grid",
-                gridTemplateColumns:
-                  "minmax(60px,max-content) 20px minmax(50px,max-content) 20px minmax(75px,max-content)",
+                gridTemplateColumns: "max-content 20px max-content",
                 gap: 6,
                 justifyContent: "center",
                 alignItems: "center",
               }}
             >
               <Box tone="blue">
-                <MathFormula tex={`f_{t,${d}}`} />
-              </Box>
-              <Operator tex="\div" />
-              <Box tone="cyan">
-                <MathFormula tex="r_t" />
+                <MathFormula tex={`\\frac{f_{t,${d}}}{r_t}`} />
               </Box>
               <Operator tex="=" />
               <Box tone="blue">
@@ -353,7 +345,57 @@ export function MhcProjection({
           </div>
         ))}
       </div>
-      <span>三段同时计算，各自使用缩放 s₁ / s₂ / s₃ 和对应偏置 b。</span>
+      <section data-mhc-parameter-origin style={{ ...group, gap: 8 }}>
+        <ModuleHeading>
+          本层{sub === "A" ? " Attention" : " FFN"} 的可学习参数 · s 与 b
+        </ModuleHeading>
+        <span>
+          训练时学习，推理时从本层模型权重加载；Attention 与 FFN
+          各有一套，同一子层的所有 token 共用。
+        </span>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "start",
+            gap: 24,
+          }}
+        >
+          <Box tone="amber" expanded>
+            <TensorHeading
+              name={`\\mathbf s_{${layer}}^{HC,${sub}}`}
+              shape="1\times3"
+            />
+            <div style={{ display: "flex", gap: 8 }}>
+              {copies.slice(0, 3).map((j) => (
+                <Box key={j} tone="amber">
+                  <MathFormula tex={`s_${j}`} />
+                </Box>
+              ))}
+            </div>
+            <span>s₁ 用于 p，s₂ 用于 q，s₃ 用于 C</span>
+          </Box>
+          <RowMatrix
+            tex={`\\mathbf b_{${layer}}^{HC,${sub}}`}
+            shape="1\times24"
+            rows={["\\mathbf b"]}
+            rowLength="24"
+            elementTex={(_, d) => `b_{${d}}`}
+            tone="blue"
+          />
+        </div>
+        <MathFormula
+          tex={`s_j:=(\\mathbf s_{${layer}}^{HC,${sub}})_j,\\quad b_j:=(\\mathbf b_{${layer}}^{HC,${sub}})_j`}
+        />
+        <span>
+          b₁–b₄ 用于 p，b₅–b₈ 用于 q，b₉–b₂₄ 按行排成 C 分支的 4×4 偏置矩阵。
+        </span>
+        <small>
+          官方参数：hc_{sub === "A" ? "attn" : "ffn"}_scale（3 个数）、hc_
+          {sub === "A" ? "attn" : "ffn"}_base（24 个数）。u 随当前输入变化，s 与
+          b 是加载的参数。
+        </small>
+      </section>
       <div data-mhc-affine-legend style={{ ...row, flexWrap: "wrap" }}>
         {(
           [
@@ -393,6 +435,10 @@ export function MhcGate({
           ? "p · 第 1–4 个数，供下一子层汇合"
           : "q · 第 5–8 个数，控制本子层输出写回多少"}
       </ModuleHeading>
+      <span data-mhc-gate-parameter-source>
+        下列 s{s}、b{offset + 1}–b{offset + 4} 取自上方本子层的可学习参数；u
+        来自当前输入的投影。
+      </span>
       <div style={{ display: "grid", gap: 7 }}>
         {copies.map((j) => (
           <div
@@ -507,6 +553,9 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
   return (
     <section data-mhc-sinkhorn style={{ ...group, borderColor: COLORS.violet }}>
       <ModuleHeading>C · u 的第 9–24 个数，按顺序每四个排成一行</ModuleHeading>
+      <span>
+        s₃ 和偏置 b₉–b₂₄ 来自上方本子层的可学习参数；此处将偏置按行排为 Bᶜ。
+      </span>
       <div
         style={{
           display: "grid",
@@ -630,19 +679,14 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
               key={k}
               style={{
                 display: "grid",
-                gridTemplateColumns:
-                  "minmax(64px,max-content) 20px max-content 20px minmax(76px,max-content)",
+                gridTemplateColumns: "max-content 20px max-content",
                 gap: 4,
                 justifyContent: "center",
                 alignItems: "center",
               }}
             >
               <Box tone="cyan">
-                <MathFormula tex={`T_{${k}1}`} />
-              </Box>
-              <Operator tex="\div" />
-              <Box tone="amber">
-                <MathFormula tex="d^{col}_1" />
+                <MathFormula tex={`\\frac{T_{${k}1}}{d^{col}_1}`} />
               </Box>
               <Operator tex="=" />
               <Box tone="blue">
@@ -658,7 +702,7 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
         style={{
           ...group,
           borderStyle: "dashed",
-          gridTemplateColumns: "1fr 30px 1fr 30px 1fr",
+          gridTemplateColumns: "max-content minmax(0,1fr) max-content",
           alignItems: "center",
         }}
       >
@@ -667,21 +711,14 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
           cell={(k, j) => `c^{(1)}_{${k}${j}}`}
           tone="blue"
         />
-        <Operator tex="\to" />
         <div style={{ display: "grid", gap: 10 }}>
           <strong>再做 19 轮 · 共 20 轮</strong>
-          <div style={row}>
-            <span>每行除以该行之和 + ε</span>
-            <Operator tex="\to" />
-            <span>每列除以该列之和 + ε</span>
-          </div>
           <span>
-            第 2–20 轮交替进行行、列归一化，使同一个 4×4 矩阵的行和、列和接近
-            1。
+            以左侧首轮结果为起点，重复行归一化、列归一化，得到右侧最终矩阵。每步的分母都是该行或该列之和加
+            ε；行和、列和接近 1。
           </span>
           <MathFormula tex="\epsilon_{HC}=10^{-6}" />
         </div>
-        <Operator tex="\to" />
         {children}
       </div>
     </section>
