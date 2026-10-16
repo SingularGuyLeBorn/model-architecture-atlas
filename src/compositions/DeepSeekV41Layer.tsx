@@ -36,7 +36,6 @@ import React, {
   useRef,
   useState,
   type CSSProperties,
-  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
 import {
@@ -327,7 +326,10 @@ for (const kind of [
   CONTENT_SIZED_KINDS.add(kind);
 
 function isContentSized(data: DiagramData) {
-  return CONTENT_SIZED_KINDS.has(data.kind) || Boolean(data.columnVectors);
+  return (
+    CONTENT_SIZED_KINDS.has(data.kind) ||
+    (data.kind === "structure" && !data.matrixRows?.length)
+  );
 }
 
 // 官方配置使用从 0 开始的层号 1、14；图的层号从 1 开始。
@@ -5150,7 +5152,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         data-expanded-tensor={expanded || undefined}
         style={{
           ...panel,
-          height: data.columnVectors ? "auto" : panel.height,
+          height: isContentSized(data) ? "auto" : panel.height,
           borderColor: frameColor(color),
           borderRadius: 10,
           background: expanded ? "transparent" : background,
@@ -5161,7 +5163,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
       >
         {data.title && (
           <div
-            data-module-title
+            data-module-title={data.columnVectors ? undefined : true}
             style={{
               padding: "6px 9px",
               borderBottom: `1px solid ${COLORS.line}`,
@@ -5169,12 +5171,28 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               fontWeight: 800,
               color,
               lineHeight: 1.2,
+              ...(data.columnVectors
+                ? {
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8,
+                  }
+                : {}),
             }}
           >
-            {data.title}
+            {data.columnVectors ? (
+              <>
+                <MathFormula tex={data.tex ?? ""} />
+                <span data-module-title>{data.title}</span>
+              </>
+            ) : (
+              data.title
+            )}
           </div>
         )}
         <div
+          data-structure-content
           style={{
             padding: 4,
             display: "grid",
@@ -5309,7 +5327,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 gap: 4,
               }}
             >
-              <MathFormula tex={data.tex ?? ""} />
+              {!data.columnVectors && <MathFormula tex={data.tex ?? ""} />}
               <div
                 style={{
                   display: "grid",
@@ -7890,7 +7908,9 @@ function structureNode({
     data: { kind, layer, mode, ...data },
     style: {
       width,
-      ...(data.columnVectors ? { minHeight: "max-content" } : { height }),
+      ...(isContentSized({ kind, layer, mode, ...data })
+        ? { minHeight: "max-content" }
+        : { height }),
     },
     deletable: false,
   };
@@ -7939,6 +7959,13 @@ export function buildGraph(
   const queryProjectionHeight = queryLayout.height;
   const queryRowY = projectionY + queryProjectionHeight + mainGap;
   const querySplitY = queryRowY + 160 + mainGap;
+  // 子框标题与公式实测后决定分组高度，下游从同一边界继续布局。
+  const querySplitHeight =
+    52 +
+    Math.max(
+      ...[1, 2, 64].map((head) => contentHeights.get(`q-head-${head}`) ?? 64),
+    ) +
+    20;
   const localKvProjectionHeight = contentHeights.get("kv") ?? 464;
   const swaHeight = 530;
   const compressorHeight =
@@ -7950,7 +7977,8 @@ export function buildGraph(
     ? Math.max(queryProjectionHeight, localKvProjectionHeight, compressorHeight)
     : Math.max(queryProjectionHeight, localKvProjectionHeight);
   const swaY =
-    Math.max(projectionY + sourceRowHeight, querySplitY + 150) + mainGap;
+    Math.max(projectionY + sourceRowHeight, querySplitY + querySplitHeight) +
+    mainGap;
   const globalSelectY = swaY + indexerHeight + mainGap;
   const mergeY = hasGlobal
     ? Math.max(swaY + swaHeight, globalSelectY + globalSelectHeight) + mainGap
@@ -8329,7 +8357,7 @@ export function buildGraph(
         (queryLayout.rowHeight - (contentHeights.get("q-wdown") ?? 0)) / 2,
       width: 230,
       height: 0,
-      title: "5120 × 1280 · 列向量",
+      title: "5120 × 1280",
       tex: `W_{${layer}}^{Q\\downarrow}`,
       columnVectors: true,
       vectorCells: [
@@ -8421,7 +8449,7 @@ export function buildGraph(
         (queryLayout.rowHeight - (contentHeights.get("q-wup") ?? 0)) / 2,
       width: 230,
       height: 0,
-      title: "1280 × (64 · 512) · 列向量",
+      title: "1280 × (64 · 512)",
       tex: `W_{${layer}}^{Q\\uparrow}`,
       columnVectors: true,
       vectorCells: [
@@ -8468,7 +8496,7 @@ export function buildGraph(
       x: 20,
       y: querySplitY,
       width: 800,
-      height: 150,
+      height: querySplitHeight,
       kind: "structure-group",
       tex: `\\widetilde{\\mathbf q}_{${layer},t}`,
       title: "④ 沿特征轴分 64 块 · token 位置 t 不变",
@@ -8480,10 +8508,10 @@ export function buildGraph(
       layer,
       mode,
       x: 12,
-      y: 42,
+      y: 52,
       width: 210,
       height: 64,
-      title: "Head 1 · 元素 1–512",
+      title: "Head 1 · 1–512",
       tex: `\\mathbf q_{${layer},1,t}`,
       tone: "green",
     }),
@@ -8493,10 +8521,10 @@ export function buildGraph(
       layer,
       mode,
       x: 234,
-      y: 42,
+      y: 52,
       width: 210,
       height: 64,
-      title: "Head 2 · 元素 513–1024",
+      title: "Head 2 · 513–1024",
       tex: `\\mathbf q_{${layer},2,t}`,
       tone: "green",
     }),
@@ -8518,10 +8546,10 @@ export function buildGraph(
       layer,
       mode,
       x: 496,
-      y: 42,
+      y: 52,
       width: 234,
       height: 64,
-      title: "Head 64 · 元素 32257–32768",
+      title: "Head 64 · 32257–32768",
       tex: `\\mathbf q_{${layer},64,t}`,
       tone: "green",
     }),
@@ -9641,6 +9669,7 @@ function DiagramCanvas({
   const updateSelectedEdgeLabel = useCallback(
     (labelTex: string) => {
       if (!selectedEdge) return;
+      beginHistory();
       setEdges((current) =>
         current.map((item) =>
           item.id === selectedEdge.id
@@ -9649,13 +9678,18 @@ function DiagramCanvas({
         ),
       );
     },
-    [selectedEdge, setEdges],
+    [beginHistory, selectedEdge, setEdges],
   );
 
   const handleCanvasKeyDown = useCallback(
-    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
-      if (target.matches("input, textarea, [contenteditable='true']")) return;
+      if (
+        target.closest(
+          "input, textarea, [contenteditable]:not([contenteditable='false'])",
+        )
+      )
+        return;
       if (!event.ctrlKey && !event.metaKey) return;
       if (event.key.toLowerCase() === "z" && !event.shiftKey) {
         event.preventDefault();
@@ -9674,6 +9708,13 @@ function DiagramCanvas({
     },
     [redo, undo],
   );
+
+  useEffect(() => {
+    // 当前图挂载期间共用一份历史；焦点在侧栏、下拉框或页面空白时仍可撤销。
+    document.addEventListener("keydown", handleCanvasKeyDown, true);
+    return () =>
+      document.removeEventListener("keydown", handleCanvasKeyDown, true);
+  }, [handleCanvasKeyDown]);
 
   useEffect(() => {
     setSaveState("idle");
@@ -9795,7 +9836,6 @@ function DiagramCanvas({
         ref={canvasRef}
         className="diagram-interaction-surface"
         style={{ minWidth: 0, minHeight: 0, flex: 1, position: "relative" }}
-        onKeyDown={handleCanvasKeyDown}
         onClickCapture={(event) => {
           if (!completedConnectionRef.current) return;
           completedConnectionRef.current = false;
@@ -9972,7 +10012,6 @@ function DiagramCanvas({
               <input
                 className="nodrag nopan"
                 value={selectedEdge.data?.labelTex ?? ""}
-                onFocus={beginHistory}
                 onChange={(event) =>
                   updateSelectedEdgeLabel(event.target.value)
                 }

@@ -11,6 +11,7 @@ export type LabelEntry = {
   points: LabelPoint[];
   size: LabelSize;
   preferred: LabelPoint;
+  terminalPreferred?: LabelPoint;
 };
 export type LabelPlacement = {
   primary: LabelPoint;
@@ -58,7 +59,8 @@ export function layoutEdgeLabels(
     })),
   );
   const locate = (entry: LabelEntry, terminal: boolean) => {
-    const { size, preferred } = entry;
+    const { size } = entry;
+    const preferred = terminal ? entry.terminalPreferred : entry.preferred;
     // 端口布局的亚像素误差不应把一条可用直线切成两段；仅合并标签候选，不改导线。
     const snapped: LabelPoint[] = [];
     for (const point of entry.points) {
@@ -132,14 +134,18 @@ export function layoutEdgeLabels(
       }
       for (const [low, high] of intervals) {
         if (high < low) continue;
-        const wanted = terminal ? end : horizontal ? preferred.x : preferred.y;
+        const wanted = preferred
+          ? horizontal
+            ? preferred.x
+            : preferred.y
+          : end;
         const value = Math.max(low, Math.min(high, wanted));
         const point = horizontal
           ? { x: value, y: fixed }
           : { x: fixed, y: value };
-        const score = terminal
-          ? total - passed - Math.abs(value - start)
-          : Math.hypot(point.x - preferred.x, point.y - preferred.y);
+        const score = preferred
+          ? Math.hypot(point.x - preferred.x, point.y - preferred.y)
+          : total - passed - Math.abs(value - start);
         if (!best || score < best.score) best = { point, score };
       }
       passed += length;

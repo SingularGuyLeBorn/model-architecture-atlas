@@ -16,6 +16,19 @@ const entry = (id = "a"): LabelEntry => ({
   preferred: { x: 0, y: 500 },
 });
 describe("整张画布统一放置变量标签", () => {
+  it("终端标签可单独沿线拖动，仍避让框体，主标签偏好保持不变", () => {
+    const e = { ...entry(), terminalPreferred: { x: 0, y: 830 } };
+    const p = layoutEdgeLabels([e], [], new Map([[e.id, e.points]])).get(e.id)!;
+    expect(p.terminal).toEqual(e.terminalPreferred);
+    expect(p.primary).toEqual(e.preferred);
+    const moved = layoutEdgeLabels(
+      [e],
+      [{ left: -100, right: 100, top: 800, bottom: 850 }],
+      new Map([[e.id, e.points]]),
+    ).get(e.id)!;
+    expect(moved.unresolved).toBe(false);
+    expect(Math.abs(moved.terminal!.y - 830)).toBeGreaterThan(30);
+  });
   it("长线在目标前就近复述变量，同时保留主标签", () => {
     const e = entry();
     const p = layoutEdgeLabels(

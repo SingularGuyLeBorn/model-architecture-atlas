@@ -471,6 +471,9 @@ it("回到已测量层时，先恢复子节点高度再匹配父框几何，避�
     new Map([
       ["q-rmsnorm", 777],
       ["norm1", 880],
+      ["q-head-1", 300],
+      ["q-head-2", 300],
+      ["q-head-64", 300],
     ]),
   );
   const cache = new Map(

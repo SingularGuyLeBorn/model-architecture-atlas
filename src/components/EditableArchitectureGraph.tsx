@@ -48,6 +48,7 @@ export type EditableEdgeData = {
   sourceAnchor?: BoundaryAnchor;
   targetAnchor?: BoundaryAnchor;
   labelPosition?: number;
+  terminalLabelPosition?: number;
 };
 
 // [OM-FREEPLAY] 24×24 的 marker 视口对应约 6×10px 的开口箭头，含描边仍小于
@@ -1259,6 +1260,10 @@ function labelsForRoutes(
           edge.data.labelPosition === undefined
             ? longestSegmentCenter(points)
             : labelPointOnPath(points, edge.data.labelPosition),
+        terminalPreferred:
+          edge.data.terminalLabelPosition === undefined
+            ? undefined
+            : labelPointOnPath(points, edge.data.terminalLabelPosition),
       },
     ];
   });
@@ -1791,13 +1796,28 @@ function EditableOrthogonalEdgeView({
   };
 
   const startSegmentDrag = (
-    event: ReactPointerEvent<HTMLButtonElement>,
+    event: ReactPointerEvent<Element>,
     segmentIndex: number,
   ) => {
+    if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
-    history?.beginHistory();
+    setEdges((current) =>
+      current.map((edge) => ({ ...edge, selected: edge.id === id })),
+    );
+    const start = { x: event.clientX, y: event.clientY };
+    let changed = false;
     const move = (pointerEvent: PointerEvent) => {
+      if (
+        !changed &&
+        Math.hypot(
+          pointerEvent.clientX - start.x,
+          pointerEvent.clientY - start.y,
+        ) < 3
+      )
+        return;
+      if (!changed) history?.beginHistory();
+      changed = true;
       const pointer = screenToFlowPosition({
         x: pointerEvent.clientX,
         y: pointerEvent.clientY,
@@ -1815,22 +1835,35 @@ function EditableOrthogonalEdgeView({
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", finish);
       window.removeEventListener("pointercancel", finish);
-      history?.commitHistory();
+      if (changed) history?.commitHistory();
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", finish, { once: true });
     window.addEventListener("pointercancel", finish, { once: true });
   };
 
-  const startLabelDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const startLabelDrag = (
+    event: ReactPointerEvent<HTMLDivElement>,
+    terminal = false,
+  ) => {
+    if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
     event.currentTarget.focus({ preventScroll: true });
     setEdges((current) =>
       current.map((edge) => ({ ...edge, selected: edge.id === id })),
     );
+    const start = { x: event.clientX, y: event.clientY };
     let changed = false;
     const move = (pointerEvent: PointerEvent) => {
+      if (
+        !changed &&
+        Math.hypot(
+          pointerEvent.clientX - start.x,
+          pointerEvent.clientY - start.y,
+        ) < 3
+      )
+        return;
       if (!changed) history?.beginHistory();
       changed = true;
       const pointer = screenToFlowPosition({
@@ -1841,7 +1874,14 @@ function EditableOrthogonalEdgeView({
       setEdges((current) =>
         current.map((edge) =>
           edge.id === id
-            ? { ...edge, data: { ...edge.data, labelPosition: fraction } }
+            ? {
+                ...edge,
+                data: {
+                  ...edge.data,
+                  [terminal ? "terminalLabelPosition" : "labelPosition"]:
+                    fraction,
+                },
+              }
             : edge,
         ),
       );
@@ -1859,24 +1899,53 @@ function EditableOrthogonalEdgeView({
 
   return (
     <>
-      <BaseEdge
-        id={id}
-        path={path}
-        markerEnd={markerEnd}
-        interactionWidth={28}
-        style={{
-          ...style,
-          // [OM-FREEPLAY] 与内部对象共用亮蓝选中色，线宽与路径几何保持不变。
-          stroke: selected ? "#1565d8" : color,
-          strokeWidth: DATA_WIRE_WIDTH,
-          strokeLinecap: "round",
-          strokeLinejoin: "round",
+      <g
+        className="nodrag nopan"
+        onPointerDown={(event) => {
+          const pointer = screenToFlowPosition({
+            x: event.clientX,
+            y: event.clientY,
+          });
+          let nearest = 0,
+            distance = Infinity;
+          for (let i = 0; i < points.length - 1; i++) {
+            const candidate = projectLabelOntoPath(
+              [points[i], points[i + 1]],
+              pointer,
+            );
+            if (candidate.distance < distance) {
+              distance = candidate.distance;
+              nearest = i;
+            }
+          }
+          startSegmentDrag(event, nearest);
         }}
-      />
+      >
+        <BaseEdge
+          id={id}
+          path={path}
+          markerEnd={markerEnd}
+          interactionWidth={28}
+          style={{
+            ...style,
+            // [OM-FREEPLAY] 与内部对象共用亮蓝选中色，线宽与路径几何保持不变。
+            stroke: selected ? "#1565d8" : color,
+            strokeWidth: DATA_WIRE_WIDTH,
+            strokeLinecap: "round",
+            strokeLinejoin: "round",
+            cursor: "grab",
+          }}
+        />
+      </g>
       <EdgeLabelRenderer>
         {data?.labelTex && terminalCenter && (
           <div
             data-edge-terminal-label={id}
+            className="nodrag nopan"
+            role="button"
+            tabIndex={0}
+            onPointerDown={(event) => startLabelDrag(event, true)}
+            onClick={(event) => event.stopPropagation()}
             aria-label={data.labelTex}
             style={{
               position: "absolute",
@@ -1887,7 +1956,9 @@ function EditableOrthogonalEdgeView({
               color: "#716d63",
               fontSize: EDGE_LABEL_FONT_SIZE,
               fontWeight: 700,
-              pointerEvents: "none",
+              pointerEvents: "all",
+              cursor: "grab",
+              userSelect: "none",
               whiteSpace: "nowrap",
             }}
           >
@@ -1951,7 +2022,9 @@ function EditableOrthogonalEdgeView({
             role="button"
             tabIndex={0}
             aria-label={data.labelTex}
-            onPointerDown={startLabelDrag}
+            onPointerDown={(event) =>
+              startLabelDrag(event, Boolean(placement?.primaryIsTerminal))
+            }
             onClick={(event) => event.stopPropagation()}
             style={{
               position: "absolute",
