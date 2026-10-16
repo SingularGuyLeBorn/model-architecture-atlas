@@ -10,6 +10,7 @@
 ## 组件
 
 - diagram-primitives.tsx：从原 V4.1 组件真正提取的公共图元，原图继续消费这些导出。
+- MathMarkup.tsx：图内公式与连线标签共用的渲染边界。层号变化只更新同构 MathML 的文字；算子、属性或分数结构变化时整体替换。矩阵行列按位置保持身份，不用公式文本作为重建 key。
 - structure-blocks.tsx：章节级结构模板。变量、维度同处标题；参数和激活分色；长末项分配更多列宽。
 - EditableArchitectureGraph.tsx：正交避障、内部边界端口、透明大标签、端点拖动和历史接口。
 - RecipeCanvas.tsx：语义节点的测量、拓扑排列、具名内部输入输出端口、定位、保存与撤销。

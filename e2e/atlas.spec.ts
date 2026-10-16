@@ -74,6 +74,25 @@ test("完整 V4.1 图正常载入，可切换复杂层与 Decode", async ({ page
     .getByRole("button", { name: "Decode · 单步一行", exact: true })
     .click();
   await expect(page.locator(".katex-error")).toHaveCount(0);
+  // 换层和视角切换后，公式可见文字的原始 TeX 不能停留在旧层。
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          [...document.querySelectorAll("span[aria-label]")].filter(
+            (element) => {
+              const source = element.querySelector(
+                'annotation[encoding="application/x-tex"]',
+              );
+              return (
+                source &&
+                source.textContent !== element.getAttribute("aria-label")
+              );
+            },
+          ).length,
+      ),
+    )
+    .toBe(0);
   await page.screenshot({ path: "artifacts/v41-layer15.png" });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: "artifacts/v41-mobile.png" });

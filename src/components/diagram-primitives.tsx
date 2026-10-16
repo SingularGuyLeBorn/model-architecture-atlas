@@ -1,5 +1,6 @@
 import React, { useMemo, type ReactNode } from "react";
 import { latexHtml } from "./EditableArchitectureGraph";
+import { MathMarkup } from "./MathMarkup";
 
 export type DiagramTone =
   | "neutral"
@@ -40,10 +41,10 @@ export function MathFormula({
   const html = useMemo(() => latexHtml(tex, display), [display, tex]);
   // [OM-FREEPLAY] 小字号下限取 10.5px，放大矩阵元素而不缩小已有的大公式。
   return (
-    <span
-      aria-label={tex}
+    <MathMarkup
+      tex={tex}
+      html={html}
       style={{ fontSize: "max(1em, 10.5px)" }}
-      dangerouslySetInnerHTML={{ __html: html }}
     />
   );
 }

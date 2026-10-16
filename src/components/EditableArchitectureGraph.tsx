@@ -12,6 +12,7 @@ import React, {
   type RefObject,
 } from "react";
 import katex from "katex";
+import { MathMarkup } from "./MathMarkup";
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -1729,8 +1730,9 @@ function EditableOrthogonalEdgeView({
               pointerEvents: "none",
               whiteSpace: "nowrap",
             }}
-            dangerouslySetInnerHTML={{ __html: labelHtml }}
-          />
+          >
+            <MathMarkup html={labelHtml} tex={data.labelTex} />
+          </div>
         )}
         {(["source", "target"] as const).map((endpoint) => (
           <button
@@ -1801,8 +1803,9 @@ function EditableOrthogonalEdgeView({
               cursor: "grab",
               userSelect: "none",
             }}
-            dangerouslySetInnerHTML={{ __html: labelHtml }}
-          />
+          >
+            <MathMarkup html={labelHtml} tex={data.labelTex} />
+          </div>
         )}
         {selected &&
           points.slice(0, -1).map((point, index) => {

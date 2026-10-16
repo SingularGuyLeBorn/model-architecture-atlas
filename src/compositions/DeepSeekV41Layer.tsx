@@ -4270,7 +4270,8 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 <div style={{ display: "grid", gap: 3 }}>
                   {data.matrixRows.map((row, index) => (
                     <div
-                      key={`${row}-${index}`}
+                      // 行的身份是矩阵位置，层号变化不能把整行销毁重建。
+                      key={index}
                       style={{
                         minHeight: 18,
                         border: `1px solid ${data.matrixSelectedRow === index ? COLORS.amber : color}`,
@@ -4301,7 +4302,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                           {data.matrixRowCells[index].map((cell, cellIndex) =>
                             cell === "\\cdots" ? (
                               <span
-                                key={`${cell}-${cellIndex}`}
+                                key={cellIndex}
                                 style={{
                                   display: "grid",
                                   placeItems: "center",
@@ -4311,7 +4312,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                               </span>
                             ) : (
                               <span
-                                key={`${cell}-${cellIndex}`}
+                                key={cellIndex}
                                 style={{
                                   padding: "2px 1px",
                                   border: `1px solid ${color}`,
@@ -4363,14 +4364,14 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 {data.vectorCells.map((cell, index) =>
                   cell === "\\cdots" ? (
                     <span
-                      key={`${cell}-${index}`}
+                      key={index}
                       style={{ display: "grid", placeItems: "center" }}
                     >
                       <MathFormula tex={cell} />
                     </span>
                   ) : (
                     <span
-                      key={`${cell}-${index}`}
+                      key={index}
                       style={{
                         minHeight: data.columnVectors ? 60 : undefined,
                         display: "grid",
