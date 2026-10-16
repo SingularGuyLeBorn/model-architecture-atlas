@@ -12,6 +12,9 @@ test("解释面板显式开关、独立占位、滚轮平移与 mHC 结构验收
   await focus.selectOption("hc-mix-a");
   const mix = page.locator('.react-flow__node[data-id="hc-mix-a"]');
   await expect(mix.locator("[data-mhc-flatten]")).toBeVisible();
+  await expect(mix).not.toContainText(
+    /不是|而非|并非|不能|不要|仍沿用同一绿色|不另起|避免.*混淆/,
+  );
   await expect
     .poll(() =>
       mix
@@ -65,6 +68,9 @@ test("解释面板显式开关、独立占位、滚轮平移与 mHC 结构验收
     0,
   );
   await expect(pane).not.toContainText("变量字典");
+  await expect(pane).not.toContainText(
+    /不是|而非|并非|不能|不要|仍沿用同一绿色|不另起/,
+  );
   await pane.screenshot({ path: "artifacts/inspector-prose-mhc.png" });
   const frame = await mix.boundingBox(),
     panel = await pane.boundingBox();

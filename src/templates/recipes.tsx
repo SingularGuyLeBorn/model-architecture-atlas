@@ -207,7 +207,7 @@ export function recipeFor(
   if (chapter === "overview")
     return result(
       phase === "prefill"
-        ? "Prefill 同时计算输入的 N 行；每行只能读取自己及之前的位置。t 是原序列行号，不是另外抽取的样本。"
+        ? "Prefill 同时计算输入的 N 行；每行只能读取自己及之前的位置。t 是原序列行号。"
         : "Decode 第 k 步只计算新输入的一行，位置 t=P+k。历史来自各层缓存；本步输出分布用于选择下一个 token。",
       [
         stage(
@@ -224,15 +224,15 @@ export function recipeFor(
               ))}
             </Parallel>
             <p>
-              这里的 ID 是符号示意；真实分词必须使用当前模型的
-              tokenizer，不能把汉字逐字当 token。
+              这里的 ID 是符号示意；真实分词必须使用当前模型的 tokenizer 确定
+              token 边界。
             </p>
           </>,
           "\\mathrm{ids}",
         ),
         stage(
           "embedding",
-          "02 · Embedding 查表，不是位置相加",
+          "02 · Embedding 查表",
           <>
             <Tensor
               name="E"
@@ -410,7 +410,7 @@ export function recipeFor(
         ),
         stage(
           "absorb",
-          "03 · 两种等价方式：并行对照，不是串行执行",
+          "03 · 两种等价计算方式",
           <Parallel>
             {[
               <div key="naive">
@@ -634,7 +634,6 @@ export function recipeFor(
                     />
                   ))}
                 </Parallel>
-                <p>排名 2 与排名 {topk} 之间的选中专家省略；不是没计算。</p>
               </div>,
             ]}
           </Parallel>,
@@ -665,7 +664,7 @@ export function recipeFor(
   if (chapter === "balance") {
     references.push({ title: "V3 报告 §2.1.2 · §4.2", url: V3_REPORT });
     return result(
-      "辅助损失自由负载均衡首先指 V3 的训练机制：用路由偏置调节流量，偏置不直接进入专家混合权重。不要把这理解为整个训练没有辅助损失。",
+      "辅助损失自由负载均衡首先指 V3 的训练机制：用路由偏置调节流量，偏置不直接进入专家混合权重。训练还包含序列级负载均衡辅助损失。",
       [
         stage(
           "dispatch",
@@ -738,7 +737,8 @@ export function recipeFor(
               ]}
             </Add>
             <p>
-              V3：批量级流量主要由偏置机制调节；很小的序列级损失用于约束单序列极端不均衡。其他版本不能直接套用这些训练超参数。
+              V3：批量级流量主要由偏置机制调节；很小的序列级损失用于约束单序列极端不均衡。这些训练超参数适用于
+              V3。
             </p>
           </>,
           "\\mathcal L",
@@ -922,7 +922,7 @@ export function recipeFor(
             )}
             <p>
               YaRN 调整频率和尺度以扩展上下文；基础频率、压缩 KV
-              频率和位置锚点不能混用。
+              频率和位置锚点按各自配置计算。
             </p>
           </>,
           "q^R,k^R",
@@ -932,7 +932,7 @@ export function recipeFor(
   if (chapter === "mhc")
     return result(
       model.family === "v41"
-        ? "Single-Pass mHC：当前子层生成的 p 提供给后续汇合；q 与 C 用于当前回写。不要把 p 的跨子层消费和当前 q/C 回写串成同一运算。"
+        ? "Single-Pass mHC：当前子层生成的 p 提供给下一子层汇合；q 与 C 用于当前回写。"
         : "V4 mHC 在每个子层入口从四路状态生成 pre/post/comb；pre 汇合当前子层输入，post 与 comb 在当前子层输出后并行回写。",
       [
         stage(
@@ -989,7 +989,7 @@ export function recipeFor(
             <p>
               {model.family === "v41"
                 ? "这里消费的是进入本子层的 p；首层起始汇合由初始化权重确定。完整层图保留跨子层来源。"
-                : "这里消费本次入口生成的 p。o 是该子层真正计算出的输出，不是控制器输出。"}
+                : "这里消费本次入口生成的 p。o 是该子层的计算输出。"}
             </p>
           </>,
           "o_{l,t}",
@@ -1154,7 +1154,7 @@ export function recipeFor(
                     {model.family === "v41" && (
                       <p>
                         V4.1：KV 由指定 Full
-                        层写入并跨层复用，解码器压缩源是末编码器状态；不是每层都重做一份。
+                        层写入并跨层复用，解码器压缩源是末编码器状态。
                       </p>
                     )}
                   </>
@@ -1208,7 +1208,7 @@ export function recipeFor(
                       rows={["i_1", "i_2", "…", "i_{K_t}"]}
                     />
                     <p>
-                      选择的是压缩行，不是特征列。候选不足时只保留实际存在的行。
+                      行号对应压缩矩阵中的整行。候选不足时只保留实际存在的行。
                     </p>
                   </>
                 ),
@@ -1334,7 +1334,7 @@ export function recipeFor(
     );
   if (chapter === "ced")
     return result(
-      "20 层因果编码器 + 20 层解码器。全局压缩 KV 的来源是编码器路径；解码器仍保留本层本地窗口，不能把两者画成同一个缓存。",
+      "20 层因果编码器 + 20 层解码器。全局压缩 KV 的来源是编码器路径；解码器同时保留本层的本地窗口缓存。",
       [
         stage(
           "enc",
@@ -1422,7 +1422,7 @@ export function recipeFor(
     );
   if (chapter === "vision")
     return result(
-      "V4.1 Flash 的图像编码支路与文本分词支路在序列输入处汇合。视觉 Token 是特征向量，不是把像素写成文本。",
+      "V4.1 Flash 的图像编码支路与文本分词支路在序列输入处汇合。视觉 Token 是图像编码器生成的特征向量。",
       [
         stage(
           "patch",
@@ -1454,7 +1454,10 @@ export function recipeFor(
             </Data>
             <Down />
             <Tensor name="V_{32}" shape="P\times1024" />
-            <p>视觉 FFN 中间宽度 2816；二维位置不能直接当文本位置 t 使用。</p>
+            <p>
+              视觉 FFN 中间宽度 2816；视觉位置采用二维坐标，文本位置使用序列索引
+              t。
+            </p>
           </>,
           "V_{32}",
         ),
@@ -1497,7 +1500,7 @@ export function recipeFor(
     );
   if (chapter === "dspark")
     return result(
-      "DSpark 是草拟与验证的生成路径，不应混进单层 Attention。配置包含 3 个附加预测层和 5 位置块；草稿必须经目标模型验证，不能直接当最终输出。",
+      "DSpark 包含草拟和验证两个生成阶段。配置包含 3 个附加预测层和 5 位置块；目标模型验证草稿后确定最终输出。",
       [
         stage(
           "context",
@@ -1570,10 +1573,10 @@ export function recipeFor(
     });
     return result(
       model.id === "r1"
-        ? "这里是原始 DeepSeek-R1，不是 R1-Distill 或 R1-0528。R1 的主要差异在训练路线；推理仍使用 V3 系列 MLA / MoE 主干。"
+        ? "这里介绍原始 DeepSeek-R1。R1 的主要差异在训练路线；推理仍使用 V3 系列 MLA / MoE 主干。"
         : model.id === "v31"
-          ? "V3.1 的思考开关由聊天模板控制，不是另建一套 Attention。两种模式共用同一模型权重。"
-          : "训练路径和推理主干分开：MTP 增加未来 token 的训练目标，不等于每次推理必须一次输出多 token。",
+          ? "V3.1 的思考开关由聊天模板控制。两种模式共用同一模型权重。"
+          : "训练路径和推理主干分开：MTP 在训练中增加未来 token 的预测目标。",
       model.id === "r1"
         ? [
             stage(
@@ -1627,8 +1630,8 @@ export function recipeFor(
                 <Down />
                 <Data>最终 DeepSeek-R1</Data>
                 <p>
-                  R1-Zero 是另一条从 V3-Base 直接 RL 的研究路线；不是 R1
-                  的冷启动阶段。
+                  R1-Zero 从 V3-Base 直接进行 RL；R1 使用冷启动数据准备
+                  初始策略。
                 </p>
               </>,
               "\\theta_{R1}",

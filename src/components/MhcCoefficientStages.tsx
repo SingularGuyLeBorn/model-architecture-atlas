@@ -92,8 +92,7 @@ export function MhcFlatten({ layer, stage }: { layer: number; stage: string }) {
         ))}
       </div>
       <span>
-        按路 1、2、3、4 首尾接成一行；只拼接每路的元素，不拼接不同 token。图内 h
-        的元素省略共同层号、t 与阶段上标。
+        将同一 token 的第 1、2、3、4 路向量首尾相接，组成一行。
       </span>
       <MathFormula tex="f_{t,(c-1)5120+d}=h_{c,d},\quad c=1,2,3,4,\ d=1,\ldots,5120" />
     </section>
@@ -215,7 +214,7 @@ export function MhcJointNorm() {
             elementTex={(d) => `\\bar f_{t,${d}}`}
             tone="blue"
           />
-          <span>没有可学习的 γ。此处 ε = 10⁻²⁰；不另起 z、y 名称。</span>
+          <span>稳定项 ε = 10⁻²⁰。</span>
         </div>
       </div>
     </section>
@@ -322,10 +321,7 @@ export function MhcProjection({
           </div>
         ))}
       </div>
-      <span>
-        三段同时计算，各自使用缩放 s₁ / s₂ / s₃ 和对应偏置 b。u
-        的元素仍沿用同一绿色。
-      </span>
+      <span>三段同时计算，各自使用缩放 s₁ / s₂ / s₃ 和对应偏置 b。</span>
       <div data-mhc-affine-legend style={{ ...row, flexWrap: "wrap" }}>
         {(
           [
@@ -395,9 +391,7 @@ export function MhcGate({
           </div>
         ))}
       </div>
-      <span>
-        a 是缩放、加偏置之后的中间值；上标区分两段，避免两个 a₁ 混淆。
-      </span>
+      <span>a 是缩放、加偏置后的中间值，上标 p、q 分别标识两个分支。</span>
       <div style={{ ...grid4, gap: 6 }}>
         {copies.map((j) => (
           <div key={j} style={{ display: "grid", gap: 6, textAlign: "center" }}>
@@ -424,7 +418,7 @@ export function MhcGate({
       <span>
         {kind === "p"
           ? "每个 sigmoid 结果加 10⁻⁶，保持正值。"
-          : "每个 sigmoid 结果明确乘以 2，结果范围为 (0, 2)；2 不是次数或维度。"}
+          : "每个 sigmoid 结果乘以 2，结果范围为 (0, 2)。"}
       </span>
       {children}
     </section>
@@ -667,7 +661,8 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
             <span>每列除以该列之和 + ε</span>
           </div>
           <span>
-            从第 2 轮起不再取指数；同一个 4×4 矩阵反复调整，行和、列和接近 1。
+            第 2–20 轮交替进行行、列归一化，使同一个 4×4 矩阵的行和、列和接近
+            1。
           </span>
           <MathFormula tex="\epsilon_{HC}=10^{-6}" />
         </div>

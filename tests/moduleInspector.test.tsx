@@ -37,6 +37,9 @@ describe("模块解释的显式开关", () => {
         expect(paragraph.length).toBeGreaterThan(50);
         expect(paragraph.endsWith("。")).toBe(true);
         expect(paragraph).not.toMatch(/@L|@N|@SUB/);
+        expect(paragraph).not.toMatch(
+          /不是|而非|并非|不能|不要|仍沿用同一绿色|不另起/,
+        );
       }
       const html = renderToStaticMarkup(
         createElement(ModuleInspector, {
@@ -129,4 +132,7 @@ it("mHC 拼接、归一化、三段 u、仿射与分支运算均展开成结构"
   expect(tex.some((value) => /^[zy]_[{]/.test(value ?? ""))).toBe(false);
   expect(root.textContent).not.toContain("其余 16");
   expect(root.textContent).not.toContain("广播");
+  expect(root.textContent).not.toMatch(
+    /不是|而非|并非|不能|不要|仍沿用同一绿色|不另起|避免.*混淆/,
+  );
 });

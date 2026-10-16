@@ -46,6 +46,13 @@ for (const model of models)
           .join("");
         expect(html).not.toContain("katex-error");
         expect(html).not.toContain("undefined");
+        expect(
+          [
+            recipe.introduction,
+            ...recipe.stages.map((s) => s.title),
+            html,
+          ].join("\n"),
+        ).not.toMatch(/不是|而非|并非|不能|不要|仍沿用同一绿色|不另起/);
         expect(recipe.stages.every((stage) => stage.output.length > 0)).toBe(
           true,
         );

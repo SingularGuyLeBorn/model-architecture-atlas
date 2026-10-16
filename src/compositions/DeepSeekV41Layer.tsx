@@ -1317,7 +1317,7 @@ export function MhcPost({
           [
             ["blue", "旧残差 h"],
             ["violet", "混合系数 C"],
-            ["rose", "各路接收权重 q（不是 Attention 的 Query）"],
+            ["rose", "各路接收权重 q"],
             ["green", "子层输出 o"],
             ["cyan", "加权结果"],
           ] as const
@@ -1946,8 +1946,8 @@ export function LayerHandoff({
                   }
                 />
                 <span>
-                  每个 token 一组行号，Kₜ ≤ 512；用于从上面的 G 取行，不是 KV
-                  向量。
+                  每个 token 一组行号，Kₜ ≤ 512；用于从 G 中读取对应的 KV
+                  行向量。
                 </span>
               </div>
             )}
@@ -2011,7 +2011,7 @@ export function LayerHandoff({
               fontSize: 12,
             }}
           >
-            <strong>同一请求的公共输入（不是本层新产物）：</strong>
+            <strong>同一请求的公共输入：</strong>
             {layer < 40 ? (
               <>
                 <Box tone="neutral">位置 t / start_pos → RoPE 与因果范围</Box>
@@ -6324,10 +6324,9 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             data-projection-parameter-origin
             style={{ fontSize: 13, lineHeight: 1.7 }}
           >
-            W 表示权重，O 表示 Attention 输出投影；A、B
-            表示第一、第二级，不是三个变量相乘。
+            W 表示权重，O 表示 Attention 输出投影；A、B 分别标识第一、第二级。
             <br />
-            参数在训练中学习，推理时从模型权重加载，不由上方 C 临时算出。
+            参数在训练中学习，推理时从模型权重加载。
             <br />
             A：每组 4096 → 1024；B：拼接后 8192 → 5120。
             <br />

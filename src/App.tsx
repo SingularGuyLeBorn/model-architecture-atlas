@@ -231,9 +231,7 @@ export function App() {
               <X size={20} />
             </button>
           </header>
-          <p>
-            图内展开数据流；这里保留数学关系与官方来源。示例数值不代表模型运行输出。
-          </p>
+          <p>数学关系与官方来源。数值例子用于演示计算过程。</p>
           {(
             recipe?.references ?? [
               { title: "官方配置", url: model.provenance.url },
