@@ -13,6 +13,7 @@ import React, {
 } from "react";
 import katex from "katex";
 import { MathMarkup } from "./MathMarkup";
+import { DATA_WIRE_WIDTH } from "./diagram-appearance";
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -1783,7 +1784,11 @@ function EditableOrthogonalEdgeView({
         style={{
           ...style,
           stroke: color,
-          strokeWidth: selected ? 3.4 : Number(style?.strokeWidth ?? 2.2),
+          strokeWidth: selected
+            ? 3.4
+            : Math.max(DATA_WIRE_WIDTH, Number(style?.strokeWidth ?? 0)),
+          strokeLinecap: "round",
+          strokeLinejoin: "round",
         }}
       />
       <EdgeLabelRenderer>

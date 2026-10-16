@@ -1,3 +1,4 @@
+import { frameColor } from "../components/diagram-appearance";
 import {
   MathFormula,
   Box,
@@ -476,7 +477,7 @@ function AttentionTensor({
       style={{
         minWidth: 0,
         padding: 8,
-        border: `1.5px solid ${palette.color}`,
+        border: `1.5px solid ${frameColor(palette.color)}`,
         borderRadius: 8,
         background: "transparent",
         display: "grid",
@@ -642,7 +643,7 @@ export function RmsNormProcess({
       data-rmsnorm={label}
       data-rmsnorm-dimension={dimension}
       style={{
-        border: `1px solid ${COLORS.green}`,
+        border: `1px solid ${frameColor(COLORS.green)}`,
         borderRadius: 9,
         padding: 10,
         display: "grid",
@@ -1045,7 +1046,7 @@ export function MhcMix({
         data-expanded-tensor
         style={{
           position: "relative",
-          border: `1px solid ${COLORS[tone]}`,
+          border: `1px solid ${frameColor(COLORS[tone])}`,
           borderRadius: 9,
           padding: 10,
           display: "grid",
@@ -1333,7 +1334,7 @@ export function MhcPost({
                 height: 12,
                 borderRadius: 3,
                 background: tonePalette(tone).background,
-                border: `1.5px solid ${COLORS[tone]}`,
+                border: `1.5px solid ${frameColor(COLORS[tone])}`,
               }}
             />
             {label}
@@ -1353,7 +1354,7 @@ export function MhcPost({
           style={{
             display: "grid",
             gridTemplateColumns: "minmax(0,320px) minmax(0,1fr)",
-            border: `1px solid ${COLORS.violet}`,
+            border: `1px solid ${frameColor(COLORS.violet)}`,
             borderRadius: 12,
             padding: 12,
             gap: 16,
@@ -1365,7 +1366,7 @@ export function MhcPost({
             data-expanded-tensor
             style={{
               position: "relative",
-              border: `1px solid ${COLORS.violet}`,
+              border: `1px solid ${frameColor(COLORS.violet)}`,
               background: "transparent",
               borderRadius: 8,
               padding: 8,
@@ -1440,7 +1441,7 @@ export function MhcPost({
           style={{
             display: "grid",
             gridTemplateColumns: "minmax(0,420px) minmax(0,1fr)",
-            border: `1px solid ${COLORS.green}`,
+            border: `1px solid ${frameColor(COLORS.green)}`,
             borderRadius: 12,
             padding: 12,
             gap: 20,
@@ -1500,7 +1501,7 @@ export function MhcPost({
                 position: "relative",
                 width: "100%",
                 maxWidth: 420,
-                border: `1px solid ${COLORS.rose}`,
+                border: `1px solid ${frameColor(COLORS.rose)}`,
                 background: "transparent",
                 borderRadius: 8,
                 padding: 8,
@@ -1576,7 +1577,7 @@ export function MhcPost({
             key={j}
             data-mhc-output-copy={j}
             style={{
-              border: `1px solid ${COLORS.green}`,
+              border: `1px solid ${frameColor(COLORS.green)}`,
               borderRadius: 9,
               padding: 10,
               display: "grid",
@@ -1597,7 +1598,7 @@ export function MhcPost({
               <div
                 data-mhc-residual-mix={j}
                 style={{
-                  border: `1px solid ${COLORS.violet}`,
+                  border: `1px solid ${frameColor(COLORS.violet)}`,
                   borderRadius: 9,
                   padding: 8,
                   display: "flex",
@@ -1643,7 +1644,7 @@ export function MhcPost({
               <div
                 data-mhc-broadcast={j}
                 style={{
-                  border: `1px solid ${COLORS.green}`,
+                  border: `1px solid ${frameColor(COLORS.green)}`,
                   borderRadius: 9,
                   padding: 8,
                   display: "flex",
@@ -1835,7 +1836,7 @@ export function LayerHandoff({
           data-expanded-tensor
           style={{
             position: "relative",
-            border: `1px solid ${COLORS.green}`,
+            border: `1px solid ${frameColor(COLORS.green)}`,
             background: "transparent",
             padding: 10,
             borderRadius: 8,
@@ -2175,7 +2176,7 @@ export function EngramLookup({
             key={n}
             data-ngram={n}
             style={{
-              border: `1px solid ${COLORS.blue}`,
+              border: `1px solid ${frameColor(COLORS.blue)}`,
               borderRadius: 8,
               padding: 8,
               display: "grid",
@@ -2219,7 +2220,7 @@ export function EngramLookup({
       <FlowStep>3 种长度 × 8 个哈希头 = 24 个地址；每个地址查一行</FlowStep>
       <div
         style={{
-          border: `1px solid ${COLORS.blue}`,
+          border: `1px solid ${frameColor(COLORS.blue)}`,
           borderRadius: 8,
           padding: 9,
           display: "grid",
@@ -2314,7 +2315,7 @@ export function EngramLookup({
                 <span
                   key={j}
                   style={{
-                    border: `1px solid ${COLORS.amber}`,
+                    border: `1px solid ${frameColor(COLORS.amber)}`,
                     background: COLORS.amberSoft,
                     padding: "9px 3px",
                     borderRadius: 4,
@@ -2483,7 +2484,7 @@ export function EngramInject({
             key={c}
             data-engram-copy={c}
             style={{
-              border: `1px solid ${COLORS.green}`,
+              border: `1px solid ${frameColor(COLORS.green)}`,
               borderRadius: 8,
               padding: 9,
               display: "grid",
@@ -2593,7 +2594,7 @@ function RotaryProcess({
       data-rotary-process={inverse ? "inverse" : "forward"}
       data-rotary-layout={compact ? "side-detail" : "stacked"}
       style={{
-        border: `1px solid ${COLORS.amber}`,
+        border: `1px solid ${frameColor(COLORS.amber)}`,
         borderRadius: 9,
         padding: 10,
         display: "grid",
@@ -2852,7 +2853,7 @@ function IndexProjection({
           data-expanded-tensor
           style={{
             padding: 6,
-            border: `1px solid ${COLORS.amber}`,
+            border: `1px solid ${frameColor(COLORS.amber)}`,
             background: "transparent",
             borderRadius: 7,
             display: "grid",
@@ -2877,7 +2878,7 @@ function IndexProjection({
                 <div
                   key={j}
                   style={{
-                    border: `1px solid ${COLORS.amber}`,
+                    border: `1px solid ${frameColor(COLORS.amber)}`,
                     borderRadius: 4,
                     padding: "8px 3px",
                     background: COLORS.amberSoft,
@@ -2922,7 +2923,7 @@ export function IndexSelection({
       style={{
         width: "max-content",
         maxWidth: "100%",
-        border: `1px solid ${COLORS.amber}`,
+        border: `1px solid ${frameColor(COLORS.amber)}`,
         borderRadius: 8,
         padding: 9,
         display: "grid",
@@ -3038,7 +3039,7 @@ export function IndexScoreProcess({
               style={{
                 display: "grid",
                 gap: 6,
-                border: `1px solid ${COLORS.green}`,
+                border: `1px solid ${frameColor(COLORS.green)}`,
                 padding: 8,
                 borderRadius: 8,
               }}
@@ -3206,7 +3207,7 @@ function LocalKvProjection({ layer }: { layer: number }) {
                   data-expanded-tensor
                   style={{
                     padding: 5,
-                    border: `1.3px solid ${COLORS.amber}`,
+                    border: `1.3px solid ${frameColor(COLORS.amber)}`,
                     borderRadius: 7,
                     background: "transparent",
                     display: "grid",
@@ -3233,7 +3234,7 @@ function LocalKvProjection({ layer }: { layer: number }) {
                         <div
                           key={column}
                           style={{
-                            border: `1px solid ${COLORS.amber}`,
+                            border: `1px solid ${frameColor(COLORS.amber)}`,
                             borderRadius: 4,
                             padding: "20px 0",
                             background: COLORS.amberSoft,
@@ -3630,7 +3631,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
       style={{
         position: "relative",
         minWidth: 0,
-        border: `1.5px solid ${COLORS.green}`,
+        border: `1.5px solid ${frameColor(COLORS.green)}`,
         borderRadius: 10,
         padding: 12,
         display: "grid",
@@ -4005,7 +4006,7 @@ export function Expert({
       style={{
         minWidth: 0,
         padding: 5,
-        border: `1px solid ${color}`,
+        border: `1px solid ${frameColor(color)}`,
         borderRadius: 6,
         background: "transparent",
       }}
@@ -4123,7 +4124,7 @@ export function Expert({
     <div
       data-expert={shared ? "shared" : index}
       style={{
-        border: `1.5px solid ${shared ? COLORS.blue : COLORS.amber}`,
+        border: `1.5px solid ${frameColor(shared ? COLORS.blue : COLORS.amber)}`,
         borderRadius: 9,
         padding: 9,
         display: "grid",
@@ -4183,7 +4184,7 @@ export function Expert({
             <div
               data-expert-activation
               style={{
-                border: `1px solid ${color}`,
+                border: `1px solid ${frameColor(color)}`,
                 borderRadius: 6,
                 padding: 8,
                 textAlign: "center",
@@ -4201,7 +4202,7 @@ export function Expert({
                     key={tex}
                     data-silu-operand
                     style={{
-                      border: `1px solid ${color}`,
+                      border: `1px solid ${frameColor(color)}`,
                       borderRadius: 4,
                       padding: "7px 2px",
                       display: "grid",
@@ -4507,7 +4508,11 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
     return (
       <div
         data-execution-guide={phase}
-        style={{ ...panel, height: "auto", borderColor: COLORS.blue }}
+        style={{
+          ...panel,
+          height: "auto",
+          borderColor: frameColor(COLORS.blue),
+        }}
       >
         <Title>
           {phase === "prefill"
@@ -4626,7 +4631,11 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
     return (
       <div
         data-embedding
-        style={{ ...panel, height: "auto", borderColor: COLORS.blue }}
+        style={{
+          ...panel,
+          height: "auto",
+          borderColor: frameColor(COLORS.blue),
+        }}
       >
         {both}
         <Title>Embedding · 每个 Token ID 查词表中的一行</Title>
@@ -4805,7 +4814,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
     return (
       <div
         data-query-row={phase}
-        style={{ ...panel, borderColor: COLORS.amber }}
+        style={{ ...panel, borderColor: frameColor(COLORS.amber) }}
       >
         {both}
         <Title>
@@ -4884,7 +4893,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         data-expanded-tensor={expanded || undefined}
         style={{
           ...panel,
-          borderColor: color,
+          borderColor: frameColor(color),
           borderRadius: 10,
           background: expanded ? "transparent" : background,
           boxShadow: "0 3px 10px rgba(42,41,36,.06)",
@@ -4988,7 +4997,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                                 key={cellIndex}
                                 style={{
                                   padding: "2px 1px",
-                                  border: `1px solid ${color}`,
+                                  border: `1px solid ${frameColor(color)}`,
                                   borderRadius: 3,
                                   background,
                                   textAlign: "center",
@@ -5050,7 +5059,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                         display: "grid",
                         placeItems: "center",
                         padding: "3px 2px",
-                        border: `1px solid ${color}`,
+                        border: `1px solid ${frameColor(color)}`,
                         borderRadius: 4,
                         background,
                         fontSize: 9,
@@ -5216,7 +5225,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
 
   if (kind === "swa-window") {
     return (
-      <div style={{ ...panel, borderColor: COLORS.green }}>
+      <div style={{ ...panel, borderColor: frameColor(COLORS.green) }}>
         <Handle
           id="projected-kv"
           type="target"
@@ -5297,7 +5306,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   maxWidth: "100%",
                   boxSizing: "border-box",
                   justifySelf: "center",
-                  border: `1.5px solid ${COLORS.amber}`,
+                  border: `1.5px solid ${frameColor(COLORS.amber)}`,
                   borderRadius: 8,
                   padding: 6,
                   background: COLORS.amberSoft,
@@ -5444,7 +5453,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         data-swa-result
         style={{
           ...panel,
-          borderColor: COLORS.amber,
+          borderColor: frameColor(COLORS.amber),
           background: COLORS.greenSoft,
           padding: 9,
           display: "grid",
@@ -5482,7 +5491,13 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
     const ratio = compressionRatioForLayer(kvSource);
     const writesKv = mode === "full";
     return (
-      <div style={{ ...panel, height: "auto", borderColor: COLORS.green }}>
+      <div
+        style={{
+          ...panel,
+          height: "auto",
+          borderColor: frameColor(COLORS.green),
+        }}
+      >
         <Handle
           id="input"
           type="target"
@@ -5517,7 +5532,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 <div
                   data-expanded-tensor
                   style={{
-                    border: `1.2px solid ${COLORS.green}`,
+                    border: `1.2px solid ${frameColor(COLORS.green)}`,
                     borderRadius: 8,
                     padding: 6,
                     display: "grid",
@@ -5568,7 +5583,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   <div
                     data-expanded-tensor
                     style={{
-                      border: `1.2px solid ${COLORS.amber}`,
+                      border: `1.2px solid ${frameColor(COLORS.amber)}`,
                       borderRadius: 8,
                       padding: 6,
                       display: "grid",
@@ -5629,7 +5644,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     display: "grid",
                     gap: 7,
                     padding: 8,
-                    border: `1px solid ${COLORS.amber}`,
+                    border: `1px solid ${frameColor(COLORS.amber)}`,
                     borderRadius: 7,
                     fontSize: 12,
                   }}
@@ -5786,7 +5801,13 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
     const indexSource = globalIndexSourceLayer(layer)!;
     const writesIndex = mode === "full" || mode === "reindex";
     return (
-      <div style={{ ...panel, height: "auto", borderColor: COLORS.amber }}>
+      <div
+        style={{
+          ...panel,
+          height: "auto",
+          borderColor: frameColor(COLORS.amber),
+        }}
+      >
         <Handle
           id="query"
           type="target"
@@ -6006,7 +6027,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
     const kvSource = globalKvSourceLayer(layer)!;
     const indexSource = globalIndexSourceLayer(layer)!;
     return (
-      <div style={{ ...panel, borderColor: COLORS.green }}>
+      <div style={{ ...panel, borderColor: frameColor(COLORS.green) }}>
         <Handle
           id="matrix"
           type="target"
@@ -6086,7 +6107,10 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
     const hasGlobal = kvSource !== null && indexSource !== null;
     if (!hasGlobal)
       return (
-        <div data-swa-only-kv style={{ ...panel, borderColor: COLORS.green }}>
+        <div
+          data-swa-only-kv
+          style={{ ...panel, borderColor: frameColor(COLORS.green) }}
+        >
           <Handle
             id="local"
             type="target"
@@ -6119,7 +6143,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         </div>
       );
     return (
-      <div style={{ ...panel, borderColor: COLORS.green }}>
+      <div style={{ ...panel, borderColor: frameColor(COLORS.green) }}>
         <Handle
           id="local"
           type="target"
@@ -6418,7 +6442,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           ...panel,
           display: "grid",
           placeItems: "center",
-          borderColor: COLORS.blue,
+          borderColor: frameColor(COLORS.blue),
           background: COLORS.blueSoft,
           fontSize: 20,
           fontWeight: 800,
@@ -6490,7 +6514,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             data-expanded-tensor
             style={{
               minWidth: 0,
-              border: `1.3px solid ${COLORS.amber}`,
+              border: `1.3px solid ${frameColor(COLORS.amber)}`,
               background: "transparent",
               borderRadius: 7,
               padding: 7,
@@ -6528,7 +6552,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   <div
                     key={expert}
                     style={{
-                      border: `1px solid ${COLORS.amber}`,
+                      border: `1px solid ${frameColor(COLORS.amber)}`,
                       borderRadius: 4,
                       background: COLORS.amberSoft,
                       padding: "22px 2px",
@@ -6549,7 +6573,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               display: "grid",
               placeItems: "center",
               padding: "18px 7px 7px",
-              border: `1.3px solid ${COLORS.green}`,
+              border: `1.3px solid ${frameColor(COLORS.green)}`,
               borderRadius: 7,
               background: COLORS.greenSoft,
             }}
@@ -6591,7 +6615,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             width: "100%",
             boxSizing: "border-box",
             padding: "5px 2px",
-            border: `1px solid ${expert ? COLORS.amber : COLORS.blue}`,
+            border: `1px solid ${frameColor(expert ? COLORS.amber : COLORS.blue)}`,
             borderRadius: 4,
             background: expert ? COLORS.amberSoft : COLORS.blueSoft,
             color: expert ? COLORS.amber : COLORS.muted,
@@ -6610,7 +6634,13 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
       );
     };
     return (
-      <div style={{ ...panel, height: "auto", borderColor: COLORS.amber }}>
+      <div
+        style={{
+          ...panel,
+          height: "auto",
+          borderColor: frameColor(COLORS.amber),
+        }}
+      >
         <Handle
           id="main-in"
           type="target"
@@ -6823,7 +6853,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             style={{
               minWidth: 0,
               padding: EXPERT_GROUP_INSET - 1,
-              border: `1px solid ${COLORS.amber}`,
+              border: `1px solid ${frameColor(COLORS.amber)}`,
               borderRadius: 10,
               display: "grid",
               gap: 10,
@@ -6935,7 +6965,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           data-expert-weight={expert}
           style={{
             ...panel,
-            borderColor: color,
+            borderColor: frameColor(color),
             display: "grid",
             placeContent: "center",
             gap: 4,
@@ -6963,7 +6993,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             width: "100%",
             height: "100%",
             borderRadius: "50%",
-            border: `2px solid ${color}`,
+            border: `2px solid ${frameColor(color)}`,
             boxSizing: "border-box",
             display: "grid",
             placeItems: "center",
@@ -6995,7 +7025,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
       return (
         <div
           data-expert-weighted={expert}
-          style={{ ...panel, height: "auto", borderColor: color }}
+          style={{ ...panel, height: "auto", borderColor: frameColor(color) }}
         >
           {both}
           <Title>
@@ -7022,7 +7052,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
     return (
       <div
         data-expert-output={expert}
-        style={{ ...panel, height: "auto", borderColor: color }}
+        style={{ ...panel, height: "auto", borderColor: frameColor(color) }}
       >
         {both}
         <Title>
@@ -7066,7 +7096,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           width: "100%",
           height: "100%",
           borderRadius: 24,
-          border: `3px solid ${COLORS.green}`,
+          border: `3px solid ${frameColor(COLORS.green)}`,
           boxSizing: "border-box",
           background: COLORS.greenSoft,
           display: "grid",
@@ -7108,7 +7138,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           placeContent: "center",
           textAlign: "center",
           gap: 7,
-          borderColor: COLORS.green,
+          borderColor: frameColor(COLORS.green),
           background: COLORS.greenSoft,
           fontSize: 14,
         }}

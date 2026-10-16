@@ -1,6 +1,7 @@
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { frameColor } from "../src/components/diagram-appearance";
 import {
   applySavedLayout,
   buildGraph,
@@ -425,8 +426,9 @@ describe("mHC 与 Engram 的真实主路径", () => {
           (e) => e.id === `mix-${sublayer.toLowerCase()}-${edge}`,
         )?.style?.stroke;
         const colorProbe = document.createElement("div");
-        colorProbe.style.borderColor = String(edgeColor);
+        colorProbe.style.borderColor = frameColor(String(edgeColor));
         expect(colorProbe.style.borderColor).toBe(source.style.borderColor);
+        expect(target.style.borderColor).toBe(source.style.borderColor);
         colors.push(source.style.borderColor);
       }
       expect(new Set(colors).size).toBe(2);

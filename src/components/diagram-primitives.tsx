@@ -1,3 +1,4 @@
+import { frameColor } from "./diagram-appearance";
 import React, {
   memo,
   useId,
@@ -75,7 +76,7 @@ export function Box({
       data-expanded-tensor={expanded || undefined}
       style={{
         minWidth: 0,
-        border: `1.5px solid ${color}`,
+        border: `1.5px solid ${tone === "neutral" ? color : frameColor(color)}`,
         borderRadius: 8,
         padding: "7px 8px",
         background: expanded ? "transparent" : background,
@@ -243,7 +244,7 @@ export function VectorStrip({
                   : compact
                     ? "2px 3px"
                     : "4px 3px",
-                border: `1px solid ${palette.color}`,
+                border: `1px solid ${frameColor(palette.color)}`,
                 borderRadius: 4,
                 background: palette.background,
                 textAlign: "center",
@@ -285,7 +286,7 @@ export function Matrix({
     <div
       data-expanded-tensor
       style={{
-        border: `1.5px solid ${palette.color}`,
+        border: `1.5px solid ${frameColor(palette.color)}`,
         borderRadius: 9,
         overflow: "hidden",
       }}
@@ -370,7 +371,7 @@ export function RowMatrix({
         width: contentWidth ? "max-content" : undefined,
         maxWidth: contentWidth ? "100%" : undefined,
         padding: 6,
-        border: `1.3px solid ${palette.color}`,
+        border: `1.3px solid ${frameColor(palette.color)}`,
         borderRadius: 7,
         background: "transparent",
         display: "grid",
@@ -894,7 +895,7 @@ export function FeatureVector({
       data-feature-vector={name}
       data-expanded-tensor
       style={{
-        border: `1px solid ${palette.color}`,
+        border: `1px solid ${frameColor(palette.color)}`,
         background: "transparent",
         borderRadius: 7,
         padding: 6,
