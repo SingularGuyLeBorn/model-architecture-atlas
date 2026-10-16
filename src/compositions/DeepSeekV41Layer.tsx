@@ -5,6 +5,7 @@ import {
   Box,
   Arrow,
   Operator,
+  ParameterColumn,
   Title,
   tonePalette,
   VectorStrip,
@@ -323,6 +324,10 @@ for (const kind of [
   "add2",
 ] as const)
   CONTENT_SIZED_KINDS.add(kind);
+
+function isContentSized(data: DiagramData) {
+  return CONTENT_SIZED_KINDS.has(data.kind) || Boolean(data.columnVectors);
+}
 
 // 官方配置使用从 0 开始的层号 1、14；图的层号从 1 开始。
 export function hasEngram(layer: number) {
@@ -3337,19 +3342,10 @@ function LocalKvProjection({ layer }: { layer: number }) {
                       column === "\\cdots" ? (
                         <MathFormula key={column} tex={column} />
                       ) : (
-                        <div
+                        <ParameterColumn
                           key={column}
-                          style={{
-                            border: `1px solid ${frameColor(COLORS.indigo)}`,
-                            borderRadius: 4,
-                            padding: "20px 8px",
-                            background: COLORS.indigoSoft,
-                          }}
-                        >
-                          <MathFormula
-                            tex={`\\mathbf w_{${layer},${column}}`}
-                          />
-                        </div>
+                          tex={`\\mathbf w_{${layer},${column}}`}
+                        />
                       ),
                     )}
                   </div>
@@ -5032,6 +5028,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         data-expanded-tensor={expanded || undefined}
         style={{
           ...panel,
+          height: data.columnVectors ? "auto" : panel.height,
           borderColor: frameColor(color),
           borderRadius: 10,
           background: expanded ? "transparent" : background,
@@ -5193,7 +5190,12 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr .55fr 1fr",
+                  gridTemplateColumns: data.columnVectors
+                    ? "max-content max-content 24px max-content"
+                    : "1fr 1fr .55fr 1fr",
+                  justifyContent: data.columnVectors ? "center" : undefined,
+                  alignItems: "center",
+                  fontSize: data.columnVectors ? 9 : undefined,
                   gap: 3,
                 }}
               >
@@ -5205,11 +5207,12 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     >
                       <MathFormula tex={cell} />
                     </span>
+                  ) : data.columnVectors ? (
+                    <ParameterColumn key={index} tex={cell} />
                   ) : (
                     <span
                       key={index}
                       style={{
-                        minHeight: data.columnVectors ? 60 : undefined,
                         display: "grid",
                         placeItems: "center",
                         padding: "3px 2px",
@@ -6726,17 +6729,10 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 expert === "\\cdots" ? (
                   <MathFormula key={expert} tex={expert} />
                 ) : (
-                  <div
+                  <ParameterColumn
                     key={expert}
-                    style={{
-                      border: `1px solid ${frameColor(COLORS.indigo)}`,
-                      borderRadius: 4,
-                      background: COLORS.indigoSoft,
-                      padding: "22px 8px",
-                    }}
-                  >
-                    <MathFormula tex={`\\mathbf w_{${layer},${expert}}^R`} />
-                  </div>
+                    tex={`\\mathbf w_{${layer},${expert}}^R`}
+                  />
                 ),
               )}
             </div>
@@ -7394,10 +7390,7 @@ export function measurementsForGraph(
     return null;
   return new Map(
     measuredNodes
-      .filter(
-        (node) =>
-          CONTENT_SIZED_KINDS.has(node.data.kind) && node.measured?.height,
-      )
+      .filter((node) => isContentSized(node.data) && node.measured?.height)
       .map((node) => [node.id, node.measured!.height!]),
   );
 }
@@ -7422,7 +7415,7 @@ export function restoreMeasuredGeometry(
     if (
       !cached ||
       (requestedHeight &&
-        (CONTENT_SIZED_KINDS.has(node.data.kind)
+        (isContentSized(node.data)
           ? requestedHeight > cached.height
           : requestedHeight !== cached.height))
     ) {
@@ -7449,7 +7442,7 @@ export function buildMeasuredGraph(
   // 不能先要求整图缓存命中：Query 父框的 key 本身就依赖尚未恢复的 RMSNorm 高度。
   const heights = new Map<string, number>();
   for (const node of graph.nodes) {
-    if (!CONTENT_SIZED_KINDS.has(node.data.kind)) continue;
+    if (!isContentSized(node.data)) continue;
     const measured = cache.get(
       geometryKey(
         node.data,
@@ -7633,11 +7626,13 @@ function DiagramNodeView({ id, data, selected }: NodeProps<DiagramNode>) {
         ? 60
         : data.matrixRows?.length
           ? 180
-          : data.kind === "structure-group"
-            ? 120
-            : data.title
-              ? 96
-              : 40;
+          : data.columnVectors
+            ? 40
+            : data.kind === "structure-group"
+              ? 120
+              : data.title
+                ? 96
+                : 40;
   return (
     <div
       data-boundary-connectable={data.kind !== "structure-operator"}
@@ -7649,8 +7644,8 @@ function DiagramNodeView({ id, data, selected }: NodeProps<DiagramNode>) {
       data-frame-selected={Boolean(selected)}
       style={{
         width: "100%",
-        height: CONTENT_SIZED_KINDS.has(data.kind) ? "auto" : "100%",
-        ...(CONTENT_SIZED_KINDS.has(data.kind)
+        height: isContentSized(data) ? "auto" : "100%",
+        ...(isContentSized(data)
           ? {
               minHeight: "100%",
               display: "grid",
@@ -7745,7 +7740,10 @@ function structureNode({
     expandParent: Boolean(parentId),
     position: { x, y },
     data: { kind, layer, mode, ...data },
-    style: { width, height },
+    style: {
+      width,
+      ...(data.columnVectors ? { minHeight: "max-content" } : { height }),
+    },
     deletable: false,
   };
 }
@@ -8177,9 +8175,11 @@ export function buildGraph(
       layer,
       mode,
       x: 280,
-      y: queryLayout.firstY + (queryLayout.rowHeight - 128) / 2,
+      y:
+        queryLayout.firstY +
+        (queryLayout.rowHeight - (contentHeights.get("q-wdown") ?? 0)) / 2,
       width: 230,
-      height: 128,
+      height: 0,
       title: "5120 × 1280 · 列向量",
       tex: `W_{${layer}}^{Q\\downarrow}`,
       columnVectors: true,
@@ -8267,9 +8267,11 @@ export function buildGraph(
       layer,
       mode,
       x: 280,
-      y: queryLayout.secondY + (queryLayout.rowHeight - 128) / 2,
+      y:
+        queryLayout.secondY +
+        (queryLayout.rowHeight - (contentHeights.get("q-wup") ?? 0)) / 2,
       width: 230,
-      height: 128,
+      height: 0,
       title: "1280 × (64 · 512) · 列向量",
       tex: `W_{${layer}}^{Q\\uparrow}`,
       columnVectors: true,
@@ -8966,7 +8968,7 @@ export function applySavedLayout(
         ...item.style,
         ...(layout.width ? { width: layout.width } : {}),
         ...(layout.height
-          ? CONTENT_SIZED_KINDS.has(item.data.kind)
+          ? isContentSized(item.data)
             ? { minHeight: layout.height }
             : { height: layout.height }
           : {}),
@@ -9195,9 +9197,7 @@ function DiagramCanvas({
         new Map(
           cloned.nodes
             .filter(
-              (item) =>
-                CONTENT_SIZED_KINDS.has(item.data.kind) &&
-                item.measured?.height,
+              (item) => isContentSized(item.data) && item.measured?.height,
             )
             .map((item) => [item.id, item.measured!.height!]),
         ),
@@ -9289,7 +9289,7 @@ function DiagramCanvas({
   // 内容尺寸由 React Flow 的 ResizeObserver 测量；下游位置由同一布局函数推导。
   // 只移动自动布局基线的差值，保留用户拖动产生的偏移，不清除已保存的布局。
   const measuredHeightKey = nodes
-    .filter((item) => CONTENT_SIZED_KINDS.has(item.data.kind))
+    .filter((item) => isContentSized(item.data))
     .map((item) => `${item.id}:${item.measured?.height ?? 0}`)
     .join("|");
   useEffect(() => {

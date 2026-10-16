@@ -125,6 +125,28 @@ export function Operator({ tex }: { tex: string }) {
   );
 }
 
+// 列名只表示整列的引用；没有展开列元素时，尺寸由公式决定。
+export function ParameterColumn({ tex }: { tex: string }) {
+  return (
+    <div
+      data-parameter-column
+      style={{
+        display: "grid",
+        placeItems: "center",
+        width: "max-content",
+        height: "max-content",
+        placeSelf: "center",
+        border: `1px solid ${frameColor(COLORS.indigo)}`,
+        borderRadius: 4,
+        padding: "4px 8px",
+        background: COLORS.indigoSoft,
+      }}
+    >
+      <MathFormula tex={tex} />
+    </div>
+  );
+}
+
 export function Title({ children }: { children: ReactNode }) {
   return (
     <div

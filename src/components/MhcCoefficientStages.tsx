@@ -4,6 +4,7 @@ import {
   FeatureVector,
   MathFormula,
   Operator,
+  ParameterColumn,
   RowMatrix,
   StackedSum,
   SumJunction,
@@ -290,17 +291,7 @@ export function MhcProjection({
               j === "\\cdots" ? (
                 <MathFormula key={j} tex={j} />
               ) : (
-                <div
-                  key={j}
-                  style={{
-                    border: `1px solid ${COLORS.indigo}`,
-                    background: COLORS.indigoSoft,
-                    padding: "4px 8px",
-                    borderRadius: 6,
-                  }}
-                >
-                  <MathFormula tex={`\\mathbf w_${j}`} />
-                </div>
+                <ParameterColumn key={j} tex={`\\mathbf w_${j}`} />
               ),
             )}
           </div>
