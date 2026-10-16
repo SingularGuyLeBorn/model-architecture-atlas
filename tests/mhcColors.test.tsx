@@ -67,8 +67,8 @@ it.each(["p", "q"] as const)(
 it("C 的偏置矩阵、结果矩阵与展开行继承各自语义色", () => {
   const root = render(createElement(MhcSinkhorn, { children: null }));
   expect(backgrounds(root, "s_3")).toEqual([color(MHC_AFFINE_TONES.scale)]);
-  expect(backgrounds(root, "B^C")).toEqual([color(MHC_AFFINE_TONES.bias)]);
-  expect(backgrounds(root, "A^C")).toEqual([color(MHC_AFFINE_TONES.result)]);
+  expect(backgrounds(root, "B^C")).toEqual(["transparent"]);
+  expect(backgrounds(root, "A^C")).toEqual(["transparent"]);
   for (let k = 1; k <= 4; k++)
     for (let j = 1; j <= 4; j++) {
       expect(backgrounds(root, `b_{${8 + 4 * (k - 1) + j}}`)).toEqual([

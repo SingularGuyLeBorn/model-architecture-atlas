@@ -50,7 +50,8 @@ export function Tensor({
   return (
     <section
       className="tensor"
-      style={{ borderColor: palette.color, background: palette.background }}
+      data-expanded-tensor
+      style={{ borderColor: palette.color, background: "transparent" }}
     >
       <header>
         <M tex={name} />
@@ -84,7 +85,10 @@ export function Tensor({
                   <span
                     key={i}
                     className="scalar"
-                    style={{ borderColor: palette.color }}
+                    style={{
+                      borderColor: palette.color,
+                      background: palette.background,
+                    }}
                   >
                     <M
                       tex={elementIndex(

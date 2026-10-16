@@ -20,7 +20,7 @@ export type DiagramTone =
   | "plum"
   | "cyan";
 export const COLORS = {
-  paper: "#f7f5f0",
+  paper: "#ffffff",
   card: "#fffefa",
   ink: "#2a2924",
   muted: "#716d63",
@@ -63,19 +63,22 @@ export const MathFormula = memo(function MathFormula({
 export function Box({
   children,
   tone = "neutral",
+  expanded = false,
 }: {
   children: ReactNode;
   tone?: DiagramTone;
+  expanded?: boolean;
 }) {
   const { color, background } = tonePalette(tone);
   return (
     <div
+      data-expanded-tensor={expanded || undefined}
       style={{
         minWidth: 0,
         border: `1.5px solid ${color}`,
         borderRadius: 8,
         padding: "7px 8px",
-        background,
+        background: expanded ? "transparent" : background,
         textAlign: "center",
         overflow: "hidden",
       }}
@@ -260,6 +263,7 @@ export function Matrix({
   const palette = tonePalette(tone);
   return (
     <div
+      data-expanded-tensor
       style={{
         border: `1.5px solid ${palette.color}`,
         borderRadius: 9,
@@ -269,7 +273,7 @@ export function Matrix({
       <div
         style={{
           padding: "6px 9px",
-          background: palette.background,
+          background: "transparent",
           display: "flex",
           justifyContent: "space-between",
           gap: 8,
@@ -337,12 +341,13 @@ export function RowMatrix({
   const palette = tonePalette(tone);
   return (
     <div
+      data-expanded-tensor
       style={{
         minWidth: 0,
         padding: 6,
         border: `1.3px solid ${palette.color}`,
         borderRadius: 7,
-        background: palette.background,
+        background: "transparent",
         display: "grid",
         gap: 5,
       }}
@@ -861,9 +866,10 @@ export function FeatureVector({
   return (
     <div
       data-feature-vector={name}
+      data-expanded-tensor
       style={{
         border: `1px solid ${palette.color}`,
-        background: palette.background,
+        background: "transparent",
         borderRadius: 7,
         padding: 6,
         minWidth: 0,

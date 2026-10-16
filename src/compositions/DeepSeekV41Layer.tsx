@@ -472,12 +472,13 @@ function AttentionTensor({
   return (
     <div
       data-attention-tensor={tex}
+      data-expanded-tensor
       style={{
         minWidth: 0,
         padding: 8,
         border: `1.5px solid ${palette.color}`,
         borderRadius: 8,
-        background: palette.background,
+        background: "transparent",
         display: "grid",
         gap: 6,
       }}
@@ -1041,6 +1042,7 @@ export function MhcMix({
     return (
       <div
         data-mhc-coefficient-output={symbol}
+        data-expanded-tensor
         style={{
           position: "relative",
           border: `1px solid ${COLORS[tone]}`,
@@ -1048,7 +1050,7 @@ export function MhcMix({
           padding: 10,
           display: "grid",
           gap: 8,
-          background: tonePalette(tone).background,
+          background: "transparent",
         }}
       >
         {connected && (
@@ -1360,10 +1362,11 @@ export function MhcPost({
         >
           <div
             data-mhc-comb-input
+            data-expanded-tensor
             style={{
               position: "relative",
               border: `1px solid ${COLORS.violet}`,
-              background: COLORS.violetSoft,
+              background: "transparent",
               borderRadius: 8,
               padding: 8,
             }}
@@ -1492,12 +1495,13 @@ export function MhcPost({
           <div style={{ display: "grid", gap: 12 }}>
             <div
               data-mhc-q-input
+              data-expanded-tensor
               style={{
                 position: "relative",
                 width: "100%",
                 maxWidth: 420,
                 border: `1px solid ${COLORS.rose}`,
-                background: COLORS.roseSoft,
+                background: "transparent",
                 borderRadius: 8,
                 padding: 8,
                 display: "grid",
@@ -1828,10 +1832,11 @@ export function LayerHandoff({
         </div>
         <div
           data-layer-pre-output
+          data-expanded-tensor
           style={{
             position: "relative",
             border: `1px solid ${COLORS.green}`,
-            background: COLORS.greenSoft,
+            background: "transparent",
             padding: 10,
             borderRadius: 8,
             display: "grid",
@@ -2280,7 +2285,7 @@ export function EngramLookup({
           gap: 5,
         }}
       >
-        <Box tone="blue">
+        <Box tone="blue" expanded>
           <MathFormula tex={`\\mathbf e_{${layer},t}`} />
           <VectorStrip
             name=""
@@ -2292,7 +2297,7 @@ export function EngramLookup({
           />
         </Box>
         <Operator tex="\times" />
-        <Box tone="amber">
+        <Box tone="amber" expanded>
           <TensorHeading name={`W_{${layer}}^{E,KV}`} shape="6144\times25600" />
           <div
             style={{
@@ -2310,6 +2315,7 @@ export function EngramLookup({
                   key={j}
                   style={{
                     border: `1px solid ${COLORS.amber}`,
+                    background: COLORS.amberSoft,
                     padding: "9px 3px",
                     borderRadius: 4,
                   }}
@@ -2843,10 +2849,11 @@ function IndexProjection({
         />
         <Operator tex="\times" />
         <div
+          data-expanded-tensor
           style={{
             padding: 6,
             border: `1px solid ${COLORS.amber}`,
-            background: COLORS.amberSoft,
+            background: "transparent",
             borderRadius: 7,
             display: "grid",
             gap: 5,
@@ -2873,6 +2880,7 @@ function IndexProjection({
                     border: `1px solid ${COLORS.amber}`,
                     borderRadius: 4,
                     padding: "8px 3px",
+                    background: COLORS.amberSoft,
                   }}
                 >
                   <MathFormula tex={`\\mathbf w_{${j}}`} />
@@ -3079,11 +3087,12 @@ function LocalKvProjection({ layer }: { layer: number }) {
                 />
                 <Operator tex="\times" />
                 <div
+                  data-expanded-tensor
                   style={{
                     padding: 5,
                     border: `1.3px solid ${COLORS.amber}`,
                     borderRadius: 7,
-                    background: COLORS.amberSoft,
+                    background: "transparent",
                     display: "grid",
                     gap: 5,
                     fontSize: 9,
@@ -3111,6 +3120,7 @@ function LocalKvProjection({ layer }: { layer: number }) {
                             border: `1px solid ${COLORS.amber}`,
                             borderRadius: 4,
                             padding: "20px 0",
+                            background: COLORS.amberSoft,
                           }}
                         >
                           <MathFormula
@@ -3875,12 +3885,13 @@ export function Expert({
   ) => (
     <div
       data-expert-matrix={tex}
+      data-expanded-tensor
       style={{
         minWidth: 0,
         padding: 5,
         border: `1px solid ${color}`,
         borderRadius: 6,
-        background: weight ? COLORS.amberSoft : COLORS.greenSoft,
+        background: "transparent",
       }}
     >
       <div
@@ -3924,6 +3935,12 @@ export function Expert({
                     ? undefined
                     : `1px solid ${color}`,
                 borderRadius: 2,
+                background:
+                  row === "\\vdots" || column === "\\cdots"
+                    ? "transparent"
+                    : weight
+                      ? COLORS.amberSoft
+                      : COLORS.greenSoft,
               }}
             >
               <MathFormula
@@ -4743,13 +4760,17 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
   if (kind === "structure") {
     const tone = data.tone ?? "neutral";
     const { color, background } = tonePalette(tone);
+    const expanded = Boolean(
+      data.matrixRows?.length || data.vectorCells?.length,
+    );
     return (
       <div
+        data-expanded-tensor={expanded || undefined}
         style={{
           ...panel,
           borderColor: color,
           borderRadius: 10,
-          background,
+          background: expanded ? "transparent" : background,
           boxShadow: "0 3px 10px rgba(42,41,36,.06)",
           display: "grid",
           gridTemplateRows: data.title ? "auto 1fr" : "1fr",
@@ -5378,13 +5399,14 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             <>
               <div style={{ display: "grid", gap: 7 }}>
                 <div
+                  data-expanded-tensor
                   style={{
                     border: `1.2px solid ${COLORS.green}`,
                     borderRadius: 8,
                     padding: 6,
                     display: "grid",
                     gap: 5,
-                    background: COLORS.greenSoft,
+                    background: "transparent",
                   }}
                 >
                   <div
@@ -5428,13 +5450,14 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 </div>
                 {ratio === 2 && (
                   <div
+                    data-expanded-tensor
                     style={{
                       border: `1.2px solid ${COLORS.amber}`,
                       borderRadius: 8,
                       padding: 6,
                       display: "grid",
                       gap: 5,
-                      background: COLORS.amberSoft,
+                      background: "transparent",
                     }}
                   >
                     <div
@@ -6430,10 +6453,11 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           />
           <Operator tex="\times" />
           <div
+            data-expanded-tensor
             style={{
               minWidth: 0,
               border: `1.3px solid ${COLORS.amber}`,
-              background: COLORS.amberSoft,
+              background: "transparent",
               borderRadius: 7,
               padding: 7,
               display: "grid",
@@ -6472,6 +6496,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     style={{
                       border: `1px solid ${COLORS.amber}`,
                       borderRadius: 4,
+                      background: COLORS.amberSoft,
                       padding: "22px 2px",
                     }}
                   >
@@ -6564,9 +6589,10 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         </Title>
         <div
           data-router-score-matrix
+          data-expanded-tensor
           style={{
             padding: 10,
-            background: COLORS.blueSoft,
+            background: "transparent",
             display: "grid",
             gap: 6,
           }}
@@ -9702,7 +9728,7 @@ export const DeepSeekV41Layer: React.FC<Props> = ({ initialLayer = 1 }) => {
           zIndex: 10,
           minHeight: 122,
           padding: "18px 22px 14px",
-          background: "rgba(247,245,240,.97)",
+          background: "rgba(255,255,255,.97)",
           borderBottom: `1px solid ${COLORS.line}`,
         }}
       >

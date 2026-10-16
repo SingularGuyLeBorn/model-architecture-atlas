@@ -352,11 +352,9 @@ describe("mHC 与 Engram 的真实主路径", () => {
         ["[data-mhc-post-product]", "[data-mhc-q-input]"],
       ]) {
         for (const product of root.querySelectorAll(productSelector))
-          expect(
-            (product.children[0] as HTMLElement).style.backgroundColor,
-          ).toBe(
+          expect((product.children[0] as HTMLElement).style.borderColor).toBe(
             (root.querySelector(inputSelector) as HTMLElement).style
-              .backgroundColor,
+              .borderColor,
           );
       }
       expect(root.querySelector("[data-mhc-q-input]")?.textContent).toContain(
@@ -429,7 +427,7 @@ describe("mHC 与 Engram 的真实主路径", () => {
         const colorProbe = document.createElement("div");
         colorProbe.style.borderColor = String(edgeColor);
         expect(colorProbe.style.borderColor).toBe(source.style.borderColor);
-        colors.push(source.style.backgroundColor);
+        colors.push(source.style.borderColor);
       }
       expect(new Set(colors).size).toBe(2);
       expect(

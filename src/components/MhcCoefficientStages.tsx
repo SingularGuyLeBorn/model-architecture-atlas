@@ -53,12 +53,13 @@ export function MhcFlatten({ layer, stage }: { layer: number; stage: string }) {
       <TensorHeading name="\mathbf f_t" shape="1\times20480" />
       <div
         data-mhc-concat-segments
+        data-expanded-tensor
         style={{
           ...grid4,
           border: `1px solid ${COLORS.blue}`,
           borderRadius: 8,
           padding: 8,
-          background: COLORS.blueSoft,
+          background: "transparent",
         }}
       >
         {copies.map((c) => (
@@ -247,7 +248,7 @@ export function MhcProjection({
           tone="blue"
         />
         <Operator tex="\times" />
-        <Box tone="amber">
+        <Box tone="amber" expanded>
           <TensorHeading
             name={`W_{${layer}}^{HC,${sub}}`}
             shape="20480\times24"
@@ -261,6 +262,7 @@ export function MhcProjection({
                   key={j}
                   style={{
                     border: `1px solid ${COLORS.amber}`,
+                    background: COLORS.amberSoft,
                     padding: "16px 6px",
                     borderRadius: 6,
                   }}
@@ -449,7 +451,7 @@ function Grid4({
   tone?: DiagramTone;
 }) {
   return (
-    <Box tone={tone}>
+    <Box tone={tone} expanded>
       <TensorHeading name={name} shape="4\times4" />
       <div data-mhc-four-matrix style={{ ...grid4, gap: 4 }}>
         {copies.flatMap((k) =>
