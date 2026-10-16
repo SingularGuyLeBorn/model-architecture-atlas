@@ -10303,7 +10303,7 @@ function DiagramCanvas({
             style={editorButton}
           />
           <a href="#model=v41&chapter=cache" style={editorButton}>
-            101 号 token 缓存示例
+            129、130 号 token 缓存示例
           </a>
           <select
             aria-label="定位模块"

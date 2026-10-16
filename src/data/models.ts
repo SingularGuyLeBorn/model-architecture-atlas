@@ -35,7 +35,7 @@ export const chapterNames: Record<Chapter, string> = {
   csa: "稀疏注意力 · 窗口与压缩",
   engram: "Engram · 查表与注入",
   ced: "CED · 编码器与解码器",
-  cache: "KV Cache · 第 101 个 token",
+  cache: "KV Cache · token 129、130",
   vision: "视觉输入 · Patch 到 Token",
   dspark: "DSpark · 多位置草拟",
   training: "训练与推理 · 边界",

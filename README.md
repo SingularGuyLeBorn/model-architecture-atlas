@@ -6,7 +6,7 @@
 
 ## 在线访问
 
-[打开在线站点](https://307a165e.pinme.dev) · [第 101 个 token 缓存示例](https://307a165e.pinme.dev/#model=v41&chapter=cache) · [直达 V4.1 逐层图](https://307a165e.pinme.dev/#model=v41&chapter=layer) · [GitHub 源码](https://github.com/SingularGuyLeBorn/model-architecture-atlas)
+[打开在线站点](https://307a165e.pinme.dev) · [token 129、130 缓存示例](https://307a165e.pinme.dev/#model=v41&chapter=cache) · [直达 V4.1 逐层图](https://307a165e.pinme.dev/#model=v41&chapter=layer) · [GitHub 源码](https://github.com/SingularGuyLeBorn/model-architecture-atlas)
 
 网站免登录，GitHub 仓库公开。主入口由 PinMe 托管，[Sites 备用入口](https://model-architecture-atlas.justfox32.chatgpt.site)也已开放匿名访问。大陆不同运营商的可用性尚未完成验证，不能据部署成功保证所有网络都可访问。也可以下载源码，在本机运行。
 
@@ -52,7 +52,7 @@ pnpm test:e2e
 - 左右栏独立收起；在展开按钮上停留可预览并完整操作，预览跳转后收回，固定展开后才保持显示。
 - 拖空白区域平移；机制图滚轮缩放；完整逐层图滚轮上下平移，使用缩放按钮或触控板捏合缩放。
 - Prefill 是 N 行并行计算；Decode 是当前位置 t 的一行，历史来自缓存。
-- “KV Cache · 第 101 个 token”章节固定对照第 3、4 层：历史窗口、新增本地 KV、未满组暂存、共享 G 与当前索引行号分别画出，并附逐步旁注。
+- “KV Cache · token 129、130”章节对照连续两步经过第 3、4 层：局部窗口先淘汰 token 1、再淘汰 token 2；129 暂存、130 组满追加 G 第 65 行；Indexer 从 G 的 64、65 个可见行选 ID，第 4 层同时复用源 G 与本 token 的行号。九个步骤附同步旁注，并区分索引 Key、主 Attention KV 和有损压缩表示。
 - “导出 SVG”保存当前整张图，包含屏幕外模块、手动布局和连线，内嵌公式字体，不改变画布位置。文件使用 SVG 的 `foreignObject` 保留文字与公式排版，可在现代浏览器离线打开；部分矢量编辑器不支持这类 HTML 排版，并非通用路径化 SVG。
 - 图内节点可拖动、边缘可调整尺寸；连线可调整路径。保存布局只写本浏览器，不修改模型事实。
 - 完整 V4.1 图支持内部真实端口、连线标签编辑、边缘吸附、删除选中连线、撤销与重做。

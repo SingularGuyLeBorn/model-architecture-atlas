@@ -118,12 +118,13 @@ export function RecipeCanvas({
     recipe.stages.forEach((stage) =>
       levels.set(
         stage.id,
-        Math.max(
-          0,
-          ...recipe.links
-            .filter((link) => link.target === stage.id)
-            .map((link) => (levels.get(link.source) ?? 0) + 1),
-        ),
+        stage.layoutLevel ??
+          Math.max(
+            0,
+            ...recipe.links
+              .filter((link) => link.target === stage.id)
+              .map((link) => (levels.get(link.source) ?? 0) + 1),
+          ),
       ),
     );
     const nodes: StageNode[] = recipe.stages.map((stage, i) => ({
@@ -142,13 +143,13 @@ export function RecipeCanvas({
         ),
       },
       style: {
-        width: stage.id.endsWith("101")
-          ? 1500
-          : stage.id === "experts"
+        width:
+          stage.width ??
+          (stage.id === "experts"
             ? 3200
             : stage.id === "post" && stage.title.includes("并行")
               ? 3000
-              : 1200,
+              : 1200),
       },
     }));
     const edges: EditableEdge[] = recipe.links.map((link, i) => ({

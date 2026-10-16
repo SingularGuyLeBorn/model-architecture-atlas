@@ -25,6 +25,8 @@ import {
 export type Phase = "prefill" | "decode";
 export type Stage = {
   id: string;
+  layoutLevel?: number;
+  width?: number;
   title: string;
   body: ReactNode;
   output: string;

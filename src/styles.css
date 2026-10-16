@@ -36,6 +36,16 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
+  align-items: start;
+}
+.cache-projections .cache-inline {
+  gap: 8px;
+}
+.cache-projections > section > .data-box,
+.cache-example .cache-index-selection > .data-box {
+  display: grid;
+  width: fit-content;
+  margin-inline: auto;
 }
 .cache-projections > .cache-inline {
   align-content: start;
@@ -136,6 +146,7 @@
 .cache-query {
   display: grid;
   justify-items: center;
+  align-content: start;
   gap: 12px;
   margin: 18px 0;
   padding: 14px;
@@ -148,6 +159,29 @@
 }
 .cache-read-labels {
   max-width: 330px;
+}
+.cache-window-change {
+  display: grid;
+  gap: 12px;
+  align-self: center;
+  justify-items: center;
+}
+.cache-normalize {
+  display: grid;
+  justify-items: center;
+  width: max-content;
+  gap: 4px;
+}
+.cache-score-grid {
+  display: grid;
+  grid-template-columns: max-content repeat(2, max-content) 24px max-content;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+}
+.cache-score-grid > span {
+  text-align: center;
 }
 .cache-structure .data-box small {
   display: block;

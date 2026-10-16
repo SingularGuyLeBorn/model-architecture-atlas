@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  CACHE_101,
+  CACHE_STEPS,
   cacheDecodeRecipe,
 } from "../src/components/CacheDecodeExample";
 import { exportFileName, unionBounds } from "../src/components/diagram-svg";
@@ -9,70 +9,112 @@ import { models, rawConfigs } from "../src/data/models";
 import { recipeFor } from "../src/templates/recipes";
 import { explainModule } from "../src/components/ModuleInspector";
 
-describe("第 101 个 token 的缓存契约", () => {
-  it("固定层号、压缩组、窗口与读取数对齐官方配置", () => {
+describe("第 129、130 个 token 的缓存契约", () => {
+  it("窗口淘汰、分组完成和可见候选数量对齐官方配置", () => {
     const config = rawConfigs.v41.text_config;
     expect(config.kv_source_layer_ids).toContain(2);
     expect(config.kv_source_layer_ids).not.toContain(3);
     expect(config.index_source_layer_ids).not.toContain(3);
-    expect(CACHE_101.globalRows).toBe(
-      Math.floor(CACHE_101.token / config.compress_ratios[2]),
-    );
-    expect(CACHE_101.localRows).toBe(
-      Math.min(CACHE_101.token, config.sliding_window),
-    );
-    expect(CACHE_101.readRows).toBe(CACHE_101.localRows + CACHE_101.globalRows);
-  });
-  it("两层窗口分别来自历史，第四层读取第三层 G 而非自己的压缩器", () => {
-    const recipe = cacheDecodeRecipe([]);
-    for (const target of ["local101", "reuse101"])
-      expect(
-        recipe.links.some(
-          (l) =>
-            l.source === "history101" &&
-            l.target === target &&
-            l.tex.includes("SWA"),
-        ),
-      ).toBe(true);
+    expect(config.compress_ratios[2]).toBe(2);
+    expect(config.sliding_window).toBe(128);
+    for (const step of CACHE_STEPS) {
+      expect(step.globalRows).toBe(
+        Math.floor(step.token / config.compress_ratios[2]),
+      );
+      expect(step.globalBefore).toBe(64);
+      expect(step.firstBefore).toBe(step.token - config.sliding_window);
+      expect(step.firstAfter).toBe(step.evicted + 1);
+      expect(step.token - step.firstAfter + 1).toBe(config.sliding_window);
+      expect(step.readRows).toBe(step.localRows + step.globalRows);
+      expect(step.ids).toEqual(
+        Array.from({ length: step.globalRows }, (_, i) => i + 1),
+      );
+    }
     expect(
-      recipe.links.find(
-        (l) => l.source === "global101" && l.target === "reuse101",
-      )?.tex,
-    ).toContain("G_3");
-    const html = renderToStaticMarkup(
-      recipe.stages.find((s) => s.id === "reuse101")!.body,
-    );
-    expect(html).toContain("u_{4,101}");
-    expect(html).toContain("I_{3,101}");
-    expect(html).not.toContain("W_{4}^{KV,c}");
-    expect(html).not.toContain("katex-error");
+      CACHE_STEPS.map((s) => [
+        s.evicted,
+        s.globalRows,
+        s.appendGlobal,
+        s.readRows,
+      ]),
+    ).toEqual([
+      [1, 64, false, 192],
+      [2, 65, true, 193],
+    ]);
+  });
+  it("两层历史分别传递；跨时间仅传状态，同 token 跨层复用 G 与 ID", () => {
+    const recipe = cacheDecodeRecipe([]);
+    expect(recipe.stages).toHaveLength(9);
+    for (const t of [129, 130]) {
+      for (const [prefix, layer] of [
+        ["local", 3],
+        ["reuse", 4],
+      ] as const)
+        expect(
+          recipe.links.find(
+            (l) =>
+              l.source === (t === 129 ? "history128" : prefix + "129") &&
+              l.target === prefix + t,
+          )?.tex,
+        ).toContain("U_" + layer);
+      const shared = recipe.links.find(
+        (l) => l.source === "global" + t && l.target === "reuse" + t,
+      )!;
+      expect(shared.tex).toContain("G_3");
+      expect(shared.tex).toContain("I_{3," + t + "}");
+      const html = renderToStaticMarkup(
+        recipe.stages.find((s) => s.id === "reuse" + t)!.body,
+      );
+      expect(html).toContain("u_{4," + t + "}");
+      expect(html).toContain("I_{3," + t + "}");
+      expect(html).not.toContain("W_{4}^{KV,c}");
+    }
+    const pending = recipe.links.find(
+      (l) => l.source === "global129" && l.target === "global130",
+    )!;
+    expect(pending.tex).toContain("v^c_{3,129}");
+    expect(pending.tex).toContain("a^{\\mathrm{gate}}_{3,129}");
+    expect(
+      recipe.links.some(
+        (l) => l.source === "reuse129" && l.target === "local130",
+      ),
+    ).toBe(false);
+    expect(recipe.stages.map((s) => s.layoutLevel)).toEqual([
+      0, 1, 2, 3, 4, 5, 6, 7, 8,
+    ]);
     const model = models.find((m) => m.id === "v41")!;
     expect(
       recipeFor(model, "cache", "prefill", 1).stages.map((s) => s.id),
     ).toEqual(recipeFor(model, "cache", "decode", 3).stages.map((s) => s.id));
   });
-  it("旁注仅在第三、四层 Decode 使用固定例子", () => {
-    expect(
+  it("追加发生在 130，索引候选轴、权重与参数区分完整且公式可渲染", () => {
+    const recipe = cacheDecodeRecipe([]);
+    for (const stage of recipe.stages)
+      expect(renderToStaticMarkup(stage.body)).not.toContain("katex-error");
+    const odd = renderToStaticMarkup(
+      recipe.stages.find((s) => s.id === "global129")!.body,
+    );
+    const even = renderToStaticMarkup(
+      recipe.stages.find((s) => s.id === "global130")!.body,
+    );
+    expect(odd).not.toContain('data-new-row="true"');
+    expect(even.match(/data-new-row="true"/g)).toHaveLength(2);
+    expect(even).toContain("65\\times128");
+    expect(even).toContain("65\\times512");
+    expect(even).toContain('data-score-columns="65"');
+    expect(even).toContain("data-stacked-sum");
+  });
+  it("第三、四层 Decode 旁注同步两步例子，其他层不套用", () => {
+    const explain = (layer: number) =>
       explainModule({
         kind: "projection-kv",
-        layer: 3,
+        layer,
         phase: "decode",
-      }).paragraphs.join(""),
-    ).toContain("等第 102 个 token");
-    expect(
-      explainModule({
-        kind: "projection-kv",
-        layer: 4,
-        phase: "decode",
-      }).paragraphs.join(""),
-    ).toContain("不生成 G₄");
-    expect(
-      explainModule({
-        kind: "projection-kv",
-        layer: 5,
-        phase: "decode",
-      }).paragraphs.join(""),
-    ).not.toContain("固定例子 t=101");
+      }).paragraphs.join("");
+    expect(explain(3)).toContain("等第 130 个 token");
+    expect(explain(4)).toContain("不生成 G₄");
+    expect(explain(4)).toContain("同一 token");
+    expect(explain(5)).not.toContain("固定例子 t=129");
   });
 });
 describe("SVG 导出边界", () => {
