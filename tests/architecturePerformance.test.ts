@@ -14,6 +14,7 @@ import {
   buildMeasuredGraph,
   captureDiagramLayout,
   isArchitectureDetailVisible,
+  measurementsForGraph,
   restoreMeasuredGeometry,
 } from "../src/compositions/DeepSeekV41Layer";
 
@@ -217,6 +218,27 @@ describe("架构图增量路由", () => {
     expect(routesForStore(f.owner, f.nodes, f.edges, f.internals)).not.toBe(
       first,
     );
+  });
+  it("返回完整相同几何时复用该版本路由，恢复后继续编辑仍从正确版本增量计算", () => {
+    const f = fixture();
+    const first = planArchitectureRoutes(f.owner, f.nodes, f.edges, f.getNode);
+    const node = f.internals.get("a")!;
+    const originalX = node.internals.positionAbsolute.x;
+    node.internals.positionAbsolute.x = originalX + 60;
+    const moved = planArchitectureRoutes(f.owner, f.nodes, f.edges, f.getNode);
+    expect(moved).not.toBe(first);
+    node.internals.positionAbsolute.x = originalX;
+    expect(planArchitectureRoutes(f.owner, f.nodes, f.edges, f.getNode)).toBe(
+      first,
+    );
+    node.internals.positionAbsolute.x = originalX + 60;
+    expect(planArchitectureRoutes(f.owner, f.nodes, f.edges, f.getNode)).toBe(
+      moved,
+    );
+    node.internals.handleBounds!.source![0].x += 12;
+    const edited = planArchitectureRoutes(f.owner, f.nodes, f.edges, f.getNode);
+    expect(edited).not.toBe(moved);
+    expect(edited.get("ab")![0].x).toBe(moved.get("ab")![0].x + 12);
   });
   it("缩放测量浮点尾差不重排通道，真正移动端口仍更新", () => {
     const f = fixture();
@@ -503,6 +525,34 @@ it("保存恢复使用编辑后的实际尺寸，不被初始 style 覆盖", () 
 });
 
 describe("切层复用完整的实测几何", () => {
+  it("同一层切 Prefill/Decode 时拒绝旧视角的高度，避免把旧图位移累加到新图", () => {
+    const graph = buildGraph(29, new Map(), "decode");
+    const oldNodes = buildGraph(29, new Map(), "prefill").nodes.map((node) => ({
+      ...node,
+      measured: { width: 600, height: 900 },
+    }));
+    expect(measurementsForGraph(graph, oldNodes)).toBeNull();
+    const correct = graph.nodes.map((node) => ({
+      ...node,
+      measured: { width: 600, height: 900 },
+    }));
+    expect(measurementsForGraph(graph, correct)?.get("kv")).toBe(900);
+    // 高层图仍包含真实的首层输入对象，不能把所有节点一律要求为 Layer 29。
+    expect(correct.find((node) => node.id === "first-input")?.data.layer).toBe(
+      1,
+    );
+    expect(measurementsForGraph(graph, correct.slice(1))).toBeNull();
+    expect(
+      measurementsForGraph(
+        graph,
+        correct.map((node) =>
+          node.id === "kv"
+            ? { ...node, data: { ...node.data, layer: 15 } }
+            : node,
+        ),
+      ),
+    ).toBeNull();
+  });
   function measuredFixture() {
     const original = buildGraph(15);
     const graph = {
@@ -545,7 +595,13 @@ describe("切层复用完整的实测几何", () => {
     ).toBe(true);
     expect(
       result.nodes.find((n) => n.id === "expert-output-7")!.measured!.width,
-    ).toBe(667);
+    ).toBe(
+      Math.round(
+        Number(
+          graph.nodes.find((n) => n.id === "expert-output-7")!.style!.width,
+        ),
+      ),
+    );
   });
   it("缺一项时整体重新测量，不能让适配视口只使用局部边界", () => {
     const { graph, cache } = measuredFixture();

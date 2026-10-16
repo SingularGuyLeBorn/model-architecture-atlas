@@ -17,6 +17,18 @@ afterAll(() => {
 });
 
 describe("原生公式按结构更新", () => {
+  it("重复公式复用解析模板但不共享可变 DOM，不同框更新不会串值", () => {
+    const first = document.createElement("span"),
+      second = document.createElement("span");
+    const html = latexHtml("\\frac{x_{15}}{y_{15}}");
+    updateMathMarkup(first, html);
+    updateMathMarkup(second, html);
+    expect(first.innerHTML).toBe(second.innerHTML);
+    expect(first.querySelector("math")).not.toBe(second.querySelector("math"));
+    updateMathMarkup(first, latexHtml("\\frac{x_{29}}{y_{29}}"));
+    expect(first.querySelector("annotation")?.textContent).toContain("29");
+    expect(second.querySelector("annotation")?.textContent).toContain("15");
+  });
   it("层号变动保留 MathML 元素与文本节点，显示文本和 TeX 注释同时更新", () => {
     const root = document.createElement("span");
     root.innerHTML = latexHtml("q_{1,t}+o_{1,t}");

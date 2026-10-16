@@ -176,12 +176,16 @@ const VISIBLE_ROUTED_EXPERTS = [
   ROUTED_EXPERTS[1],
   ROUTED_EXPERTS[5],
 ] as const;
-const EXPERT_GRID_COLUMNS = "minmax(0,1fr) minmax(0,1fr) 40px minmax(0,1fr)";
+const EXPERT_ELLIPSIS_WIDTH = 56;
+const EXPERT_GRID_COLUMNS = `minmax(0,1fr) minmax(0,1fr) ${EXPERT_ELLIPSIS_WIDTH}px minmax(0,1fr)`;
 
 // [OM-FREEPLAY] 为专家内两列展开矩阵预留组宽；端口与得分列由同一组参数推导。
 const EXPERTS_WIDTH = 2800;
 // [OM-FREEPLAY] 系数支路放在最宽主流程右侧，180px 留给长距离传递的转折通道。
-const HC_COEFFICIENT_X = 70 + EXPERTS_WIDTH + 180;
+const COMPRESSOR_X = 2620;
+const COMPRESSOR_WIDTH = 800;
+const HC_COEFFICIENT_X =
+  Math.max(70 + EXPERTS_WIDTH, COMPRESSOR_X + COMPRESSOR_WIDTH) + 180;
 const EXPERTS_PADDING = 12;
 const SHARED_GROUP_WIDTH = 600;
 const EXPERT_GROUP_GAP = 18;
@@ -196,14 +200,14 @@ const ROUTED_CONTENT_WIDTH =
   EXPERT_GROUP_GAP -
   2 * EXPERT_GROUP_INSET;
 const EXPERT_CARD_WIDTH =
-  (ROUTED_CONTENT_WIDTH - 40 - 3 * EXPERT_CARD_GAP) /
+  (ROUTED_CONTENT_WIDTH - EXPERT_ELLIPSIS_WIDTH - 3 * EXPERT_CARD_GAP) /
   VISIBLE_ROUTED_EXPERTS.length;
 const ROUTED_HANDLE_LEFT = VISIBLE_ROUTED_EXPERTS.map(
   (_, index) =>
     (100 *
       (ROUTED_CONTENT_START +
         index * (EXPERT_CARD_WIDTH + EXPERT_CARD_GAP) +
-        (index === 2 ? 40 + EXPERT_CARD_GAP : 0) +
+        (index === 2 ? EXPERT_ELLIPSIS_WIDTH + EXPERT_CARD_GAP : 0) +
         EXPERT_CARD_WIDTH / 2)) /
     EXPERTS_WIDTH,
 );
@@ -242,10 +246,10 @@ const ROUTER_SCORE_COLUMNS = [
   null,
   384,
 ] as const;
-// [OM-FREEPLAY] 得分格按可读字号分配 72px，省略号 18px；可见专家另留 28px 出线通道。
+// [OM-FREEPLAY] 得分格按可读字号分配 72px，省略号 24px；可见专家另留 28px 出线通道。
 const ROUTER_SCORE_TRACKS = ROUTER_SCORE_COLUMNS.map((column) =>
   column === null
-    ? 18
+    ? 24
     : 72 +
       (VISIBLE_ROUTED_EXPERTS.some((expert) => expert.id === column) ? 28 : 0),
 );
@@ -604,14 +608,17 @@ export function RmsNormProcess({
         y1 = (from.top + from.height / 2 - bounds.top) / scale;
       const x2 = (to.left - bounds.left) / scale,
         y2 = (to.top + to.height / 2 - bounds.top) / scale;
-      const mid = (x1 + x2) / 2;
+      const sourceStage = source
+        .closest('[data-rmsnorm-stage="root"]')!
+        .getBoundingClientRect();
+      // 通道位于两段结构之间，不能取两个小框中心的中点而穿过左侧输入矩阵。
+      const mid = ((sourceStage.right - bounds.left) / scale + x2) / 2;
       const path = `M${x1} ${y1} H${mid} V${y2} H${x2}`;
       const arrow = `M${x2 - 6} ${y2 - 5} L${x2} ${y2} L${x2 - 6} ${y2 + 5}`;
       setTransfer((current) =>
         current?.path === path ? current : { path, arrow },
       );
     };
-    measure();
     const observer = new ResizeObserver(measure);
     for (const element of [layout, source, target]) observer.observe(element);
     return () => observer.disconnect();
@@ -683,7 +690,8 @@ export function RmsNormProcess({
           {horizontal && <strong style={{ fontSize: 11 }}>① 本行均方根</strong>}
           {matrix(input, "z", "blue")}
           <FlowStep>
-            <MathFormula tex={`\\mathbf z_{${row}}`} /> 沿本行特征轴展开
+            <MathFormula tex={`\\mathbf z_{${row}}`} /> · 展开这一行的第
+            1、2、…、{dimension} 个数
           </FlowStep>
           <div style={{ display: "grid", gap: 0 }}>
             <div
@@ -737,17 +745,34 @@ export function RmsNormProcess({
                 alignItems: "center",
               }}
             >
-              <Box tone="green">
+              <div
+                style={{
+                  display: "flex",
+                  gap: 6,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
                 <MathFormula
-                  tex={`m_{${row}}=\\frac{1}{${dimension}}\\sum_{j=1}^{${dimension}}z_{${row},j}^{2}`}
+                  tex={`\\sum_{j=1}^{${dimension}}z_{${row},j}^{2}`}
                 />
-              </Box>
-              <Operator tex="\downarrow" />
-              <div ref={rootResultRef} data-rmsnorm-root-result>
+                <Operator tex="\div" />
+                <MathFormula tex={String(dimension)} />
+                <Operator tex="=" />
                 <Box tone="green">
-                  <MathFormula
-                    tex={`r_{${row}}=\\sqrt{m_{${row}}+\\varepsilon}`}
-                  />
+                  <MathFormula tex={`m_{${row}}`} />
+                </Box>
+              </div>
+              <FlowStep>
+                <MathFormula tex="+\varepsilon\;\longrightarrow\;\sqrt{\phantom{x}}" />
+              </FlowStep>
+              <div
+                ref={rootResultRef}
+                data-rmsnorm-root-result
+                style={{ width: "fit-content", justifySelf: "center" }}
+              >
+                <Box tone="green">
+                  <MathFormula tex={`r_{${row}}`} />
                 </Box>
               </div>
             </div>
@@ -771,11 +796,11 @@ export function RmsNormProcess({
           <div ref={broadcastRef} data-rmsnorm-broadcast>
             {horizontal ? (
               <Box tone="green">
-                <MathFormula tex={`r_{${row}}`} /> · 广播回本行每个元素
+                <MathFormula tex={`r_{${row}}`} /> · 同一分母用于本行各元素
               </Box>
             ) : (
               <FlowStep>
-                <MathFormula tex={`r_{${row}}`} /> 广播回本行每个元素
+                <MathFormula tex={`r_{${row}}`} /> · 同一分母用于本行各元素
               </FlowStep>
             )}
           </div>
@@ -2376,13 +2401,38 @@ export function EngramInject({
         />
       </div>
       <FlowStep>同一路归一化结果逐元素相乘，再沿 5120 维求和</FlowStep>
-      <VectorStrip
-        name={`\\widehat{\\mathbf h}_c\\odot\\widehat{\\mathbf k}_c`}
-        nameWidth={125}
-        length="5120"
-        elementTex={(j) => `\\widehat h_{c,${j}}\\widehat k_{c,${j}}`}
-        tone="green"
-      />
+      <div
+        data-engram-dot-sum
+        style={{
+          width: "fit-content",
+          maxWidth: "100%",
+          justifySelf: "center",
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3,max-content)",
+            gap: 36,
+          }}
+        >
+          {["1", "2", "5120"].map((j) => (
+            <div
+              key={j}
+              style={{ display: "flex", gap: 6, alignItems: "center" }}
+            >
+              <Box tone="green">
+                <MathFormula tex={`\\widehat h_{c,${j}}`} />
+              </Box>
+              <Operator tex="\times" />
+              <Box tone="green">
+                <MathFormula tex={`\\widehat k_{c,${j}}`} />
+              </Box>
+            </div>
+          ))}
+        </div>
+        <SumJunction count={3} />
+      </div>
       <FlowStep>
         <span style={{ lineHeight: 2.4 }}>
           <MathFormula tex="d_c=\sum_{j=1}^{5120}\widehat h_{c,j}\widehat k_{c,j}/\sqrt{5120}" />
@@ -2392,7 +2442,8 @@ export function EngramInject({
         data-engram-gate
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 22px 1fr 22px 1fr",
+          gridTemplateColumns: "max-content 22px max-content 22px max-content",
+          justifyContent: "center",
           gap: 6,
           alignItems: "center",
         }}
@@ -2478,12 +2529,13 @@ export function EngramInject({
                 />
               </Box>
               <Box tone="green">
-                <MathFormula tex={`g_${c}\\mathbf v_{${layer},t}^{E}`} />
+                <MathFormula tex={`g_${c}\\cdot\\mathbf v_{${layer},t}^{E}`} />
               </Box>
             </div>
-            <MergeArrows count={2} />
-            <Operator tex="+" />
-            <FlowStep>旧残差 + 门控后的共享 Value</FlowStep>
+            <SumJunction count={2} />
+            <span style={{ textAlign: "center" }}>
+              旧残差与门控后的共享 Value 逐元素相加
+            </span>
             <FeatureVector
               name={`\\mathbf h_{${layer},${c},t}^{E}`}
               scalar={(j) => `h_{${c},${j}}^E`}
@@ -2603,7 +2655,14 @@ function RotaryProcess({
         {[0, 1, 31].map((pair, index) => (
           <React.Fragment key={pair}>
             {index === 2 && <Operator tex="\cdots" />}
-            <div style={{ display: "grid", gap: 5, textAlign: "center" }}>
+            <div
+              style={{
+                display: "grid",
+                gap: 5,
+                textAlign: "center",
+                justifyItems: "center",
+              }}
+            >
               <span style={{ fontSize: 11 }}>
                 第 {pair + 1} 对 · {unchanged + 1 + pair * 2},{" "}
                 {unchanged + 2 + pair * 2}
@@ -2947,8 +3006,14 @@ export function IndexScoreProcess({
           </React.Fragment>
         ))}
       </div>
-      <MergeArrows count={3} />
-      <Operator tex="\sum_{h=1}^{32}" />
+      <div style={{ position: "relative" }}>
+        <SumJunction count={3} />
+        <span
+          style={{ position: "absolute", left: "calc(50% + 42px)", top: 42 }}
+        >
+          <MathFormula tex="\sum_{h=1}^{32}" /> · 32 路同一位置相加
+        </span>
+      </div>
       <RowMatrix
         tex={`S_{${layer}}`}
         shape={`${count}\\times M`}
@@ -3527,9 +3592,60 @@ function Head({ index, layer }: { index: number; layer: number }) {
           </React.Fragment>
         ))}
       </div>
-      <div style={{ textAlign: "center" }}>
-        <MathFormula tex="z_i=(q'_1k_{i,1}+q'_2k_{i,2}+\cdots+q'_{512}k_{i,512})/\sqrt{512}" />
-      </div>
+      <section
+        data-attention-dot-expansion
+        style={{
+          border: `1px solid ${COLORS.line}`,
+          borderRadius: 8,
+          padding: 8,
+        }}
+      >
+        <strong>任意第 i 行：对应元素相乘，再把全部 512 项累加</strong>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3,minmax(0,1fr))",
+            gap: 8,
+            marginTop: 6,
+          }}
+        >
+          {["1", "2", "512"].map((column) => (
+            <div
+              key={column}
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              <Box tone="blue">
+                <MathFormula tex={`q'_{${column}}`} />
+              </Box>
+              <Operator tex="\times" />
+              <Box tone="green">
+                <MathFormula tex={`k_{i,${column}}`} />
+              </Box>
+            </div>
+          ))}
+        </div>
+        <SumJunction count={3} />
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <MathFormula tex="\sum_{d=1}^{512}q'_d\cdot k_{i,d}" />
+          <Operator tex="\div\sqrt{512}" />
+          <Operator tex="=" />
+          <Box tone="amber">
+            <MathFormula tex="z_i" />
+          </Box>
+        </div>
+      </section>
       <FlowStep>② softmax：指数 → 同一个分母 → 每行的权重</FlowStep>
       <AttentionTensor
         tex="\mathbf z"
@@ -3538,11 +3654,58 @@ function Head({ index, layer }: { index: number; layer: number }) {
         scalar={(_, column) => `z_{${column}}`}
         tone="amber"
       />
+      <section
+        data-attention-denominator
+        style={{
+          border: `1px solid ${COLORS.line}`,
+          borderRadius: 8,
+          padding: 8,
+        }}
+      >
+        <strong>共同分母：全部 Lₜ 行的指数与 sink 项</strong>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4,minmax(0,1fr))",
+            gap: 8,
+            marginTop: 6,
+          }}
+        >
+          {["z_1", "z_2", "z_{L_t}", `b_{${layer},${index}}`].map((tex, i) => (
+            <div
+              key={tex}
+              style={{ display: "grid", justifyItems: "center", gap: 4 }}
+            >
+              <Box tone="amber">
+                <MathFormula tex={tex} />
+              </Box>
+              <FlowStep>exp</FlowStep>
+              <Box tone="amber">
+                <MathFormula tex={`e^{${tex}}`} />
+              </Box>
+              <span style={{ fontSize: 11 }}>
+                {i === 3
+                  ? "可学习 sink · 值向量为 0"
+                  : i === 2
+                    ? "末行（中间同构行省略）"
+                    : `第 ${i + 1} 行`}
+              </span>
+            </div>
+          ))}
+        </div>
+        <SumJunction count={4} />
+        <div style={{ width: "fit-content", margin: "0 auto" }}>
+          <Box tone="amber">
+            <MathFormula tex="D" />
+          </Box>
+        </div>
+      </section>
       <div
         data-attention-softmax
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 26px 1.6fr 26px 1fr",
+          gridTemplateColumns: "max-content 26px max-content 26px max-content",
+          justifyContent: "center",
           gap: 5,
           alignItems: "center",
         }}
@@ -3553,11 +3716,9 @@ function Head({ index, layer }: { index: number; layer: number }) {
         <Operator tex="\div" />
         <div style={{ display: "grid", gap: 4, textAlign: "center" }}>
           <Box tone="amber">
-            <MathFormula
-              tex={`D=e^{b_{${layer},${index}}}+\\sum_{j=1}^{L_t}e^{z_j}`}
-            />
+            <MathFormula tex="D" />
           </Box>
-          <span style={{ fontSize: 11 }}>可学习 sink 加入分母，值向量为 0</span>
+          <span style={{ fontSize: 11 }}>上方累加得到的同一个分母</span>
         </div>
         <Operator tex="=" />
         <Box tone="green">
@@ -3907,7 +4068,7 @@ export function Expert({
                     key={tex}
                     data-silu-operand
                     style={{
-                      border: `1px solid ${color}`,
+                      border: tex === "z" ? undefined : `1px solid ${color}`,
                       borderRadius: 4,
                       padding: "7px 2px",
                       display: "grid",
@@ -3915,7 +4076,28 @@ export function Expert({
                       minWidth: 0,
                     }}
                   >
-                    <MathFormula tex={tex} />
+                    {tex === "z" ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          height: "100%",
+                        }}
+                      >
+                        <div
+                          style={{ borderLeft: `1px solid ${color}`, flex: 1 }}
+                        />
+                        <Box tone={shared ? "blue" : "amber"}>
+                          <MathFormula tex={tex} />
+                        </Box>
+                        <div
+                          style={{ borderLeft: `1px solid ${color}`, flex: 1 }}
+                        />
+                      </div>
+                    ) : (
+                      <SigmoidSteps input="z" vertical />
+                    )}
                   </div>
                 ))}
               </div>
@@ -4138,7 +4320,7 @@ function SelectedGlobalRows({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "44px 8px minmax(0,1fr) 8px",
+          gridTemplateColumns: "max-content 8px minmax(0,1fr) 8px",
           gap: 4,
           minWidth: 0,
         }}
@@ -5412,30 +5594,51 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "1fr 22px 1fr 42px 1fr",
+                      gridTemplateColumns: "repeat(2,minmax(0,1fr))",
                       alignItems: "center",
                       gap: 5,
                     }}
                   >
-                    <Box>
-                      <MathFormula
-                        tex={`\\mathbf v_{${layer},2i-1}^c\\in\\mathbb{R}^{512}`}
-                      />
-                    </Box>
-                    <Operator tex="\odot" />
-                    <Box tone="amber">
-                      <MathFormula
-                        tex={`\\boldsymbol\\alpha_{${layer},i,1}\\in\\mathbb{R}^{512}`}
-                      />
-                    </Box>
-                    <Operator tex="+" />
-                    <Box>
-                      <MathFormula
-                        tex={`\\boldsymbol\\alpha_{${layer},i,2}\\odot\\mathbf v_{${layer},2i}^c`}
-                      />
-                    </Box>
+                    {[1, 2].map((row) => (
+                      <div
+                        key={row}
+                        data-compressor-weighted-row={row}
+                        style={{ display: "grid", gap: 5 }}
+                      >
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 22px 1fr",
+                            gap: 4,
+                            alignItems: "center",
+                          }}
+                        >
+                          <Box tone="amber">
+                            <MathFormula
+                              tex={`\\boldsymbol\\alpha_{${layer},i,${row}}`}
+                            />
+                          </Box>
+                          <Operator tex="\odot" />
+                          <Box tone="blue">
+                            <MathFormula
+                              tex={`\\mathbf v_{${layer},${row === 1 ? "2i-1" : "2i"}}^c`}
+                            />
+                          </Box>
+                        </div>
+                        <Operator tex="\downarrow" />
+                        <VectorStrip
+                          name=""
+                          nameWidth={0}
+                          length="512"
+                          tone="green"
+                          elementTex={(j) =>
+                            `\\alpha_{i,${row},${j}}\\cdot v^c_{${row === 1 ? "2i-1" : "2i"},${j}}`
+                          }
+                        />
+                      </div>
+                    ))}
                   </div>
-                  <Arrow vertical />
+                  <SumJunction count={2} />
                   <Box tone="green">
                     <MathFormula tex={`\\widehat{\\mathbf g}_{${layer},i}`} /> ·
                     本组逐元素加权和
@@ -6964,6 +7167,36 @@ const geometryKey = (
   height: CSSProperties["height"],
 ) => JSON.stringify([data, width, height]);
 
+// 实测几何只能归属于产生它的图版本；层号相同但 Prefill/Decode 不同也不是同一张图。
+// 在布局入口拒绝混合版本，不能把旧图高度记到新图基线后再靠反向位移补救。
+export function measurementsForGraph(
+  graph: { nodes: DiagramNode[] },
+  measuredNodes: DiagramNode[],
+) {
+  const expected = new Map(graph.nodes.map((node) => [node.id, node.data]));
+  if (
+    measuredNodes.length !== expected.size ||
+    measuredNodes.some((node) => {
+      const data = expected.get(node.id);
+      return (
+        !data ||
+        data.kind !== node.data.kind ||
+        data.layer !== node.data.layer ||
+        data.phase !== node.data.phase
+      );
+    })
+  )
+    return null;
+  return new Map(
+    measuredNodes
+      .filter(
+        (node) =>
+          CONTENT_SIZED_KINDS.has(node.data.kind) && node.measured?.height,
+      )
+      .map((node) => [node.id, node.measured!.height!]),
+  );
+}
+
 export function restoreMeasuredGeometry(
   graph: { nodes: DiagramNode[]; edges: EditableEdge[] },
   cache: DiagramGeometryCache,
@@ -7139,6 +7372,11 @@ function DiagramNodeView({ id, data, selected }: NodeProps<DiagramNode>) {
     return (
       <div
         data-boundary-connectable={data.kind !== "structure-operator"}
+        data-content-layer={data.layer}
+        data-content-phase={data.phase}
+        data-geometry-ready={Boolean(
+          measuredWidth && measuredHeight && handleBounds,
+        )}
         data-detail-suspended
         style={{
           width: "100%",
@@ -7196,6 +7434,11 @@ function DiagramNodeView({ id, data, selected }: NodeProps<DiagramNode>) {
   return (
     <div
       data-boundary-connectable={data.kind !== "structure-operator"}
+      data-content-layer={data.layer}
+      data-content-phase={data.phase}
+      data-geometry-ready={Boolean(
+        measuredWidth && measuredHeight && handleBounds,
+      )}
       data-frame-selected={Boolean(selected)}
       style={{
         width: "100%",
@@ -7929,9 +8172,9 @@ export function buildGraph(
         "compressor",
         layer,
         mode,
-        2620,
+        COMPRESSOR_X,
         projectionY,
-        800,
+        COMPRESSOR_WIDTH,
         compressorHeight,
       ),
     );
@@ -8812,14 +9055,11 @@ function DiagramCanvas({
       window.localStorage.removeItem(storageKey);
     }
     const flow = flowRef.current;
+    // 受控图只有这一份节点/边状态；切层直接替换，避免实例队列先逐项生成 changes 再回传。
+    setNodes(graph.nodes);
+    setEdges(graph.edges);
     if (flow) {
-      // 同一批队列内先替换图，再请求完整图适配；复用画布、观察器和节点 DOM。
-      flow.setNodes(graph.nodes);
-      flow.setEdges(graph.edges);
       flow.fitView(FIT_VIEW_OPTIONS).catch(() => {});
-    } else {
-      setNodes(graph.nodes);
-      setEdges(graph.edges);
     }
     setSelectedEdgeIds([]);
     setSaveState("idle");
@@ -8842,22 +9082,9 @@ function DiagramCanvas({
     .join("|");
   useEffect(() => {
     const nodes = nodesRef.current;
-    if (
-      nodes.some(
-        (item) => item.id !== "first-input" && item.data.layer !== layer,
-      )
-    )
-      return;
-    const heights = new Map(
-      nodes
-        .filter(
-          (item) =>
-            CONTENT_SIZED_KINDS.has(item.data.kind) && item.measured?.height,
-        )
-        .map((item) => [item.id, item.measured!.height!]),
-    );
-    if (!heights.size) return;
     const previous = measuredLayoutRef.current;
+    const heights = measurementsForGraph(previous, nodes);
+    if (!heights?.size) return;
     const next = buildGraph(layer, heights, phase);
     const oldPositions = new Map(
       previous.nodes.map((item) => [item.id, item.position]),
@@ -9236,19 +9463,34 @@ function DiagramCanvas({
             </option>
             {[
               ["tokenizer", "输入与分词"],
+              ["execution-guide", "Prefill / Decode 视角"],
+              ["embedding", "Embedding 查表"],
+              ["hc-expand", "首层四路初始化"],
               ["input", "四路残差输入"],
+              ["hc-pre-a", "Attention 四路汇合"],
               ["hc-mix-a", "mHC 控制器"],
               ["engram-lookup", "Engram 查表"],
               ["engram-inject", "Engram 注入"],
               ["q", "Query 投影"],
+              ["norm1", "Attention 输入 RMSNorm"],
+              ["q-row", "Query 第 t 行"],
+              ["compressor", "全局 KV Compressor"],
               ["swa-window", "本地窗口"],
               ["indexer", "Indexer"],
+              ["global-select", "全局 KV 取行"],
+              ["kv-merge", "注意力 KV 拼接"],
               ["heads", "Head / RoPE / QKVO"],
               ["concat", "输出投影"],
               ["add1", "Attention 回写"],
+              ["state1", "Attention 四路输出"],
+              ["hc-pre-f", "FFN 四路汇合"],
+              ["hc-mix-f", "FFN mHC 控制器"],
+              ["norm2", "FFN 输入 RMSNorm"],
               ["router", "Router"],
+              ["scores", "Router 得分与选择"],
               ["experts", "专家内部"],
               ["add2", "FFN 回写"],
+              ["moe-sum", "专家加权汇总"],
               ["output", "本层输出"],
               ["next-inputs", "下一层输入清单"],
               ["kv", "本层 KV 横向流程"],
@@ -9360,6 +9602,12 @@ function DiagramCanvas({
           <CanvasClipContext.Provider value={canvasClip}>
             <ReactFlow
               className="architecture-flow"
+              data-render-layer={
+                nodes.find((node) => node.id === "input")?.data.layer
+              }
+              data-render-phase={
+                nodes.find((node) => node.id === "input")?.data.phase
+              }
               onInit={(instance) => {
                 flowRef.current = instance;
               }}

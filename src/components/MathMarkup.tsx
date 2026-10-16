@@ -1,57 +1,85 @@
-import { useLayoutEffect, useRef, type CSSProperties } from "react";
+import { memo, useLayoutEffect, useRef, type CSSProperties } from "react";
+
+type MarkupPlan = {
+  template: HTMLTemplateElement;
+  signature: string;
+  values: (string | null)[];
+};
+const plans = new WeakMap<Document, Map<string, MarkupPlan>>();
+const renderedTrees = new WeakMap<
+  HTMLElement,
+  { signature: string; texts: Node[] }
+>();
+
+function inspectTree(root: Node) {
+  const structure: unknown[] = [],
+    texts: Node[] = [];
+  const visit = (node: Node) => {
+    if (node.nodeType === 3) {
+      structure.push([3]);
+      texts.push(node);
+      return;
+    }
+    const el = node.nodeType === 1 ? (node as Element) : null;
+    structure.push([
+      node.nodeType,
+      node.nodeName,
+      el?.namespaceURI,
+      el
+        ? Array.from(el.attributes, (a) => [
+            a.namespaceURI,
+            a.localName,
+            a.value,
+          ])
+        : null,
+      node.childNodes.length,
+    ]);
+    node.childNodes.forEach(visit);
+  };
+  root.childNodes.forEach(visit);
+  return { signature: JSON.stringify(structure), texts };
+}
+
+function markupPlan(document: Document, html: string) {
+  let cache = plans.get(document);
+  if (!cache) {
+    cache = new Map();
+    plans.set(document, cache);
+  }
+  const previous = cache.get(html);
+  if (previous) return previous;
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  const tree = inspectTree(template.content);
+  const plan = {
+    template,
+    signature: tree.signature,
+    values: tree.texts.map((node) => node.nodeValue),
+  };
+  cache.set(html, plan);
+  // [OM-FREEPLAY] 与公式字符串缓存同限额；按文档隔离，避免长期浏览无限保留 DOM 模板。
+  if (cache.size > 4096) cache.delete(cache.keys().next().value!);
+  return plan;
+}
 
 // 公式结构未变时只替换文字，避免切层时重建整棵 MathML 并重新计算样式。
 // 输入仅来自统一的 KaTeX 渲染器，不接受外部 HTML。
 export function updateMathMarkup(root: HTMLElement, html: string) {
-  const template = root.ownerDocument.createElement("template");
-  template.innerHTML = html;
-  const updates: Array<{ node: Node; value: string | null }> = [];
-  const sameStructure = (current: Node, next: Node): boolean => {
-    if (
-      current.nodeType !== next.nodeType ||
-      current.nodeName !== next.nodeName
-    )
-      return false;
-    if (current.nodeType === 3) {
-      if (current.nodeValue !== next.nodeValue)
-        updates.push({ node: current, value: next.nodeValue });
-      return true;
-    }
-    if (current.nodeType === 1) {
-      const a = current as Element,
-        b = next as Element;
-      if (
-        a.namespaceURI !== b.namespaceURI ||
-        a.attributes.length !== b.attributes.length
-      )
-        return false;
-      for (const attribute of Array.from(a.attributes)) {
-        if (
-          b.getAttributeNS(attribute.namespaceURI, attribute.localName) !==
-          attribute.value
-        )
-          return false;
-      }
-    } else if (current.nodeType !== 11) return false;
-    if (current.childNodes.length !== next.childNodes.length) return false;
-    for (let i = 0; i < current.childNodes.length; i++) {
-      if (!sameStructure(current.childNodes[i], next.childNodes[i]))
-        return false;
-    }
-    return true;
-  };
-  // 先验证完整子树再提交，结构变化时不能留下半更新的公式。
-  const compatible =
-    root.childNodes.length === template.content.childNodes.length &&
-    Array.from(root.childNodes).every((node, i) =>
-      sameStructure(node, template.content.childNodes[i]),
-    );
-  if (compatible)
-    for (const update of updates) update.node.nodeValue = update.value;
-  else root.replaceChildren(template.content);
+  const plan = markupPlan(root.ownerDocument, html);
+  const current = renderedTrees.get(root) ?? inspectTree(root);
+  // 公式 DOM 由本组件独占。相同结构只更新文本，不反复解析 HTML 或逐元素比较属性。
+  if (current.signature === plan.signature) {
+    current.texts.forEach((node, i) => {
+      if (node.nodeValue !== plan.values[i]) node.nodeValue = plan.values[i];
+    });
+    renderedTrees.set(root, current);
+  } else {
+    root.replaceChildren(plan.template.content.cloneNode(true));
+    renderedTrees.set(root, inspectTree(root));
+  }
 }
 
-export function MathMarkup({
+export const MathMarkup = memo(function MathMarkup({
   html,
   tex,
   style,
@@ -77,4 +105,4 @@ export function MathMarkup({
       dangerouslySetInnerHTML={initialMarkup.current}
     />
   );
-}
+});

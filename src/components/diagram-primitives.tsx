@@ -1,4 +1,6 @@
 import React, {
+  memo,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -37,7 +39,7 @@ export const COLORS = {
   cyanSoft: "#e1f0f2",
 };
 
-export function MathFormula({
+export const MathFormula = memo(function MathFormula({
   tex,
   display = false,
 }: {
@@ -53,7 +55,7 @@ export function MathFormula({
       style={{ fontSize: "max(1em, 10.5px)" }}
     />
   );
-}
+});
 
 export function Box({
   children,
@@ -456,18 +458,16 @@ function useDiagramSize() {
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;
-    const measure = () => {
-      const width = element.clientWidth,
-        height = element.clientHeight;
+    const observer = new ResizeObserver(([entry]) => {
+      const width = entry.contentRect.width,
+        height = entry.contentRect.height;
       if (width && height)
         setSize((current) =>
           current.width === width && current.height === height
             ? current
             : { width, height },
         );
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
+    });
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
@@ -557,7 +557,7 @@ export function SerialFlow({
         JSON.stringify(current) === JSON.stringify(next) ? current : next,
       );
     };
-    measure();
+    // 由浏览器完成本批 DOM/MathML 更新后通知实际几何，避免多个布局 effect 交错读写强制重排。
     const observer = new ResizeObserver(measure);
     [root, ...steps].forEach((element) => observer.observe(element));
     return () => observer.disconnect();
@@ -628,52 +628,68 @@ export function SerialFlow({
 }
 
 export function SumJunction({ count }: { count: number }) {
-  const { ref, width } = useDiagramSize();
-  const center = width / 2;
+  const marker = `sum-arrow-${useId().replace(/:/g, "")}`;
   const radius = count > 2 ? 32 : 18;
   const centerY = radius + 24;
   const height = radius * 2 + 42;
   return (
     <div
-      ref={ref}
       data-sum-junction={count}
       style={{ position: "relative", height, width: "100%" }}
     >
       <svg
         data-merge-arrows={count}
         aria-hidden
-        viewBox={`0 0 ${width} ${height}`}
         style={{ width: "100%", height, display: "block" }}
       >
+        <defs>
+          <marker
+            id={marker}
+            markerWidth="9"
+            markerHeight="9"
+            refX="8"
+            refY="4"
+            orient="auto"
+            markerUnits="userSpaceOnUse"
+          >
+            <path
+              d="M1 1 L8 4 L1 7"
+              fill="none"
+              stroke={COLORS.cyan}
+              strokeWidth="1.5"
+            />
+          </marker>
+        </defs>
         {Array.from({ length: count }, (_, i) => {
           const angle =
             count === 1 ? 0 : -Math.PI / 2 + (i * Math.PI) / (count - 1);
-          const x = center + radius * Math.sin(angle),
+          const offset = radius * Math.sin(angle),
             y = centerY - radius * Math.cos(angle);
-          const start = ((i + 0.5) * width) / count;
+          // SVG 自己解析百分比起点和像素圆周偏移，无需测宽、强制布局或第二次 React 提交。
           return (
-            <g key={i}>
-              <path
-                data-sum-input={i}
-                d={`M${start} 0 V8 L${x} ${y}`}
-                fill="none"
-                stroke={COLORS.cyan}
-                strokeWidth="1.5"
-                vectorEffect="non-scaling-stroke"
-              />
-              <path
-                data-sum-input-arrow={i}
-                d={arrowTip(x, y, Math.atan2(y - 8, x - start))}
-                fill="none"
-                stroke={COLORS.cyan}
-                strokeWidth={1.5}
-              />
-            </g>
+            <line
+              key={i}
+              data-sum-input={i}
+              data-sum-input-arrow={i}
+              x1={`${((i + 0.5) * 100) / count}%`}
+              y1={0}
+              x2={`calc(50% + ${offset}px)`}
+              y2={y}
+              markerEnd={`url(#${marker})`}
+              fill="none"
+              stroke={COLORS.cyan}
+              strokeWidth="1.5"
+              vectorEffect="non-scaling-stroke"
+            />
           );
         })}
-        <path
+        <line
           data-sum-output
-          d={`M${center} ${centerY + radius} V${height - 1} M${center - 5} ${height - 6} L${center} ${height - 1} L${center + 5} ${height - 6}`}
+          x1="50%"
+          x2="50%"
+          y1={centerY + radius}
+          y2={height - 1}
+          markerEnd={`url(#${marker})`}
           fill="none"
           stroke={COLORS.cyan}
           strokeWidth="1.5"

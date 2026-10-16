@@ -410,38 +410,56 @@ export function MhcGate({
   );
 }
 
-export function SigmoidSteps() {
+export function SigmoidSteps({
+  input = "a",
+  vertical = false,
+}: { input?: string; vertical?: boolean } = {}) {
+  const arrow = (label: string) =>
+    vertical ? `\\downarrow\\;${label}` : `\\xrightarrow{${label}}`;
   return (
-    <div data-mhc-sigmoid style={{ ...group, gap: 8 }}>
-      <strong>两条分支都使用同一个 σ：对每个 a 单独做以下运算</strong>
+    <div
+      data-mhc-sigmoid={!vertical || undefined}
+      data-sigmoid-steps={input}
+      style={{
+        ...group,
+        gap: 8,
+        ...(vertical ? { padding: 4, border: "none" } : {}),
+      }}
+    >
+      {!vertical && (
+        <strong>两条分支都使用同一个 σ：对每个 a 单独做以下运算</strong>
+      )}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns:
-            "minmax(48px,max-content) 80px minmax(48px,max-content) 80px minmax(64px,max-content) 80px minmax(80px,max-content) 80px minmax(96px,max-content)",
+          gridTemplateColumns: vertical
+            ? "max-content"
+            : "minmax(48px,max-content) 80px minmax(48px,max-content) 80px minmax(64px,max-content) 80px minmax(80px,max-content) 80px minmax(96px,max-content)",
           gap: 6,
           justifyContent: "center",
           alignItems: "center",
         }}
       >
         <Box tone="amber">
-          <MathFormula tex="a" />
+          <MathFormula tex={input} />
         </Box>
-        <Operator tex="\xrightarrow{\times(-1)}" />
+        <Operator tex={arrow("\\times(-1)")} />
         <Box tone="amber">
-          <MathFormula tex="-a" />
+          <MathFormula tex={`-${input}`} />
         </Box>
-        <Operator tex="\xrightarrow{\exp}" />
+        <Operator tex={arrow("\\exp")} />
         <Box tone="cyan">
-          <MathFormula tex="e^{-a}" />
+          <MathFormula tex={`e^{-${input}}`} />
         </Box>
-        <Operator tex="\xrightarrow{+1}" />
+        <Operator tex={arrow("+1")} />
         <Box tone="cyan">
-          <MathFormula tex="1+e^{-a}" />
+          <MathFormula tex={`1+e^{-${input}}`} />
         </Box>
-        <Operator tex="\xrightarrow{1\div}" />
+        <Operator tex={arrow("1\\div")} />
         <Box tone="cyan">
-          <MathFormula tex="v=\sigma(a)" />
+          <MathFormula
+            tex={vertical ? `\\sigma(${input})` : `v=\\sigma(${input})`}
+          />
         </Box>
       </div>
     </div>

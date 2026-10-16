@@ -776,6 +776,16 @@ h1 {
 }
 
 /* 解释区与画布并列占位，收起后只保留工具栏入口。 */
+.architecture-flow .react-flow__node {
+  /* 模块独立布局；不启用 paint containment，端口和外侧标签不得被裁切。 */
+  contain: layout style;
+}
+.inspector-variables > div,
+.module-inspector article {
+  /* [OM-FREEPLAY] 仅跳过屏幕外文字的排版，滚入时恢复；100px 是初次滚动条占位估计。 */
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 100px;
+}
 .diagram-workspace {
   display: flex;
   width: 100%;

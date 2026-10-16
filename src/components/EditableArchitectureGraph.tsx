@@ -496,10 +496,15 @@ function routeScore(
   let crossings = 0;
   let crowding = 0;
   let length = 0;
+  for (let index = 1; index < points.length; index++)
+    length +=
+      Math.abs(points[index].x - points[index - 1].x) +
+      Math.abs(points[index].y - points[index - 1].y);
+  // 长度与折点已经给出成本下界；劣于当前解的候选无需再逐个检查全图障碍。
+  if (length + points.length * 8 >= upperBound) return Infinity;
   for (let index = 0; index < points.length - 1; index += 1) {
     const start = points[index];
     const end = points[index + 1];
-    length += Math.abs(end.x - start.x) + Math.abs(end.y - start.y);
     // 所有代价非负：一旦不可能优于已有路线，停止检查剩余障碍和线段；评分规则不变。
     for (const obstacle of obstacles) {
       if (segmentCrossesObstacle(start, end, obstacle)) crossings += 1;
@@ -669,34 +674,45 @@ function defaultOrthogonalPoints(
       ...nearChannels(horizontalChannels, sourceY, targetY),
     ]),
   ];
-  for (const x of nearX)
-    for (const y of nearY)
-      candidates.push(
-        [
-          { x: sourceX, y: sourceY },
-          { x: sourceX, y },
-          { x, y },
-          { x, y: targetY },
-          { x: targetX, y: targetY },
-        ],
-        [
-          { x: sourceX, y: sourceY },
-          { x, y: sourceY },
-          { x, y },
-          { x: targetX, y },
-          { x: targetX, y: targetY },
-        ],
-      );
   let best = candidates[0];
   let bestScore = Infinity;
-  for (const candidate of candidates) {
+  const consider = (candidate: XYPosition[]) => {
     const points = simplifyOrthogonalPoints(candidate);
     const score = routeScore(points, obstacles, reserved, bestScore);
     if (score < bestScore) {
       best = points;
       bestScore = score;
     }
-  }
+  };
+  for (const candidate of candidates) consider(candidate);
+  const minimumScore =
+    Math.abs(sourceX - targetX) +
+    Math.abs(sourceY - targetY) +
+    (sourceX === targetX || sourceY === targetY ? 2 : 3) * 8;
+  if (bestScore <= minimumScore) return best;
+  for (const x of nearX)
+    for (const y of nearY) {
+      const minimumLength =
+        Math.abs(sourceX - x) +
+        Math.abs(x - targetX) +
+        Math.abs(sourceY - y) +
+        Math.abs(y - targetY);
+      if (minimumLength + 16 >= bestScore) continue;
+      consider([
+        { x: sourceX, y: sourceY },
+        { x: sourceX, y },
+        { x, y },
+        { x, y: targetY },
+        { x: targetX, y: targetY },
+      ]);
+      consider([
+        { x: sourceX, y: sourceY },
+        { x, y: sourceY },
+        { x, y },
+        { x: targetX, y },
+        { x: targetX, y: targetY },
+      ]);
+    }
   return best;
 }
 
@@ -1089,6 +1105,7 @@ type RoutePlan = {
   edgeKeys: Map<string, string>;
 };
 const routingCache = new WeakMap<object, RoutePlan>();
+const routingHistory = new WeakMap<object, Map<string, RoutePlan>>();
 // 同一次 React Flow 状态更新只规划一次；各边只订阅自己的点列，不订阅整张节点/边数组。
 const routingSnapshots = new WeakMap<object, Map<string, XYPosition[]>>();
 type RoutingInput = {
@@ -1252,6 +1269,15 @@ export function planArchitectureRoutes(
   // 仅几何与端口影响路由；选中、拖标签、视口变化不能触发全图重算。内部端口变化也纳入失效键。
   const signature = JSON.stringify([[...frames], [...edgeKeys]]);
   if (cached?.signature === signature) return cached.routes;
+  const history = routingHistory.get(owner) ?? new Map<string, RoutePlan>();
+  routingHistory.set(owner, history);
+  const exact = history.get(signature);
+  if (exact) {
+    history.delete(signature);
+    history.set(signature, exact);
+    routingCache.set(owner, exact);
+    return exact.routes;
+  }
   const inflate = (bounds: Obstacle, padding: number): Obstacle => ({
     left: bounds.left - padding,
     top: bounds.top - padding,
@@ -1371,7 +1397,11 @@ export function planArchitectureRoutes(
       ),
     );
   }
-  routingCache.set(owner, { signature, routes, frames, edgeKeys });
+  const plan = { signature, routes, frames, edgeKeys };
+  routingCache.set(owner, plan);
+  history.set(signature, plan);
+  // [OM-FREEPLAY] 保留最近 64 份完整实测路由；层、模式、人工端点或障碍变化均由签名精确区分。
+  if (history.size > 64) history.delete(history.keys().next().value!);
   return routes;
 }
 function EditableOrthogonalEdgeView({

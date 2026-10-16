@@ -5,9 +5,19 @@ import {
   applySavedLayout,
   buildGraph,
   RmsNormProcess,
+  IndexScoreProcess,
 } from "../src/compositions/DeepSeekV41Layer";
 
 describe("RMSNorm 的逐行结构与来源", () => {
+  it("Indexer 展示的三个 Head 分别接入圆形累加器", () => {
+    const root = document.createElement("div");
+    root.innerHTML = renderToStaticMarkup(
+      createElement(IndexScoreProcess, { layer: 15, kvSource: 15 }),
+    );
+    expect(root.querySelectorAll("[data-sum-input]")).toHaveLength(3);
+    expect(root.querySelector("[data-sum-circle]")).not.toBeNull();
+    expect(root.querySelector("[data-sum-output]")).not.toBeNull();
+  });
   it("横向紧凑排布仍保留平方、归约、缩放和输出矩阵", () => {
     const root = document.createElement("div");
     root.innerHTML = renderToStaticMarkup(
@@ -61,10 +71,20 @@ describe("RMSNorm 的逐行结构与来源", () => {
       const formulas = [...root.querySelectorAll("[aria-label]")].map((el) =>
         el.getAttribute("aria-label"),
       );
-      expect(formulas).toContain(
-        `m_{s}=\\frac{1}{${dimension}}\\sum_{j=1}^{${dimension}}z_{s,j}^{2}`,
+      const reduction = root.querySelector("[data-rmsnorm-reduction]")!;
+      const operations = [...reduction.querySelectorAll("[aria-label]")].map(
+        (el) => el.getAttribute("aria-label"),
       );
-      expect(formulas).toContain("r_{s}=\\sqrt{m_{s}+\\varepsilon}");
+      expect(operations).toEqual([
+        `\\sum_{j=1}^{${dimension}}z_{s,j}^{2}`,
+        "\\div",
+        String(dimension),
+        "=",
+        "m_{s}",
+        "\\downarrow",
+        "+\\varepsilon\\;\\longrightarrow\\;\\sqrt{\\phantom{x}}",
+        "r_{s}",
+      ]);
       expect(formulas).toContain(`\\gamma_{${dimension}}`);
       expect(formulas).toContain(
         `\\boldsymbol\\gamma=\\boldsymbol\\gamma_3^Q\\in\\mathbb R^{${dimension}}`,

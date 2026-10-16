@@ -64,6 +64,23 @@ test("紧凑归一化保留两段连接，真实内容不溢出且下游跟随�
             "[data-rmsnorm-transfer] path",
           );
           const matrix = path?.getScreenCTM();
+          const firstStage = root
+            .querySelector('[data-rmsnorm-stage="root"]')!
+            .getBoundingClientRect();
+          const sourceBox = root
+            .querySelector('[data-rmsnorm-stage="root"] [data-vector-elements]')
+            ?.parentElement?.getBoundingClientRect();
+          const lineAvoidsInput =
+            !path ||
+            !matrix ||
+            !sourceBox ||
+            Array.from({ length: 80 }, (_, i) => {
+              const point = path
+                .getPointAtLength((path.getTotalLength() * i) / 79)
+                .matrixTransform(matrix);
+              // 跨段线只许在左段底部横向离开，再进入两段之间的通道。
+              return point.y >= source.top - 1 || point.x > firstStage.right;
+            }).every(Boolean);
           const start =
             path && matrix
               ? path.getPointAtLength(0).matrixTransform(matrix)
@@ -75,6 +92,7 @@ test("紧凑归一化保留两段连接，真实内容不溢出且下游跟随�
                   .matrixTransform(matrix)
               : null;
           return {
+            lineAvoidsInput,
             label: root.getAttribute("data-rmsnorm"),
             overflow: [...root.querySelectorAll<HTMLElement>("div")]
               .filter(
@@ -107,7 +125,10 @@ test("紧凑归一化保留两段连接，真实内容不溢出且下游跟随�
     await expect
       .poll(async () =>
         (await check()).every(
-          (result) => result.sourceGap < 2 && result.targetGap < 2,
+          (result) =>
+            result.sourceGap < 2 &&
+            result.targetGap < 2 &&
+            result.lineAvoidsInput,
         ),
       )
       .toBe(true);
