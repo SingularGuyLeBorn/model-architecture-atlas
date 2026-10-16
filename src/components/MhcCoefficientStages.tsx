@@ -53,6 +53,12 @@ export function MhcFlatten({ layer, stage }: { layer: number; stage: string }) {
       }}
     >
       <strong>① 输入：同一 token t 的四路残差，每路 5120 个数</strong>
+      <div data-notation-alias>
+        本段固定 Layer {layer} 与 token t：{" "}
+        <MathFormula
+          tex={`h_{c,d}:=(\\mathbf h_{${layer},c,t}^{${stage}})_d,\\quad c=1,2,3,4`}
+        />
+      </div>
       <div
         data-four-stream-row
         style={{ ...compact4, gridTemplateColumns: "repeat(4,240px)" }}
@@ -244,6 +250,15 @@ export function MhcProjection({
   return (
     <section data-mhc-projection style={group}>
       <strong>③ 归一化后的整行 × 本子层参数 → 24 个控制数</strong>
+      <div data-notation-alias style={{ display: "grid", gap: 4 }}>
+        <span>
+          wⱼ 表示参数矩阵第 j 列（20480 个元素）；uⱼ 表示本次投影结果的第 j
+          个数：
+        </span>
+        <MathFormula
+          tex={`(\\mathbf w_j)_d:=(W_{${layer}}^{HC,${sub}})_{dj},\\quad u_j:=(\\mathbf u_{${layer},t}^{${sub}})_j`}
+        />
+      </div>
       <div
         style={{
           display: "grid",
@@ -267,7 +282,10 @@ export function MhcProjection({
             name={`W_{${layer}}^{HC,${sub}}`}
             shape="20480\times24"
           />
-          <div style={grid4}>
+          <div
+            data-mhc-parameter-columns
+            style={{ ...compact4, gap: 8, alignItems: "center" }}
+          >
             {["1", "2", "\\cdots", "24"].map((j) =>
               j === "\\cdots" ? (
                 <MathFormula key={j} tex={j} />
@@ -277,7 +295,7 @@ export function MhcProjection({
                   style={{
                     border: `1px solid ${COLORS.indigo}`,
                     background: COLORS.indigoSoft,
-                    padding: "16px 6px",
+                    padding: "4px 8px",
                     borderRadius: 6,
                   }}
                 >
@@ -544,29 +562,46 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
             elementTex={(j) => `a^C_{1${j}}`}
             tone={MHC_AFFINE_TONES.result}
           />
-          <span>m₁ 是本行最大值；各项先减去 m₁ 再取指数，得到 e。</span>
+          <span>
+            四个输入来自 Aᶜ 的第 1 行。减去同一个行最大值后取指数，得到四个正数
+            e₁ⱼ；它们的和 d₁ 是本行共用的分母。
+          </span>
+          <MathFormula tex="m_1=\max(a^C_{11},a^C_{12},a^C_{13},a^C_{14})" />
           <MathFormula tex="e_{1j}=\exp(a^C_{1j}-m_1),\quad j=1,2,3,4" />
-          <div style={grid4}>
-            {copies.map((j) => (
-              <div key={j} style={{ display: "grid", gap: 5 }}>
-                <Operator tex="\downarrow" />
-                <Box tone="violet">
-                  <MathFormula tex={`e_{1${j}}`} />
-                </Box>
-              </div>
-            ))}
+          <div data-mhc-row-denominator style={{ display: "grid" }}>
+            <div style={grid4}>
+              {copies.map((j) => (
+                <div key={j} style={{ display: "grid" }}>
+                  <Box tone="violet">
+                    <MathFormula tex={`e_{1${j}}`} />
+                  </Box>
+                </div>
+              ))}
+            </div>
+            <SumJunction count={4} />
+            <Box tone="violet">
+              <MathFormula tex="d_1=e_{11}+e_{12}+e_{13}+e_{14}" />
+            </Box>
           </div>
-          <SumJunction count={4} />
-          <Box tone="violet">
-            <MathFormula tex="d_1=e_{11}+e_{12}+e_{13}+e_{14}" />
-          </Box>
-          <div style={grid4}>
+          <span>
+            每个指数项除以 d₁ 得到 Softmax 权重，再加稳定项 εHC = 10⁻⁶，得到 T
+            的对应元素。
+          </span>
+          <div
+            data-mhc-row-results
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2,max-content)",
+              gap: 8,
+              justifyContent: "center",
+            }}
+          >
             {copies.map((j) => (
               <div key={j} style={{ display: "grid", gap: 5 }}>
-                <MathFormula tex={`e_{1${j}}\\div d_1`} />
-                <Operator tex="\downarrow\; +\epsilon_{HC}" />
                 <Box tone="violet">
-                  <MathFormula tex={`T_{1${j}}`} />
+                  <MathFormula
+                    tex={`T_{1${j}}=\\frac{e_{1${j}}}{d_1}+\\epsilon_{HC}`}
+                  />
                 </Box>
               </div>
             ))}
@@ -590,7 +625,6 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
               ))}
             </StackedSum>
           </div>
-          <Operator tex="\downarrow\; +\epsilon_{HC}" />
           <Box tone="violet">
             <MathFormula tex="d^{col}_1=T_{11}+T_{21}+T_{31}+T_{41}+\epsilon_{HC}" />
           </Box>

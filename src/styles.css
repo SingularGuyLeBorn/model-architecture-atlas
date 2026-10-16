@@ -926,15 +926,20 @@ h1 {
 .full-layer :is([data-vector-cell], [data-expanded-tensor], [data-sum-node]) {
   cursor: pointer;
 }
+/* [OM-FREEPLAY] 选中强调色使用亮蓝；仅改原有描边，取消选择恢复语义色。 */
 .full-layer [data-internal-selected] {
-  outline: 2px dashed #252b33;
-  outline-offset: 3px;
+  border-color: #1565d8 !important;
+  outline: none;
 }
 .full-layer svg [data-internal-selected] {
   outline: none;
-  stroke: #252b33;
-  stroke-width: 3px;
-  stroke-dasharray: 5 3;
+  stroke: #1565d8;
+  stroke-dasharray: none;
+}
+/* 内部导线、箭翼和出口统一采用屏幕描边；命中区域始终透明。 */
+.full-layer .react-flow__node svg [stroke]:not([stroke="transparent"]) {
+  vector-effect: non-scaling-stroke;
+  stroke-width: 1.5px;
 }
 .full-layer .react-flow__node svg :is(path, line, polyline) {
   pointer-events: stroke;

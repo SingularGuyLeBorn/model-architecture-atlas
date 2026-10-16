@@ -562,13 +562,14 @@ function WirePath(
   props: SVGProps<SVGPathElement> & { "data-sum-input"?: number },
 ) {
   return (
-    <g>
+    <g data-wire-path>
       <path {...props} />
       <path
         d={props.d}
         fill="none"
         stroke="transparent"
         strokeWidth={12}
+        data-wire-hit
         data-wire-input={props["data-sum-input"]}
         style={{ pointerEvents: "stroke", cursor: "pointer" }}
       />

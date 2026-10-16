@@ -12,6 +12,43 @@ import {
 } from "../src/components/EditableArchitectureGraph";
 import { buildGraph } from "../src/compositions/DeepSeekV41Layer";
 
+it("相向端口安全区重叠时仍然直连，不产生窄 U 形尾刺", () => {
+  const source = { left: -100, right: 44, top: -80, bottom: 80 };
+  const target = { left: 41, right: 200, top: -80, bottom: 80 };
+  expect(
+    automaticOrthogonalPoints(
+      0,
+      0,
+      85,
+      0,
+      Position.Right,
+      Position.Left,
+      [source, target],
+      [],
+      [source],
+      [target],
+    ),
+  ).toEqual([
+    { x: 0, y: 0 },
+    { x: 85, y: 0 },
+  ]);
+  const blocker = { left: 50, right: 60, top: -10, bottom: 10 };
+  expect(
+    automaticOrthogonalPoints(
+      0,
+      0,
+      85,
+      0,
+      Position.Right,
+      Position.Left,
+      [source, target, blocker],
+      [],
+      [source],
+      [target],
+    ).length,
+  ).toBeGreaterThan(2);
+});
+
 it("无遮挡右出上入优先一次转折，垂直对齐优先零转折", () => {
   for (const distance of [200, 2000, 20000]) {
     const corner = automaticOrthogonalPoints(

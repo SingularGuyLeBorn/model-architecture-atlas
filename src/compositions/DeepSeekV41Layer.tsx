@@ -1179,6 +1179,12 @@ export function MhcMix({
       <strong>
         mHC 系数生成 · Layer {layer} · {sublayer === "A" ? "Attention" : "FFN"}
       </strong>
+      <div data-notation-alias style={{ display: "grid", gap: 4 }}>
+        <span>本模块固定当前层、token t 与子层；各分支的局部元素名对应：</span>
+        <MathFormula
+          tex={`p_j:=(\\mathbf p_{${layer},t}^{${sublayer}})_j,\\quad q_j:=(\\mathbf q_{${layer},t}^{${sublayer}})_j,\\quad c_{kj}:=(C_{${layer},t}^{${sublayer}})_{kj}`}
+        />
+      </div>
       <MhcFlatten layer={layer} stage={source} />
       <div
         data-mhc-preparation
@@ -1274,6 +1280,12 @@ export function MhcPre({
               : "来自前一层 FFN 的系数分支"}
         </Box>
       </div>
+      <div data-notation-alias>
+        本次汇合固定 token t：{" "}
+        <MathFormula
+          tex={`p_c:=(\\mathbf p)_c,\\quad h_{c,d}:=(\\mathbf h_{${layer},c,t}^{${stage}})_d`}
+        />
+      </div>
       <div
         data-four-stream-row
         style={{
@@ -1288,10 +1300,10 @@ export function MhcPre({
               name={`\\mathbf h_{${layer},${c},t}^{${stage}}`}
               scalar={(d) => `h_{${c},${d}}`}
             />
-            <Operator tex={`\\downarrow\\;\\times p_${c}`} />
+            <Operator tex="\downarrow" />
             <FeatureVector
-              name={`p_${c}\\mathbf h_{${layer},${c},t}^{${stage}}`}
-              scalar={(d) => `p_${c}h_{${c},${d}}`}
+              name={`p_${c}\\cdot\\mathbf h_{${layer},${c},t}^{${stage}}`}
+              scalar={(d) => `p_${c}\\cdot h_{${c},${d}}`}
               tone="green"
             />
           </div>
@@ -1355,7 +1367,7 @@ export function MhcPost({
   const outputScalar = (d: string) =>
     `o_{${layer},t,${d}}${sublayer === "F" ? "^{\\mathrm{FFN}}" : ""}`;
   const residual = (j: number) => `\\mathbf r_{${layer},${j},t}^{${sublayer}}`;
-  const old = (k: number) => `\\mathbf h_{${layer},${k},t}^{${stage}}`;
+  const old = (k: number | string) => `\\mathbf h_{${layer},${k},t}^{${stage}}`;
   const result = (j: number) =>
     `\\mathbf h_{${layer},${j},t}^{${sublayer === "A" ? "A" : "\\mathrm{out}"}}`;
   return (
@@ -1363,6 +1375,15 @@ export function MhcPost({
       data-mhc-post={sublayer}
       style={{ display: "grid", gap: 14, fontSize: 13 }}
     >
+      <div data-notation-alias style={{ display: "grid", gap: 4 }}>
+        <span>
+          本模块固定 Layer {layer}、token t 与{" "}
+          {sublayer === "A" ? "Attention" : "FFN"} 子层；局部简写：
+        </span>
+        <MathFormula
+          tex={`c_{kj}:=(C_{${layer},t}^{${sublayer}})_{kj},\\quad q_j:=(\\mathbf q_{${layer},t}^{${sublayer}})_j,\\quad h_{k,d}:=(${old("k")})_d`}
+        />
+      </div>
       <strong>mHC 回写 · 残差混合与输出分发并行，再按目标路相加</strong>
       {/* [OM-FREEPLAY] 扩展为角色配色：紫色 C、玫瑰色 q、青色乘积；沿途保持同色。 */}
       <div
@@ -1740,6 +1761,15 @@ export function MhcPost({
                   }}
                 >
                   <span>同一权重乘遍 5120 个元素</span>
+                  <div data-notation-alias style={{ display: "grid", gap: 4 }}>
+                    <span>以下固定本层与 token t，逐项简写为：</span>
+                    <MathFormula
+                      tex={`o_d:=${outputScalar("d")},\\quad d=1,\\ldots,5120`}
+                    />
+                    <MathFormula
+                      tex={`q_${j}:=(\\mathbf q_{${layer},t}^{${sublayer}})_${j}`}
+                    />
+                  </div>
                   {["1", "2", "\\cdots", "5120"].map((d) =>
                     d === "\\cdots" ? (
                       <div key={d} style={{ textAlign: "center" }}>
@@ -1764,14 +1794,13 @@ export function MhcPost({
                         <Box tone="green">
                           <MathFormula tex={`o_{${d}}`} />
                         </Box>
-                        <Operator tex="\to" />
+                        <Operator tex="=" />
                         <Box tone="cyan">
                           <MathFormula tex={`q_${j}\\cdot o_{${d}}`} />
                         </Box>
                       </div>
                     ),
                   )}
-                  <span>元素索引 d 对齐；此处省略共同的层号与 t</span>
                 </div>
                 <div data-mhc-broadcast-result>
                   <FeatureVector
@@ -1926,13 +1955,24 @@ export function LayerHandoff({
                 `\\mathbf p_{${layer},N}^{F}`,
               ]}
               rowLength="4"
-              elementTex={(i, d) => `p_{${["1", "2", "", "N"][i]},${d}}`}
+              elementTex={(i, d) =>
+                `p^{F}_{${layer},${["1", "2", "", "N"][i]},${d}}`
+              }
             />
           )}
           <TensorHeading
             name={`\\mathbf p_{${layer},t}^{F}`}
             shape="1\times4"
           />
+          <div data-notation-alias style={{ display: "grid", gap: 4 }}>
+            <span>
+              {count === "1" ? "当前 token t 的权重向量" : "取矩阵第 t 行"}
+              ；下方四项简写为：
+            </span>
+            <MathFormula
+              tex={`p_j:=p^{F}_{${layer},t,j}=(\\mathbf p^{F}_{${layer},t})_j,\\quad j=1,2,3,4`}
+            />
+          </div>
           <VectorStrip
             name=""
             nameWidth={0}
@@ -4226,6 +4266,11 @@ export function Expert({
           )}
         </span>
       </div>
+      <div data-notation-alias style={{ fontSize: 11, lineHeight: 1.6 }}>
+        本专家各矩阵内以行 s、列 d 标记元素，例如{" "}
+        <MathFormula tex={`a_{s,d}:=(A_{${layer},${expertIndex}})_{s,d}`} />
+        ；b、c、z 同理，t 表示当前 token 行。
+      </div>
       <div data-expert-structure style={{ display: "grid", minWidth: 0 }}>
         {matrix(`Y_{${layer}}`, "y", count, "5120")}
         {connector("split")}
@@ -4394,6 +4439,23 @@ export function Expert({
         {connector("merge")}
         <div data-expert-product style={{ textAlign: "center", fontSize: 12 }}>
           <MathFormula tex="\odot" /> 逐元素相乘
+          <div
+            data-expert-product-examples
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              gap: 14,
+              flexWrap: "wrap",
+              marginTop: 5,
+            }}
+          >
+            {[1, 2].map((d) => (
+              <MathFormula
+                key={d}
+                tex={`c_{t,${d}}=a_{t,${d}}\\cdot b_{t,${d}}`}
+              />
+            ))}
+          </div>
         </div>
         {connector("left")}
         <div
@@ -7636,6 +7698,8 @@ function node(
         ? { minWidth: 480 }
         : {}),
       ...(["add1", "add2"].includes(kind) ? { minWidth: 2800 } : {}),
+      // [OM-FREEPLAY] 四个带乘点的代表向量各需约 228px，连同间距与外框留 980px。
+      ...(kind === "hc-pre" ? { minWidth: 980 } : {}),
     },
     deletable: false,
   };
@@ -7810,7 +7874,7 @@ export function buildGraph(
     node("hc-expand", "hc-expand", layer, mode, 400, expandY, 800, 240),
     node("input", "tensor", layer, mode, 300, inputY, 1200, tensorHeight),
     {
-      ...node("hc-pre-a", "hc-pre", layer, mode, 300, preAY, 900, 420),
+      ...node("hc-pre-a", "hc-pre", layer, mode, 300, preAY, 980, 420),
       data: { kind: "hc-pre", layer, mode, sublayer: "A" },
     },
     {
@@ -7878,7 +7942,7 @@ export function buildGraph(
     node("add1", "add1", layer, mode, 300, add1Y, 2800, add1Height),
     node("state1", "state1", layer, mode, 300, state1Y, 1200, state1Height),
     {
-      ...node("hc-pre-f", "hc-pre", layer, mode, 300, preFY, 900, 420),
+      ...node("hc-pre-f", "hc-pre", layer, mode, 300, preFY, 980, 420),
       data: { kind: "hc-pre", layer, mode, sublayer: "F" },
     },
     {
@@ -9956,7 +10020,7 @@ export const DeepSeekV41Layer: React.FC<Props> = ({ initialLayer = 1 }) => {
     >
       {/* 样式属于整个图组件，切层不能销毁再插入样式表，使整页公式样式全部失效。 */}
       <style>{`
-      .architecture-flow [data-boundary-connectable="true"][data-frame-selected="true"] > :last-child { border-color: ${COLORS.blue} !important; box-shadow: inset 0 0 0 1px ${COLORS.blue} !important; }
+      .architecture-flow [data-boundary-connectable="true"][data-frame-selected="true"] > :last-child { border-color: #1565d8 !important; }
       .architecture-flow .react-flow__handle-top { top: 0; }
       .architecture-flow .react-flow__handle-bottom { bottom: 0; }
       .architecture-flow .react-flow__handle-left { left: 0; }

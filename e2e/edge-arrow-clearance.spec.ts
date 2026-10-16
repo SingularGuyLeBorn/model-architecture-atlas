@@ -71,7 +71,9 @@ test("窄通道的箭头在选中与缩放时保持比例且正常进入专家�
     ).toBeGreaterThanOrEqual(0);
   }
   expect(points.at(-1)!.x - points.at(-2)!.x).toBeGreaterThanOrEqual(24);
-  expect(selected.lineWidth).toBeGreaterThan(before.lineWidth);
+  expect(selected.lineWidth).toBe(before.lineWidth);
+  await expect(path).toHaveCSS("stroke", "rgb(21, 101, 216)");
+  await expect(path).toHaveCSS("stroke-dasharray", "none");
   expect(selected.width).toBe(before.width);
   expect(selected.height).toBe(before.height);
   expect(Math.abs(selected.direction.y)).toBeLessThan(0.1);

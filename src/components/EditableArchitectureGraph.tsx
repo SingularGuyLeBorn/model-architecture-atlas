@@ -944,6 +944,34 @@ export function automaticOrthogonalPoints(
   sourceFrames: Obstacle[] = [],
   targetFrames: Obstacle[] = [],
 ) {
+  // 对齐且相向的端口无需转折；两端安全区只约束转折位置，不能制造窄 U 形绕路。
+  const direct = [
+    { x: sourceX, y: sourceY },
+    { x: targetX, y: targetY },
+  ];
+  const facing =
+    (sourceY === targetY &&
+      ((sourcePosition === Position.Right &&
+        targetPosition === Position.Left &&
+        targetX > sourceX) ||
+        (sourcePosition === Position.Left &&
+          targetPosition === Position.Right &&
+          targetX < sourceX))) ||
+    (sourceX === targetX &&
+      ((sourcePosition === Position.Bottom &&
+        targetPosition === Position.Top &&
+        targetY > sourceY) ||
+        (sourcePosition === Position.Top &&
+          targetPosition === Position.Bottom &&
+          targetY < sourceY)));
+  const unrelated = obstacles.filter(
+    (frame) => !sourceFrames.includes(frame) && !targetFrames.includes(frame),
+  );
+  if (
+    facing &&
+    routeScore(direct, unrelated, reserved) === routeScore(direct, [], [])
+  )
+    return direct;
   // 内部端口先沿法向穿出自己的分组安全区，不能在外框边缘转弯。
   const outsideFrames = (
     x: number,
@@ -1838,10 +1866,9 @@ function EditableOrthogonalEdgeView({
         interactionWidth={28}
         style={{
           ...style,
-          stroke: color,
-          strokeWidth: selected
-            ? 3.4
-            : Math.max(DATA_WIRE_WIDTH, Number(style?.strokeWidth ?? 0)),
+          // [OM-FREEPLAY] 与内部对象共用亮蓝选中色，线宽与路径几何保持不变。
+          stroke: selected ? "#1565d8" : color,
+          strokeWidth: DATA_WIRE_WIDTH,
           strokeLinecap: "round",
           strokeLinejoin: "round",
         }}

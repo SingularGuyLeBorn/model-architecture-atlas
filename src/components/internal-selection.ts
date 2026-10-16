@@ -28,7 +28,10 @@ export function inspectInternalTarget(
       operand?.querySelector("[aria-label]")?.getAttribute("aria-label") ??
       undefined;
     return {
-      element: wire,
+      element: wire.hasAttribute("data-wire-hit")
+        ? (wire.parentElement?.querySelector("path:not([data-wire-hit])") ??
+          wire)
+        : wire,
       detail: {
         kind: "wire",
         tex,

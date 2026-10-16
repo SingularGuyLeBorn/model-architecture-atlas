@@ -46,12 +46,29 @@ test("内部元素与汇合线可独立点击，关闭面板后保持关闭", as
   });
   await page.mouse.click(point.x, point.y);
   await expect(panel).toHaveCount(0);
-  await expect(wire).toHaveAttribute("data-internal-selected", "true");
+  await expect(sum.locator('[data-sum-input="0"]')).toHaveAttribute(
+    "data-internal-selected",
+    "true",
+  );
+  await expect(wire).not.toHaveAttribute("data-internal-selected", "true");
+  await expect(wire).toHaveCSS("stroke", "rgba(0, 0, 0, 0)");
+  await expect(sum.locator('[data-sum-input="0"]')).toHaveCSS(
+    "stroke-dasharray",
+    "none",
+  );
   await page.getByRole("button", { name: "显示解释", exact: true }).click();
   await expect(panel.locator("[data-internal-explanation]")).toContainText(
     "第 1 路输入",
   );
   await sum.locator("[data-sum-node]").click();
+  await expect(sum.locator("[data-sum-node]")).toHaveCSS(
+    "outline-style",
+    "none",
+  );
+  await expect(sum.locator("[data-sum-node]")).toHaveCSS(
+    "border-top-color",
+    "rgb(21, 101, 216)",
+  );
   await expect(panel.locator("[data-internal-explanation]")).toContainText(
     "各入口传入的操作数",
   );

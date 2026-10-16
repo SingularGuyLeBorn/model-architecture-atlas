@@ -14,7 +14,11 @@ describe("内部对象选择", () => {
   it("线命中区与可见线读取相同输入序号", () => {
     const root = document.createElement("div");
     root.innerHTML =
-      '<div data-stacked-sum><div data-sum-operand="1"><span aria-label="c_{22}"></span></div><svg><path data-wire-input="1" /></svg></div>';
+      '<div data-stacked-sum><div data-sum-operand="1"><span aria-label="c_{22}"></span></div><svg><g data-wire-path><path id="visible" data-sum-input="1"/><path data-wire-hit data-wire-input="1" /></g></svg></div>';
+    expect(
+      inspectInternalTarget(root.querySelector("[data-wire-hit]"), root)
+        ?.element.id,
+    ).toBe("visible");
     expect(
       inspectInternalTarget(root.querySelector("path"), root)?.detail,
     ).toEqual({
