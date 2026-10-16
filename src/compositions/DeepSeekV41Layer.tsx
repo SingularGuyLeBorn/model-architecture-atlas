@@ -709,7 +709,7 @@ export function RmsNormProcess({
           {matrix(input, "z", "blue")}
           <FlowStep>
             <MathFormula tex={`\\mathbf z_{${row}}`} /> · 展开这一行的第
-            1、2、…、{dimension} 个数
+            1、2、…、{dimension} 个平方项
           </FlowStep>
           <div style={{ display: "grid", gap: 0 }}>
             <div
@@ -732,10 +732,6 @@ export function RmsNormProcess({
                       minWidth: 0,
                     }}
                   >
-                    <Box tone="blue">
-                      <MathFormula tex={`z_{${row},${column}}`} />
-                    </Box>
-                    <Operator tex="\downarrow\;(\cdot)^2" />
                     <Box tone="green">
                       <MathFormula tex={`z_{${row},${column}}^2`} />
                     </Box>

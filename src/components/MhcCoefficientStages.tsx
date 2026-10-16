@@ -138,6 +138,7 @@ export function MhcJointNorm() {
             justifySelf: "center",
           }}
         >
+          <span>共 20480 个平方项，展示第 1、2、末项</span>
           <div
             style={{
               display: "grid",
@@ -152,17 +153,12 @@ export function MhcJointNorm() {
                 data-mhc-square-element
                 style={{ display: "grid", gap: 6 }}
               >
-                <Box tone="blue">
-                  <MathFormula tex={`f_{t,${d}}`} />
-                </Box>
-                <Operator tex="\downarrow\;(\cdot)^2" />
                 <Box tone="cyan">
                   <MathFormula tex={`f_{t,${d}}^2`} />
                 </Box>
               </div>
             ))}
           </div>
-          <span>中间元素同样参与：共 20480 个平方项</span>
           <SumJunction count={3} />
           <div
             style={{

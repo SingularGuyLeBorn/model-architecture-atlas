@@ -23,6 +23,9 @@ describe("边框与数据导线的视觉层级", () => {
     const original = channels(source),
       softened = channels(result);
     expect(softened.every((v, i) => v > original[i])).toBe(true);
+    expect(softened.every((v, i) => v - original[i] <= 42)).toBe(true);
+    const fill = channels(COLORS[`${tone}Soft`]);
+    expect(Math.min(...fill)).toBeLessThanOrEqual(231);
     for (let i = 0; i < 3; i++)
       for (let j = 0; j < 3; j++)
         expect(Math.sign(softened[i] - softened[j])).toBe(

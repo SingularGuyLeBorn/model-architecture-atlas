@@ -27,24 +27,24 @@ export const COLORS = {
   ink: "#2a2924",
   muted: "#716d63",
   faint: "#a39e92",
-  line: "#d9d4c8",
+  line: "#b9b5ac",
   green: "#327463",
-  greenSoft: "#eaf4ef",
+  greenSoft: "#dceee3",
   amber: "#ad792a",
-  amberSoft: "#faf0df",
+  amberSoft: "#f6e5c9",
   blue: "#547999",
-  blueSoft: "#edf3f8",
+  blueSoft: "#dfeaf5",
   rose: "#ac6575",
-  roseSoft: "#f9edf0",
+  roseSoft: "#f4dde4",
   plum: "#995b8b",
-  plumSoft: "#f6ebf3",
+  plumSoft: "#eedcec",
   violet: "#795ca5",
-  violetSoft: "#f1ebf9",
+  violetSoft: "#e7dcf6",
   cyan: "#2c8490",
-  cyanSoft: "#e8f5f6",
+  cyanSoft: "#d6edf0",
   // [OM-FREEPLAY] 靛蓝用于学习到的投影参数，与琥珀色缩放系数区分。
   indigo: "#5266a2",
-  indigoSoft: "#edf0fa",
+  indigoSoft: "#dfe4f7",
 };
 
 export const MathFormula = memo(function MathFormula({
@@ -711,11 +711,13 @@ export function SerialFlow({
 
 export function SumJunction({ count }: { count: number }) {
   const marker = `sum-arrow-${useId().replace(/:/g, "")}`;
+  const { ref, width } = useDiagramSize();
   const radius = count > 2 ? 32 : 18;
   const centerY = radius + 24;
   const height = radius * 2 + 42;
   return (
     <div
+      ref={ref}
       data-sum-junction={count}
       style={{ position: "relative", height, width: "100%" }}
     >
@@ -744,19 +746,19 @@ export function SumJunction({ count }: { count: number }) {
         </defs>
         {Array.from({ length: count }, (_, i) => {
           const angle =
-            count === 1 ? 0 : -Math.PI / 2 + (i * Math.PI) / (count - 1);
+            count === 1
+              ? 0
+              : -Math.PI / 3 + (i * 2 * Math.PI) / (3 * (count - 1));
           const offset = radius * Math.sin(angle),
             y = centerY - radius * Math.cos(angle);
-          // SVG 自己解析百分比起点和像素圆周偏移，无需测宽、强制布局或第二次 React 提交。
+          const x = width / 2 + offset;
+          const laneY = 8 + Math.min(i, count - 1 - i) * 6;
           return (
-            <line
+            <path
               key={i}
               data-sum-input={i}
               data-sum-input-arrow={i}
-              x1={`${((i + 0.5) * 100) / count}%`}
-              y1={0}
-              x2={`calc(50% + ${offset}px)`}
-              y2={y}
+              d={`M${((i + 0.5) * width) / count} 0 V${laneY} H${x} V${y}`}
               markerEnd={`url(#${marker})`}
               fill="none"
               stroke={COLORS.cyan}
@@ -849,14 +851,22 @@ export function StackedSum({
             const slot =
               i + (omittedBefore !== undefined && i >= omittedBefore ? 1 : 0);
             const startY = ((slot + 0.5) * height) / slots;
-            const angle = Math.atan2(height / 2 - startY, 32);
-            const x = 32 - 18 * Math.cos(angle),
-              y = height / 2 - 18 * Math.sin(angle);
+            const offset =
+              children.length === 1
+                ? 0
+                : -15 + (i * 30) / (children.length - 1);
+            const x = 32 - Math.sqrt(18 * 18 - offset * offset),
+              y = height / 2 + offset;
+            // 末段至少留 10px，容纳开放箭头，箭翼不会越过折点形成反向短尾。
+            const laneX = Math.min(
+              2 + Math.min(i, children.length - 1 - i),
+              x - 10,
+            );
             return (
               <g key={i}>
                 <path
                   data-sum-input={i}
-                  d={`M0 ${startY} L${x} ${y}`}
+                  d={`M0 ${startY} H${laneX} V${y} H${x}`}
                   fill="none"
                   stroke={COLORS.cyan}
                   strokeWidth="1.5"
@@ -864,7 +874,7 @@ export function StackedSum({
                 />
                 <path
                   data-sum-input-arrow={i}
-                  d={arrowTip(x, y, angle)}
+                  d={arrowTip(x, y, 0)}
                   fill="none"
                   stroke={COLORS.cyan}
                   strokeWidth={1.5}

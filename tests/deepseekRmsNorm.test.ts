@@ -65,6 +65,12 @@ describe("RMSNorm 的逐行结构与来源", () => {
       expect(root.querySelectorAll("[data-rmsnorm-square] > div")).toHaveLength(
         3,
       );
+      for (const cell of root.querySelectorAll("[data-rmsnorm-square] > div")) {
+        expect(cell.querySelectorAll("[aria-label]")).toHaveLength(1);
+        expect(
+          cell.querySelector("[aria-label]")?.getAttribute("aria-label"),
+        ).toMatch(/\^2$/);
+      }
       expect(root.querySelectorAll("[data-rmsnorm-scale] > div")).toHaveLength(
         3,
       );
