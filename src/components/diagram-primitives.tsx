@@ -420,14 +420,20 @@ export function MergeArrows({
   );
 }
 
-export function SumCircle({ tone = "cyan" }: { tone?: DiagramTone }) {
+export function SumCircle({
+  tone = "cyan",
+  size = 36,
+}: {
+  tone?: DiagramTone;
+  size?: number;
+}) {
   const palette = tonePalette(tone);
   return (
     <div
       data-sum-circle
       style={{
-        width: 36,
-        height: 36,
+        width: size,
+        height: size,
         boxSizing: "border-box",
         border: `2px solid ${palette.color}`,
         borderRadius: "50%",
@@ -624,25 +630,26 @@ export function SerialFlow({
 export function SumJunction({ count }: { count: number }) {
   const { ref, width } = useDiagramSize();
   const center = width / 2;
+  const radius = count > 2 ? 32 : 18;
+  const centerY = radius + 24;
+  const height = radius * 2 + 42;
   return (
     <div
       ref={ref}
       data-sum-junction={count}
-      style={{ position: "relative", height: 78, width: "100%" }}
+      style={{ position: "relative", height, width: "100%" }}
     >
       <svg
         data-merge-arrows={count}
         aria-hidden
-        viewBox={`0 0 ${width} 78`}
-        style={{ width: "100%", height: 78, display: "block" }}
+        viewBox={`0 0 ${width} ${height}`}
+        style={{ width: "100%", height, display: "block" }}
       >
         {Array.from({ length: count }, (_, i) => {
           const angle =
-            count === 1
-              ? 0
-              : -Math.PI / 3 + (i * ((2 * Math.PI) / 3)) / (count - 1);
-          const x = center + 18 * Math.sin(angle),
-            y = 42 - 18 * Math.cos(angle);
+            count === 1 ? 0 : -Math.PI / 2 + (i * Math.PI) / (count - 1);
+          const x = center + radius * Math.sin(angle),
+            y = centerY - radius * Math.cos(angle);
           const start = ((i + 0.5) * width) / count;
           return (
             <g key={i}>
@@ -666,14 +673,20 @@ export function SumJunction({ count }: { count: number }) {
         })}
         <path
           data-sum-output
-          d={`M${center} 60 V77 M${center - 5} 72 L${center} 77 L${center + 5} 72`}
+          d={`M${center} ${centerY + radius} V${height - 1} M${center - 5} ${height - 6} L${center} ${height - 1} L${center + 5} ${height - 6}`}
           fill="none"
           stroke={COLORS.cyan}
           strokeWidth="1.5"
         />
       </svg>
-      <div style={{ position: "absolute", left: "calc(50% - 18px)", top: 24 }}>
-        <SumCircle />
+      <div
+        style={{
+          position: "absolute",
+          left: `calc(50% - ${radius}px)`,
+          top: 24,
+        }}
+      >
+        <SumCircle size={radius * 2} />
       </div>
     </div>
   );

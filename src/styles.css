@@ -774,6 +774,181 @@ h1 {
   align-items: stretch;
   padding: 14px 20px;
 }
+
+/* 解释区与画布并列占位，收起后只保留工具栏入口。 */
+.diagram-workspace {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+.module-inspector {
+  /* [OM-FREEPLAY] 桌面侧栏以 340–460px 为阅读宽度，给图保留主要空间。 */
+  flex: 0 0 clamp(340px, 29vw, 460px);
+  min-width: 0;
+  min-height: 0;
+  background: #fbfaf7;
+  border-left: 1px solid #d9d4c8;
+  display: flex;
+  flex-direction: column;
+  color: #353b36;
+}
+.module-inspector header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 22px 22px 18px;
+  border-bottom: 1px solid #e6e2d9;
+}
+.inspector-kicker {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #53776b;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+.module-inspector h2 {
+  font-size: 18px;
+  line-height: 1.5;
+  font-weight: 650;
+  margin: 10px 0 0;
+}
+.inspector-scroll {
+  overflow: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  flex: 1;
+  padding: 20px 22px 36px;
+  scrollbar-width: thin;
+}
+.inspector-meta {
+  color: #747e76;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+.inspector-summary {
+  font-size: 14px;
+  line-height: 1.85;
+  margin: 12px 0 24px;
+}
+.module-inspector h3 {
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  margin: 26px 0 12px;
+  color: #40665a;
+}
+.inspector-connections {
+  display: grid;
+  gap: 8px;
+}
+.inspector-connections > div {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  background: #f0f2ed;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.inspector-connections span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #627269;
+}
+.inspector-connections small {
+  font-size: 11px;
+  color: #747e76;
+}
+.inspector-variables {
+  margin: 0;
+}
+.inspector-variables > div {
+  padding: 12px 0;
+  border-bottom: 1px solid #e9e5dd;
+}
+.inspector-variables dt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+  font-size: 15px;
+  color: #345e50;
+}
+.inspector-variables dt small {
+  font-size: 11px;
+  color: #7a8179;
+}
+.inspector-variables dd {
+  margin: 7px 0 0;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.module-inspector article {
+  margin: 18px 0;
+}
+.module-inspector h4 {
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+.module-inspector article p {
+  font-size: 13px;
+  line-height: 1.85;
+  margin: 0 0 10px;
+}
+.inspector-formula {
+  overflow-x: auto;
+  padding: 12px 10px;
+  border-left: 2px solid #9db2a6;
+  background: #f1f2ed;
+  font-size: 13px;
+}
+.module-inspector footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 11px;
+  line-height: 1.8;
+  border-top: 1px solid #e6e2d9;
+  padding-top: 18px;
+  margin-top: 26px;
+  color: #777f76;
+}
+.module-inspector footer a {
+  color: #40665a;
+}
+.full-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+@media (max-width: 900px) {
+  .diagram-workspace[data-inspector-open="true"] {
+    flex-direction: column;
+  }
+  .module-inspector {
+    /* [OM-FREEPLAY] 窄屏上下对照，解释占 42%，避免抽屉覆盖画布。 */
+    flex: 0 0 42%;
+    width: 100%;
+    border-left: 0;
+    border-top: 1px solid #d9d4c8;
+  }
+  .module-inspector header {
+    padding: 12px 16px;
+  }
+  .module-inspector h2 {
+    font-size: 15px;
+    margin-top: 5px;
+  }
+  .inspector-scroll {
+    padding: 14px 16px 26px;
+  }
+}
 .port-row .stage-output,
 .stage-input {
   margin: 0;

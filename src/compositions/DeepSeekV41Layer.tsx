@@ -28,12 +28,29 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
+import {
+  MhcFlatten,
+  MhcJointNorm,
+  MhcProjection,
+  MhcGate,
+  SigmoidSteps,
+  MhcSinkhorn,
+} from "../components/MhcCoefficientStages";
+import { BookOpen } from "lucide-react";
+import {
+  ModuleInspector,
+  explainModule,
+  inspectorReducer,
+  type InspectorState,
+  type ModuleConnection,
+} from "../components/ModuleInspector";
 import {
   Background,
   ConnectionMode,
@@ -246,9 +263,9 @@ const panel: CSSProperties = {
   boxSizing: "border-box",
   border: `2px solid ${COLORS.line}`,
   borderRadius: 16,
-  background: COLORS.card,
+  background: "transparent",
   color: COLORS.ink,
-  boxShadow: "0 7px 20px rgba(42,41,36,.07)",
+  boxShadow: "none",
   overflow: "hidden",
 };
 
@@ -624,7 +641,7 @@ export function RmsNormProcess({
         gap: 7,
         fontSize: 13,
         minWidth: 0,
-        background: COLORS.card,
+        background: "transparent",
       }}
     >
       <div
@@ -992,323 +1009,118 @@ export function MhcMix({
   sublayer: "A" | "F";
   connected?: boolean;
 }) {
-  const tag = `${layer},t`;
   const source =
     sublayer === "A" ? (hasEngram(layer) ? "E" : "\\mathrm{in}") : "A";
-  return (
-    <div
-      data-mhc-mix={sublayer}
-      style={{ display: "grid", gap: 10, fontSize: 13, lineHeight: 2.2 }}
-    >
-      <strong>
-        mHC 系数支路 · Layer {layer} · {sublayer === "A" ? "Attention" : "FFN"}
-      </strong>
+  const coefficient = (symbol: "p" | "q" | "C") => {
+    const tone = symbol === "p" ? "green" : symbol === "q" ? "rose" : "violet";
+    return (
       <div
-        data-four-stream-row
+        data-mhc-coefficient-output={symbol}
         style={{
+          position: "relative",
+          border: `1px solid ${COLORS[tone]}`,
+          borderRadius: 9,
+          padding: 10,
           display: "grid",
-          gridTemplateColumns: "repeat(4,minmax(0,1fr))",
-          gap: 6,
+          gap: 8,
+          background: tonePalette(tone).background,
         }}
       >
-        {HC_COPIES.map((c) => (
-          <FeatureVector
-            key={c}
-            name={`\\mathbf h_{${layer},${c},t}^{${source}}`}
-            scalar={(d) => `h_{${c},${d}}`}
+        {connected && (
+          <Handle
+            id={symbol === "p" ? "pre" : symbol === "q" ? "post" : "comb"}
+            type="source"
+            position={
+              symbol === "p"
+                ? Position.Left
+                : symbol === "q"
+                  ? Position.Bottom
+                  : Position.Right
+            }
+            style={handle}
           />
-        ))}
-      </div>
-      <FlowStep>同一个 token 的 4 路沿特征轴拼接</FlowStep>
-      <VectorStrip
-        name="\mathbf f_t"
-        length="20480"
-        elementTex={(j) => `f_{t,${j}}`}
-        tone="blue"
-      />
-      <RmsNormProcess
-        input="\mathbf f_t"
-        output="\bar{\mathbf f}_t"
-        dimension={20480}
-        rowCount="1"
-        rowIndex="t"
-        label="mHC 系数输入 · 四路联合"
-        horizontal
-      />
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 24px 1fr 24px 1fr",
-          alignItems: "center",
-          gap: 6,
-        }}
-      >
-        <Box tone="blue">
-          <MathFormula tex="\bar{\mathbf f}_t" />
-        </Box>
-        <Operator tex="\times" />
-        <Box tone="amber">
-          <div
-            style={{ display: "flex", justifyContent: "space-between", gap: 8 }}
-          >
-            <MathFormula tex={`W_{${layer}}^{HC,${sublayer}}`} />
-            <span style={{ fontSize: 11 }}>
-              <MathFormula tex="20480\times24" />
-            </span>
-          </div>
+        )}
+        <div
+          style={{ display: "flex", justifyContent: "space-between", gap: 8 }}
+        >
+          <strong>
+            输出{" "}
+            <MathFormula
+              tex={
+                symbol === "C"
+                  ? `C_{${layer},t}^{${sublayer}}`
+                  : `\\mathbf ${symbol}_{${layer},t}^{${sublayer}}`
+              }
+            />
+          </strong>
+          <span style={{ fontSize: 12 }}>
+            <MathFormula tex={symbol === "C" ? "4\\times4" : "1\\times4"} />
+          </span>
+        </div>
+        {symbol === "C" ? (
           <div
             style={{
-              display: "flex",
-              justifyContent: "space-around",
+              display: "grid",
+              gridTemplateColumns: "repeat(4,minmax(0,1fr))",
               gap: 4,
-              marginTop: 5,
             }}
           >
-            {["1", "2", "\\cdots", "24"].map((j) =>
-              j === "\\cdots" ? (
-                <MathFormula key={j} tex={j} />
-              ) : (
-                <span
-                  key={j}
-                  style={{
-                    border: `1px solid ${COLORS.amber}`,
-                    padding: "9px 3px",
-                    borderRadius: 4,
-                  }}
-                >
-                  <MathFormula tex={`\\mathbf w_{${j}}`} />
-                </span>
-              ),
+            {HC_COPIES.flatMap((k) =>
+              HC_COPIES.map((j) => (
+                <Box key={`${k}-${j}`} tone="violet">
+                  <MathFormula tex={`c_{${k}${j}}`} />
+                </Box>
+              )),
             )}
           </div>
-        </Box>
-        <Operator tex="=" />
-        <Box tone="green">
-          <div
-            style={{ display: "flex", justifyContent: "space-between", gap: 8 }}
-          >
-            <MathFormula tex={`\\mathbf u_{${tag}}^{${sublayer}}`} />
-            <span style={{ fontSize: 11 }}>
-              <MathFormula tex="1\times24" />
-            </span>
-          </div>
+        ) : (
           <VectorStrip
             name=""
             nameWidth={0}
-            length="24"
-            elementTex={(j) => `u_${j}`}
-            tone="green"
+            length="4"
+            columns={["1", "2", "3", "4"]}
+            elementTex={(j) => `${symbol}_${j}`}
+            tone={tone}
           />
-        </Box>
+        )}
+        <span>
+          {symbol === "p"
+            ? sublayer === "A"
+              ? "供本层 FFN 汇合使用"
+              : layer === 40
+                ? "供主干末尾四路汇合使用"
+                : "传给下一层 Attention 汇合"
+            : symbol === "q"
+              ? "当前子层的输出 o 送往四路，各路乘自己的 q"
+              : "行 k 为来源路、列 j 为目标路；送入当前子层残差混合"}
+        </span>
       </div>
-      <FlowStep>24 个元素分成 4 + 4 + 16；各组独立缩放并加偏置</FlowStep>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        {["p", "q"].map((symbol, index) => (
-          <div key={symbol} style={{ display: "grid", gap: 7 }}>
-            <strong>
-              {index
-                ? "元素 5–8 → 当前子层的回写权重"
-                : "元素 1–4 → 下一子层的汇合权重"}
-            </strong>
-            <VectorStrip
-              name=""
-              nameWidth={0}
-              length="4"
-              columns={["1", "2", "3", "4"]}
-              elementTex={(j) => `u_{${Number(j) + index * 4}}`}
-              tone="blue"
-            />
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "20px 50px 20px 1fr",
-                gap: 5,
-                alignItems: "center",
-              }}
-            >
-              <Operator tex="\times" />
-              <Box tone="amber">
-                <MathFormula tex={`s_${index + 1}`} />
-              </Box>
-              <Operator tex="+" />
-              <VectorStrip
-                name=""
-                nameWidth={0}
-                length="4"
-                columns={["1", "2", "3", "4"]}
-                elementTex={(j) => `b_{${Number(j) + index * 4}}`}
-                tone="amber"
-              />
-            </div>
-            <Operator tex="\downarrow" />
-            <VectorStrip
-              name=""
-              nameWidth={0}
-              length="4"
-              columns={["1", "2", "3", "4"]}
-              elementTex={(j) => `a_${j}`}
-              tone="green"
-            />
-            <FlowStep>
-              逐元素{" "}
-              <MathFormula
-                tex={index ? "2\\sigma(a_j)" : "\\sigma(a_j)+\\epsilon_{HC}"}
-              />
-            </FlowStep>
-            <MathFormula tex="\sigma(a)=\frac{1}{1+e^{-a}}" />
-            <div
-              data-mhc-coefficient-output={symbol}
-              style={{
-                position: "relative",
-                border: `1px solid ${index ? COLORS.rose : COLORS.green}`,
-                borderRadius: 7,
-                padding: 8,
-                background: index ? COLORS.roseSoft : COLORS.greenSoft,
-              }}
-            >
-              {connected && (
-                <Handle
-                  id={index ? "post" : "pre"}
-                  type="source"
-                  position={index ? Position.Right : Position.Left}
-                  style={handle}
-                />
-              )}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: 11,
-                }}
-              >
-                <strong>
-                  输出{" "}
-                  <MathFormula
-                    tex={`\\mathbf ${symbol}_{${tag}}^{${sublayer}}`}
-                  />
-                </strong>
-                <MathFormula tex="1\times4" />
-              </div>
-              <VectorStrip
-                name=""
-                nameWidth={0}
-                length="4"
-                columns={["1", "2", "3", "4"]}
-                elementTex={(j) => `${symbol}_${j}`}
-                tone={index ? "rose" : "green"}
-              />
-            </div>
-            <span>
-              {index
-                ? "回写当前子层的 4 路权重"
-                : sublayer === "A"
-                  ? "供本层 FFN 汇合使用"
-                  : layer === 40
-                    ? "供主干末尾四路汇合使用"
-                    : "传给下一层 Attention 汇合"}
-            </span>
-          </div>
-        ))}
-      </div>
+    );
+  };
+  return (
+    <div
+      data-mhc-mix={sublayer}
+      style={{ display: "grid", gap: 16, fontSize: 13, lineHeight: 1.6 }}
+    >
+      <strong>
+        mHC 系数生成 · Layer {layer} · {sublayer === "A" ? "Attention" : "FFN"}
+      </strong>
+      <MhcFlatten layer={layer} stage={source} />
+      <MhcJointNorm />
+      <MhcProjection layer={layer} sub={sublayer} />
+      <SigmoidSteps />
       <div
-        data-mhc-sinkhorn
+        data-mhc-gate-branches
         style={{
-          border: `1px solid ${COLORS.amber}`,
-          padding: 9,
-          borderRadius: 8,
           display: "grid",
-          gap: 8,
+          gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) minmax(0,2fr)",
+          gap: 16,
+          alignItems: "start",
         }}
       >
-        <strong>其余 16 个元素 → 4 × 4 残差混合矩阵</strong>
-        <MathFormula tex="A_{jk}=s_3u_{8+4(j-1)+k}+b_{8+4(j-1)+k}" />
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 22px 1fr 22px 1fr",
-            alignItems: "center",
-            gap: 5,
-          }}
-        >
-          <Box tone="amber">
-            逐行 Softmax
-            <br />
-            <MathFormula tex="e^{A_{jk}}/\sum_v e^{A_{jv}}+\epsilon_{HC}" />
-          </Box>
-          <Operator tex="\to" />
-          <Box tone="green">
-            逐列归一化
-            <br />
-            <MathFormula tex="C_{jk}/(\sum_v C_{vk}+\epsilon_{HC})" />
-          </Box>
-          <Operator tex="\to" />
-          <Box tone="green">
-            再交替行、列归一化
-            <br />
-            19 轮 · 共 20 轮
-          </Box>
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
-          <div
-            data-mhc-coefficient-output="C"
-            style={{
-              position: "relative",
-              border: `1px solid ${COLORS.violet}`,
-              borderRadius: 7,
-              padding: 8,
-              background: COLORS.violetSoft,
-            }}
-          >
-            {connected && (
-              <Handle
-                id="comb"
-                type="source"
-                position={Position.Left}
-                style={handle}
-              />
-            )}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: 11,
-              }}
-            >
-              <strong>
-                输出 <MathFormula tex={`C_{${tag}}^{${sublayer}}`} />
-              </strong>
-              <MathFormula tex="4\times4" />
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4,1fr)",
-                gap: 3,
-              }}
-            >
-              {HC_COPIES.flatMap((j) =>
-                HC_COPIES.map((k) => (
-                  <Box key={`${j}-${k}`} tone="violet">
-                    <MathFormula tex={`c_{${j}${k}}`} />
-                  </Box>
-                )),
-              )}
-            </div>
-          </div>
-          <div style={{ display: "grid", gap: 10 }}>
-            <MathFormula tex="\sum_k c_{jk}\approx1,\quad\sum_j c_{jk}\approx1" />
-            <span>行 k 为来源路，列 j 为目标路。</span>
-            <MathFormula tex="\epsilon_{HC}=10^{-6},\quad\varepsilon=10^{-20}" />
-            <span>缩放参数 s 有 3 个，偏置 b 有 24 个。</span>
-          </div>
-        </div>
+        <MhcGate kind="p">{coefficient("p")}</MhcGate>
+        <MhcGate kind="q">{coefficient("q")}</MhcGate>
+        <MhcSinkhorn>{coefficient("C")}</MhcSinkhorn>
       </div>
     </div>
   );
@@ -1492,6 +1304,9 @@ export function MhcPost({
           style={{
             display: "grid",
             gridTemplateColumns: "minmax(0,320px) minmax(0,1fr)",
+            border: `1px solid ${COLORS.violet}`,
+            borderRadius: 12,
+            padding: 12,
             gap: 16,
             alignItems: "start",
           }}
@@ -1575,6 +1390,9 @@ export function MhcPost({
           style={{
             display: "grid",
             gridTemplateColumns: "minmax(0,420px) minmax(0,1fr)",
+            border: `1px solid ${COLORS.green}`,
+            borderRadius: 12,
+            padding: 12,
             gap: 20,
             alignItems: "start",
           }}
@@ -1728,6 +1546,9 @@ export function MhcPost({
               <div
                 data-mhc-residual-mix={j}
                 style={{
+                  border: `1px solid ${COLORS.violet}`,
+                  borderRadius: 9,
+                  padding: 8,
                   display: "flex",
                   flexDirection: "column",
                   gap: 0,
@@ -1771,6 +1592,9 @@ export function MhcPost({
               <div
                 data-mhc-broadcast={j}
                 style={{
+                  border: `1px solid ${COLORS.green}`,
+                  borderRadius: 9,
+                  padding: 8,
                   display: "flex",
                   flexDirection: "column",
                   gap: 7,
@@ -3599,7 +3423,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
         display: "grid",
         gap: 10,
         alignContent: "start",
-        background: COLORS.card,
+        background: "transparent",
         fontSize: 13,
       }}
     >
@@ -3988,7 +3812,7 @@ export function Expert({
         padding: 9,
         display: "grid",
         gap: 7,
-        background: COLORS.card,
+        background: "transparent",
         minWidth: 0,
       }}
     >
@@ -7587,7 +7411,7 @@ export function buildGraph(
         mode,
         HC_COEFFICIENT_X,
         preAY,
-        1000,
+        2640,
         mixAHeight,
       ),
       data: { kind: "hc-mix", layer, mode, sublayer: "A" },
@@ -7655,7 +7479,7 @@ export function buildGraph(
         mode,
         HC_COEFFICIENT_X,
         preFY,
-        1000,
+        2640,
         mixFHeight,
       ),
       data: { kind: "hc-mix", layer, mode, sublayer: "F" },
@@ -8197,7 +8021,7 @@ export function buildGraph(
       "residual-mix-a",
       hasEngram(layer) ? "engram-inject" : "input",
       "hc-mix-a",
-      undefined,
+      `\\mathcal H_{${layer}}^{${hasEngram(layer) ? "E" : "\\mathrm{in}"}}`,
       { sourceHandle: "coefficients" },
     ),
     makeEdge("pre-a-norm", "hc-pre-a", "norm1"),
@@ -8264,9 +8088,15 @@ export function buildGraph(
     makeEdge("state-pre-f", "state1", "hc-pre-f", undefined, {
       sourceHandle: "main",
     }),
-    makeEdge("state-mix-f", "state1", "hc-mix-f", undefined, {
-      sourceHandle: "coefficients",
-    }),
+    mathEdge(
+      "state-mix-f",
+      "state1",
+      "hc-mix-f",
+      `\\mathcal H_{${layer}}^{A}`,
+      {
+        sourceHandle: "coefficients",
+      },
+    ),
     makeEdge("pre-f-norm", "hc-pre-f", "norm2"),
     mathEdge("mix-f-post", "hc-mix-f", "add2", `\\mathbf q_{${layer},t}^{F}`, {
       ...coefficientStyle("rose"),
@@ -8753,6 +8583,40 @@ function DiagramCanvas({
     initialGraph.edges,
   );
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
+  const [inspector, dispatchInspector] = useReducer(inspectorReducer, {
+    mode: "auto",
+    nodeId: null,
+  } satisfies InspectorState);
+  const closeInspector = useCallback(
+    () => dispatchInspector({ type: "close" }),
+    [],
+  );
+  const inspectedNode = nodes.find((node) => node.id === inspector.nodeId);
+  let moduleNode = inspectedNode;
+  while (moduleNode?.parentId)
+    moduleNode = nodes.find((node) => node.id === moduleNode?.parentId);
+  const inspectedData = moduleNode?.data;
+  const moduleConnections = useMemo<ModuleConnection[]>(
+    () =>
+      edges
+        .filter(
+          (edge) =>
+            edge.source === inspector.nodeId ||
+            edge.target === inspector.nodeId,
+        )
+        .map((edge) => {
+          const otherId =
+            edge.target === inspector.nodeId ? edge.source : edge.target;
+          const other = nodes.find((node) => node.id === otherId);
+          return {
+            id: edge.id,
+            direction: edge.target === inspector.nodeId ? "in" : "out",
+            label: edge.data?.labelTex,
+            other: other ? explainModule(other.data).title : otherId,
+          };
+        }),
+    [edges, inspector.nodeId, nodes],
+  );
   const [saveState, setSaveState] = useState<"idle" | "saved" | "error">(
     "idle",
   );
@@ -9233,329 +9097,397 @@ function DiagramCanvas({
       : { x: clientX, y: clientY };
   }, []);
 
+  useLayoutEffect(() => {
+    if (inspector.mode !== "open" || !inspector.nodeId) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const reveal = () => {
+      const flow = flowRef.current,
+        node = flow?.getInternalNode(inspector.nodeId!);
+      if (!flow || !node?.measured.width || !node.measured.height) return;
+      // 独立面板改变的是画布可用尺寸；按真实新尺寸摆放所选框，不用浮层盖住它。
+      const width = canvas.clientWidth,
+        height = canvas.clientHeight;
+      if (!width || !height) return;
+      const zoom = Math.max(
+        0.18,
+        Math.min(
+          flow.getZoom(),
+          (width - 60) / node.measured.width,
+          (height - 110) / node.measured.height,
+        ),
+      );
+      flow
+        .setViewport(
+          {
+            x:
+              Math.max(24, (width - node.measured.width * zoom) / 2) -
+              node.internals.positionAbsolute.x * zoom,
+            y: 85 - node.internals.positionAbsolute.y * zoom,
+            zoom,
+          },
+          { duration: 0 },
+        )
+        .catch(() => {});
+    };
+    reveal();
+    const observer = new ResizeObserver(reveal);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [inspector.mode, inspector.nodeId]);
+
   return (
     <div
-      ref={canvasRef}
-      style={{ width: "100%", height: "100%", position: "relative" }}
-      onKeyDown={handleCanvasKeyDown}
-      onClickCapture={(event) => {
-        if (!completedConnectionRef.current) return;
-        completedConnectionRef.current = false;
-        event.stopPropagation();
-      }}
-      onPointerUp={(event) => finishConnection(event.nativeEvent)}
-      onPointerMove={(event) => {
-        if (!clickConnectionPreview) return;
-        const point = pointerInCanvas(event.clientX, event.clientY);
-        setClickConnectionPreview((current) =>
-          current ? { ...current, toX: point.x, toY: point.y } : null,
-        );
-      }}
+      className="diagram-workspace"
+      data-inspector-open={inspector.mode === "open"}
     >
       <div
-        className="full-toolbar"
-        style={{
-          position: "absolute",
-          top: 12,
-          right: 16,
-          maxWidth: "calc(100% - 70px)",
-          flexWrap: "wrap",
-          zIndex: 8,
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: 7,
-          border: `1px solid ${COLORS.line}`,
-          borderRadius: 9,
-          background: "rgba(255,254,250,.96)",
-          boxShadow: "0 4px 14px rgba(42,41,36,.08)",
+        ref={canvasRef}
+        className="diagram-interaction-surface"
+        style={{ minWidth: 0, minHeight: 0, flex: 1, position: "relative" }}
+        onKeyDown={handleCanvasKeyDown}
+        onClickCapture={(event) => {
+          if (!completedConnectionRef.current) return;
+          completedConnectionRef.current = false;
+          event.stopPropagation();
+        }}
+        onPointerUp={(event) => finishConnection(event.nativeEvent)}
+        onPointerMove={(event) => {
+          if (!clickConnectionPreview) return;
+          const point = pointerInCanvas(event.clientX, event.clientY);
+          setClickConnectionPreview((current) =>
+            current ? { ...current, toX: point.x, toY: point.y } : null,
+          );
         }}
       >
-        <select
-          aria-label="定位模块"
-          defaultValue=""
-          style={editorButton}
-          onChange={(event) => {
-            const target = nodesRef.current.find(
-              (node) => node.id === event.target.value,
-            );
-            if (target)
-              flowRef.current
-                ?.setViewport(
-                  {
-                    x: 30 - target.position.x * 0.8,
-                    y: 85 - target.position.y * 0.8,
-                    zoom: 0.8,
-                  },
-                  { duration: 0 },
-                )
-                .catch(() => {});
-          }}
-        >
-          <option value="" disabled>
-            定位模块…
-          </option>
-          {[
-            ["tokenizer", "输入与分词"],
-            ["input", "四路残差输入"],
-            ["hc-mix-a", "mHC 控制器"],
-            ["engram-lookup", "Engram 查表"],
-            ["engram-inject", "Engram 注入"],
-            ["q", "Query 投影"],
-            ["swa-window", "本地窗口"],
-            ["indexer", "Indexer"],
-            ["heads", "Head / RoPE / QKVO"],
-            ["concat", "输出投影"],
-            ["add1", "Attention 回写"],
-            ["router", "Router"],
-            ["experts", "专家内部"],
-            ["add2", "FFN 回写"],
-            ["output", "本层输出"],
-            ["next-inputs", "下一层输入清单"],
-            ["kv", "本层 KV 横向流程"],
-          ]
-            .filter(([id]) => nodes.some((node) => node.id === id))
-            .map(([id, label]) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-        </select>
-        <button
-          type="button"
-          onClick={saveLayout}
-          style={{
-            ...editorButton,
-            color: saveState === "error" ? COLORS.rose : COLORS.ink,
-          }}
-        >
-          {saveState === "saved"
-            ? "已保存到本机"
-            : saveState === "error"
-              ? "保存失败，请重试"
-              : "保存到本机"}
-        </button>
-        <button
-          type="button"
-          onClick={undo}
-          disabled={!canUndo}
-          title="Ctrl+Z"
-          style={{
-            ...editorButton,
-            opacity: canUndo ? 1 : 0.45,
-            cursor: canUndo ? "pointer" : "default",
-          }}
-        >
-          撤销
-        </button>
-        <button
-          type="button"
-          onClick={redo}
-          disabled={!canRedo}
-          title="Ctrl+Y"
-          style={{
-            ...editorButton,
-            opacity: canRedo ? 1 : 0.45,
-            cursor: canRedo ? "pointer" : "default",
-          }}
-        >
-          重做
-        </button>
-        <button
-          type="button"
-          onClick={deleteSelectedEdges}
-          disabled={selectedEdgeIds.length === 0}
-          style={{
-            ...editorButton,
-            opacity: selectedEdgeIds.length ? 1 : 0.45,
-            cursor: selectedEdgeIds.length ? "pointer" : "default",
-          }}
-        >
-          删除选中连线
-        </button>
-        <button type="button" onClick={resetLayout} style={editorButton}>
-          恢复自动布局
-        </button>
-        {selectedEdge && (
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              color: COLORS.muted,
-              fontSize: 10.5,
-            }}
-          >
-            线条文字（LaTeX）
-            <input
-              className="nodrag nopan"
-              value={selectedEdge.data?.labelTex ?? ""}
-              onFocus={beginHistory}
-              onChange={(event) => updateSelectedEdgeLabel(event.target.value)}
-              onBlur={commitHistory}
-              placeholder="例如 Q_{3,1}"
-              style={{
-                width: 150,
-                border: `1px solid ${COLORS.line}`,
-                borderRadius: 6,
-                padding: "5px 7px",
-                background: COLORS.card,
-                color: COLORS.ink,
-                fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
-                fontSize: 10.5,
-              }}
-            />
-          </label>
-        )}
-        <span
-          className="toolbar-hint"
-          style={{ color: COLORS.muted, fontSize: 10.5 }}
-        >
-          拖空白平移 · 边缘缩放 · 端点吸附 · Ctrl+Z / Ctrl+Y
-        </span>
-      </div>
-      <EditHistoryProvider value={historyContext}>
-        <CanvasClipContext.Provider value={canvasClip}>
-          <ReactFlow
-            className="architecture-flow"
-            onInit={(instance) => {
-              flowRef.current = instance;
-            }}
-            nodes={nodes}
-            edges={edges}
-            // 内部数据框的连接必须画在分组背景上方，不能被父框遮掉引入段及箭头。
-            defaultEdgeOptions={{ zIndex: 1001 }}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            connectionLineComponent={EditableConnectionLine}
-            onNodesChange={handleNodesChange}
-            onEdgesChange={handleEdgesChange}
-            onConnectStart={(event, params) => {
-              if (!params.nodeId) return;
-              const pointer =
-                "touches" in event
-                  ? (event.touches[0] ?? event.changedTouches[0])
-                  : event;
-              connectionGestureRef.current = {
-                nodeId: params.nodeId,
-                handleId: params.handleId,
-                x: pointer.clientX,
-                y: pointer.clientY,
-              };
-            }}
-            onConnectEnd={(event) => {
-              finishConnection(event);
-              const gesture = connectionGestureRef.current;
-              const pointer =
-                "touches" in event ? event.changedTouches[0] : event;
-              if (
-                gesture &&
-                pointer &&
-                Math.hypot(
-                  pointer.clientX - gesture.x,
-                  pointer.clientY - gesture.y,
-                ) > 4
-              )
-                connectionGestureRef.current = null;
-            }}
-            onClickConnectStart={(event, params) => {
-              if (!params.nodeId) return;
-              const pointer =
-                "touches" in event
-                  ? (event.touches[0] ?? event.changedTouches[0])
-                  : event;
-              connectionGestureRef.current = {
-                nodeId: params.nodeId,
-                handleId: params.handleId,
-                x: pointer.clientX,
-                y: pointer.clientY,
-              };
-              const point = pointerInCanvas(pointer.clientX, pointer.clientY);
-              setClickConnectionPreview({
-                fromX: point.x,
-                fromY: point.y,
-                toX: point.x,
-                toY: point.y,
-              });
-            }}
-            onClickConnectEnd={(event) => {
-              finishConnection(event);
-              setClickConnectionPreview(null);
-            }}
-            onNodeDragStart={beginHistory}
-            onNodeDragStop={commitHistory}
-            onSelectionDragStart={beginHistory}
-            onSelectionDragStop={commitHistory}
-            onSelectionChange={handleSelectionChange}
-            fitView
-            fitViewOptions={FIT_VIEW_OPTIONS}
-            minZoom={0.18}
-            maxZoom={1.5}
-            nodesDraggable
-            nodesConnectable
-            // [OM-FREEPLAY] 吸附时保持目标边框静止，避免靠近画布边缘时自动平移使落点漂移。
-            autoPanOnConnect={false}
-            connectOnClick
-            nodesFocusable
-            edgesFocusable
-            edgesReconnectable={false}
-            connectionRadius={1}
-            connectionMode={ConnectionMode.Loose}
-            elementsSelectable
-            deleteKeyCode={EDIT_DELETE_KEYS}
-            panOnDrag
-            zoomOnScroll={false}
-            zoomOnPinch
-            zoomOnDoubleClick
-            preventScrolling={false}
-            proOptions={{ hideAttribution: true }}
-          >
-            <ConnectionGestureControl resetRef={resetConnectionRef} />
-            <Background color="#d7d2c7" gap={28} size={1} />
-            <Controls showInteractive={false} position="top-left" />
-          </ReactFlow>
-        </CanvasClipContext.Provider>
-      </EditHistoryProvider>
-      {clickConnectionPreview && (
-        <svg
-          aria-hidden
+        <div
+          className="full-toolbar"
           style={{
             position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            zIndex: 7,
-            pointerEvents: "none",
-            overflow: "visible",
+            top: 12,
+            right: 16,
+            maxWidth: "calc(100% - 70px)",
+            flexWrap: "wrap",
+            zIndex: 8,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: 7,
+            border: `1px solid ${COLORS.line}`,
+            borderRadius: 9,
+            background: "rgba(255,254,250,.96)",
+            boxShadow: "0 4px 14px rgba(42,41,36,.08)",
           }}
         >
-          <defs>
-            <marker
-              id="click-connection-arrow"
-              viewBox="0 -6 12 12"
-              refX="11"
-              refY="0"
-              markerWidth="10"
-              markerHeight="10"
-              orient="auto"
+          <button
+            type="button"
+            style={editorButton}
+            aria-pressed={inspector.mode === "open"}
+            onClick={() => dispatchInspector({ type: "open" })}
+          >
+            <BookOpen size={14} />
+            {inspector.mode === "open" ? "解释已显示" : "显示解释"}
+          </button>
+          <select
+            aria-label="定位模块"
+            defaultValue=""
+            style={editorButton}
+            onChange={(event) => {
+              const target = nodesRef.current.find(
+                (node) => node.id === event.target.value,
+              );
+              if (target)
+                flowRef.current
+                  ?.setViewport(
+                    {
+                      x: 30 - target.position.x * 0.8,
+                      y: 85 - target.position.y * 0.8,
+                      zoom: 0.8,
+                    },
+                    { duration: 0 },
+                  )
+                  .catch(() => {});
+            }}
+          >
+            <option value="" disabled>
+              定位模块…
+            </option>
+            {[
+              ["tokenizer", "输入与分词"],
+              ["input", "四路残差输入"],
+              ["hc-mix-a", "mHC 控制器"],
+              ["engram-lookup", "Engram 查表"],
+              ["engram-inject", "Engram 注入"],
+              ["q", "Query 投影"],
+              ["swa-window", "本地窗口"],
+              ["indexer", "Indexer"],
+              ["heads", "Head / RoPE / QKVO"],
+              ["concat", "输出投影"],
+              ["add1", "Attention 回写"],
+              ["router", "Router"],
+              ["experts", "专家内部"],
+              ["add2", "FFN 回写"],
+              ["output", "本层输出"],
+              ["next-inputs", "下一层输入清单"],
+              ["kv", "本层 KV 横向流程"],
+            ]
+              .filter(([id]) => nodes.some((node) => node.id === id))
+              .map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+          </select>
+          <button
+            type="button"
+            onClick={saveLayout}
+            style={{
+              ...editorButton,
+              color: saveState === "error" ? COLORS.rose : COLORS.ink,
+            }}
+          >
+            {saveState === "saved"
+              ? "已保存到本机"
+              : saveState === "error"
+                ? "保存失败，请重试"
+                : "保存到本机"}
+          </button>
+          <button
+            type="button"
+            onClick={undo}
+            disabled={!canUndo}
+            title="Ctrl+Z"
+            style={{
+              ...editorButton,
+              opacity: canUndo ? 1 : 0.45,
+              cursor: canUndo ? "pointer" : "default",
+            }}
+          >
+            撤销
+          </button>
+          <button
+            type="button"
+            onClick={redo}
+            disabled={!canRedo}
+            title="Ctrl+Y"
+            style={{
+              ...editorButton,
+              opacity: canRedo ? 1 : 0.45,
+              cursor: canRedo ? "pointer" : "default",
+            }}
+          >
+            重做
+          </button>
+          <button
+            type="button"
+            onClick={deleteSelectedEdges}
+            disabled={selectedEdgeIds.length === 0}
+            style={{
+              ...editorButton,
+              opacity: selectedEdgeIds.length ? 1 : 0.45,
+              cursor: selectedEdgeIds.length ? "pointer" : "default",
+            }}
+          >
+            删除选中连线
+          </button>
+          <button type="button" onClick={resetLayout} style={editorButton}>
+            恢复自动布局
+          </button>
+          {selectedEdge && (
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                color: COLORS.muted,
+                fontSize: 10.5,
+              }}
             >
-              <path
-                d="M 1 -5 L 11 0 L 1 5"
-                fill="none"
-                stroke={COLORS.green}
-                strokeWidth="1.8"
-                strokeLinejoin="round"
+              线条文字（LaTeX）
+              <input
+                className="nodrag nopan"
+                value={selectedEdge.data?.labelTex ?? ""}
+                onFocus={beginHistory}
+                onChange={(event) =>
+                  updateSelectedEdgeLabel(event.target.value)
+                }
+                onBlur={commitHistory}
+                placeholder="例如 Q_{3,1}"
+                style={{
+                  width: 150,
+                  border: `1px solid ${COLORS.line}`,
+                  borderRadius: 6,
+                  padding: "5px 7px",
+                  background: COLORS.card,
+                  color: COLORS.ink,
+                  fontFamily:
+                    "ui-monospace, SFMono-Regular, Consolas, monospace",
+                  fontSize: 10.5,
+                }}
               />
-            </marker>
-          </defs>
-          <path
-            d={`M ${clickConnectionPreview.fromX} ${clickConnectionPreview.fromY} L ${clickConnectionPreview.toX} ${clickConnectionPreview.toY}`}
-            fill="none"
-            stroke={COLORS.green}
-            strokeWidth="2.2"
-            markerEnd="url(#click-connection-arrow)"
-          />
-        </svg>
+            </label>
+          )}
+          <span
+            className="toolbar-hint"
+            style={{ color: COLORS.muted, fontSize: 10.5 }}
+          >
+            拖空白平移 · 边缘缩放 · 端点吸附 · Ctrl+Z / Ctrl+Y
+          </span>
+        </div>
+        <EditHistoryProvider value={historyContext}>
+          <CanvasClipContext.Provider value={canvasClip}>
+            <ReactFlow
+              className="architecture-flow"
+              onInit={(instance) => {
+                flowRef.current = instance;
+              }}
+              nodes={nodes}
+              edges={edges}
+              // 内部数据框的连接必须画在分组背景上方，不能被父框遮掉引入段及箭头。
+              defaultEdgeOptions={{ zIndex: 1001 }}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              connectionLineComponent={EditableConnectionLine}
+              onNodesChange={handleNodesChange}
+              onEdgesChange={handleEdgesChange}
+              onConnectStart={(event, params) => {
+                if (!params.nodeId) return;
+                const pointer =
+                  "touches" in event
+                    ? (event.touches[0] ?? event.changedTouches[0])
+                    : event;
+                connectionGestureRef.current = {
+                  nodeId: params.nodeId,
+                  handleId: params.handleId,
+                  x: pointer.clientX,
+                  y: pointer.clientY,
+                };
+              }}
+              onConnectEnd={(event) => {
+                finishConnection(event);
+                const gesture = connectionGestureRef.current;
+                const pointer =
+                  "touches" in event ? event.changedTouches[0] : event;
+                if (
+                  gesture &&
+                  pointer &&
+                  Math.hypot(
+                    pointer.clientX - gesture.x,
+                    pointer.clientY - gesture.y,
+                  ) > 4
+                )
+                  connectionGestureRef.current = null;
+              }}
+              onClickConnectStart={(event, params) => {
+                if (!params.nodeId) return;
+                const pointer =
+                  "touches" in event
+                    ? (event.touches[0] ?? event.changedTouches[0])
+                    : event;
+                connectionGestureRef.current = {
+                  nodeId: params.nodeId,
+                  handleId: params.handleId,
+                  x: pointer.clientX,
+                  y: pointer.clientY,
+                };
+                const point = pointerInCanvas(pointer.clientX, pointer.clientY);
+                setClickConnectionPreview({
+                  fromX: point.x,
+                  fromY: point.y,
+                  toX: point.x,
+                  toY: point.y,
+                });
+              }}
+              onClickConnectEnd={(event) => {
+                finishConnection(event);
+                setClickConnectionPreview(null);
+              }}
+              onNodeDragStart={beginHistory}
+              onNodeClick={(_, node) =>
+                dispatchInspector({ type: "select", nodeId: node.id })
+              }
+              onNodeDragStop={commitHistory}
+              onSelectionDragStart={beginHistory}
+              onSelectionDragStop={commitHistory}
+              onSelectionChange={handleSelectionChange}
+              fitView
+              fitViewOptions={FIT_VIEW_OPTIONS}
+              minZoom={0.18}
+              maxZoom={1.5}
+              nodesDraggable
+              nodesConnectable
+              // [OM-FREEPLAY] 吸附时保持目标边框静止，避免靠近画布边缘时自动平移使落点漂移。
+              autoPanOnConnect={false}
+              connectOnClick
+              nodesFocusable
+              edgesFocusable
+              edgesReconnectable={false}
+              connectionRadius={1}
+              connectionMode={ConnectionMode.Loose}
+              elementsSelectable
+              deleteKeyCode={EDIT_DELETE_KEYS}
+              panOnDrag
+              panOnScroll
+              zoomOnScroll={false}
+              zoomOnPinch
+              zoomOnDoubleClick
+              preventScrolling
+              proOptions={{ hideAttribution: true }}
+            >
+              <ConnectionGestureControl resetRef={resetConnectionRef} />
+              <Background color="#d7d2c7" gap={28} size={1} />
+              <Controls showInteractive={false} position="top-left" />
+            </ReactFlow>
+          </CanvasClipContext.Provider>
+        </EditHistoryProvider>
+        {clickConnectionPreview && (
+          <svg
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              zIndex: 7,
+              pointerEvents: "none",
+              overflow: "visible",
+            }}
+          >
+            <defs>
+              <marker
+                id="click-connection-arrow"
+                viewBox="0 -6 12 12"
+                refX="11"
+                refY="0"
+                markerWidth="10"
+                markerHeight="10"
+                orient="auto"
+              >
+                <path
+                  d="M 1 -5 L 11 0 L 1 5"
+                  fill="none"
+                  stroke={COLORS.green}
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
+                />
+              </marker>
+            </defs>
+            <path
+              d={`M ${clickConnectionPreview.fromX} ${clickConnectionPreview.fromY} L ${clickConnectionPreview.toX} ${clickConnectionPreview.toY}`}
+              fill="none"
+              stroke={COLORS.green}
+              strokeWidth="2.2"
+              markerEnd="url(#click-connection-arrow)"
+            />
+          </svg>
+        )}
+      </div>
+      {inspector.mode === "open" && (
+        <ModuleInspector
+          data={inspectedData}
+          connections={moduleConnections}
+          onClose={closeInspector}
+        />
       )}
     </div>
   );
