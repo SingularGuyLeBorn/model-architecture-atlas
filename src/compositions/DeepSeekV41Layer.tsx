@@ -1,4 +1,5 @@
 import { frameColor } from "../components/diagram-appearance";
+import { CompressorProjections } from "../components/CompressorProjections";
 import {
   IndexScoreColumns,
   IndexScoreMatrix,
@@ -191,7 +192,8 @@ const EXPERT_GRID_COLUMNS = `minmax(0,1fr) minmax(0,1fr) ${EXPERT_ELLIPSIS_WIDTH
 const EXPERTS_WIDTH = 2200;
 // [OM-FREEPLAY] 系数支路放在最宽主流程右侧，180px 留给长距离传递的转折通道。
 const COMPRESSOR_X = 2620;
-const COMPRESSOR_WIDTH = 800;
+// [OM-FREEPLAY] 按两条完整投影的内容宽度预留 1800px，单投影用一半；复用模式保留原宽。
+const COMPRESSOR_WIDTH = 1800;
 const HC_COEFFICIENT_X =
   Math.max(70 + EXPERTS_WIDTH, COMPRESSOR_X + COMPRESSOR_WIDTH) + 180;
 const EXPERTS_PADDING = 12;
@@ -5893,114 +5895,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         >
           {writesKv ? (
             <>
-              <div style={{ display: "grid", gap: 7 }}>
-                <div
-                  data-expanded-tensor
-                  style={{
-                    border: `1.2px solid ${frameColor(COLORS.green)}`,
-                    borderRadius: 8,
-                    padding: 6,
-                    display: "grid",
-                    gap: 5,
-                    background: "transparent",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      fontSize: 10,
-                    }}
-                  >
-                    <MathFormula tex={`W_{${layer}}^{KV,c}`} />
-                    <MathFormula tex="5120\times512" />
-                  </div>
-                  <VectorStrip
-                    name={`\\mathbf x_{${layer},t}`}
-                    length="5120"
-                    elementTex={(column) => `x_{${layer},t,${column}}`}
-                    tone="blue"
-                    compact
-                  />
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "28px 1fr 28px 1.35fr",
-                      gap: 4,
-                      alignItems: "center",
-                    }}
-                  >
-                    <Operator tex="\times" />
-                    <Box>
-                      <MathFormula tex={`\\mathbf w_{${layer},:,j}^{KV,c}`} />
-                    </Box>
-                    <Operator tex="=" />
-                    <VectorStrip
-                      name={`\\mathbf v_{${layer},t}^{c}`}
-                      length="512"
-                      elementTex={(column) => `v_{${layer},t,${column}}^c`}
-                      tone="green"
-                      compact
-                    />
-                  </div>
-                </div>
-                {ratio === 2 && (
-                  <div
-                    data-expanded-tensor
-                    style={{
-                      border: `1.2px solid ${frameColor(COLORS.amber)}`,
-                      borderRadius: 8,
-                      padding: 6,
-                      display: "grid",
-                      gap: 5,
-                      background: "transparent",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        fontSize: 10,
-                      }}
-                    >
-                      <MathFormula tex={`W_{${layer}}^{\\mathrm{gate}}`} />
-                      <MathFormula tex="5120\times512" />
-                    </div>
-                    <VectorStrip
-                      name={`\\mathbf x_{${layer},t}`}
-                      length="5120"
-                      elementTex={(column) => `x_{${layer},t,${column}}`}
-                      tone="blue"
-                      compact
-                    />
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "28px 1fr 28px 1.35fr",
-                        gap: 4,
-                        alignItems: "center",
-                      }}
-                    >
-                      <Operator tex="\times" />
-                      <Box>
-                        <MathFormula
-                          tex={`\\mathbf w_{${layer},:,j}^{\\mathrm{gate}}`}
-                        />
-                      </Box>
-                      <Operator tex="=" />
-                      <VectorStrip
-                        name={`\\mathbf a_{${layer},t}^{\\mathrm{gate}}`}
-                        length="512"
-                        elementTex={(column) =>
-                          `a_{${layer},t,${column}}^{\\mathrm{gate}}`
-                        }
-                        tone="amber"
-                        compact
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
+              <CompressorProjections layer={layer} ratio={ratio} />
               <Arrow vertical />
               {phase === "decode" && ratio === 2 && (
                 <div
@@ -6046,7 +5941,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     <strong>每连续 2 行生成两组逐元素权重</strong>
                     <br />
                     <MathFormula
-                      tex={`[\\boldsymbol\\alpha_{${layer},i,1};\\boldsymbol\\alpha_{${layer},i,2}]=\\operatorname{softmax}_{\\mathrm{row}}([\\mathbf a_{${layer},2i-1};\\mathbf a_{${layer},2i}])`}
+                      tex={`[\\boldsymbol\\alpha_{${layer},i,1};\\boldsymbol\\alpha_{${layer},i,2}]=\\operatorname{softmax}_{\\mathrm{row}}([\\mathbf a^{\\mathrm{gate}}_{${layer},2i-1};\\mathbf a^{\\mathrm{gate}}_{${layer},2i}])`}
                     />
                   </Box>
                   <div
@@ -6090,7 +5985,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                           length="512"
                           tone="green"
                           elementTex={(j) =>
-                            `\\alpha_{i,${row},${j}}\\cdot v^c_{${row === 1 ? "2i-1" : "2i"},${j}}`
+                            `\\alpha_{${layer},i,${row},${j}}\\cdot v^c_{${layer},${row === 1 ? "2i-1" : "2i"},${j}}`
                           }
                         />
                       </div>
@@ -8798,7 +8693,11 @@ export function buildGraph(
         mode,
         COMPRESSOR_X,
         projectionY,
-        COMPRESSOR_WIDTH,
+        mode === "full"
+          ? compressionRatioForLayer(layer) === 2
+            ? COMPRESSOR_WIDTH
+            : COMPRESSOR_WIDTH / 2
+          : 800,
         compressorHeight,
       ),
     );
