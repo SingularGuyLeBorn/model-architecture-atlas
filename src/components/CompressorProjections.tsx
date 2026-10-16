@@ -110,21 +110,42 @@ export function CompressorProjections({
                 </div>
                 <Operator tex="=" />
                 <div data-projection-output>
-                  <Box tone={branch === "kv" ? "green" : "amber"} expanded>
+                  <Box tone={branch === "kv" ? "green" : "plum"} expanded>
                     <div data-tensor-origin="activation">计算结果 · x × W</div>
+                    <strong data-compressor-output-role={branch}>
+                      {branch === "kv"
+                        ? "候选 KV 内容 · 不是压缩权重"
+                        : "Gate 原始分数 · 尚未归一化"}
+                    </strong>
                     <TensorHeading name={output} shape="1\times512" />
                     <VectorStrip
                       name=""
                       nameWidth={0}
                       length="512"
                       compact
-                      tone={branch === "kv" ? "green" : "amber"}
+                      tone={branch === "kv" ? "green" : "plum"}
                       elementTex={(j) =>
                         `${scalar}_{${layer},t,${j}}^{${resultSup}}`
                       }
                     />
                   </Box>
                 </div>
+              </div>
+              <div data-compressor-role-destination>
+                {branch === "kv" ? (
+                  <>
+                    <MathFormula tex={output} /> 是准备被压缩的 512 维内容；
+                    {ratio === 2
+                      ? "下方由 α 逐元素加权，再把两行相加。"
+                      : "压缩比 1 时直接归一化。"}
+                  </>
+                ) : (
+                  <>
+                    <MathFormula tex={output} />{" "}
+                    提供各列的选择分数；同组两行的同一列做 Softmax，得到压缩权重{" "}
+                    <MathFormula tex="\alpha" />。
+                  </>
+                )}
               </div>
               <div data-projection-column-definition>
                 每个 w 框是 W 的一列（5120

@@ -5938,14 +5938,108 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 </div>
               )}
               {ratio === 2 ? (
-                <div style={{ display: "grid", gap: 7 }}>
-                  <Box tone="amber">
-                    <strong>每连续 2 行生成两组逐元素权重</strong>
+                <div
+                  data-compressor-pooling
+                  style={{ display: "grid", gap: 10, fontSize: 14 }}
+                >
+                  <ModuleHeading>
+                    压缩权重 α 的来源 · 同一列的两个 gate 分数做 Softmax
+                  </ModuleHeading>
+                  <div
+                    data-compressor-gate-origin
+                    style={{ textAlign: "center", fontSize: 13 }}
+                  >
+                    第 i 组包含 token 2i−1 和 2i；上方两次投影分别提供候选内容
+                    vᶜ 与 gate 分数 a。 α
+                    随输入计算，不是另一组独立参数，也不是候选 KV。
+                  </div>
+                  <Box tone="amber" expanded>
+                    <strong>输出两条 1 × 512 权重行 · 每一列单独归一化</strong>
                     <br />
                     <MathFormula
                       tex={`[\\boldsymbol\\alpha_{${layer},i,1};\\boldsymbol\\alpha_{${layer},i,2}]=\\operatorname{softmax}_{\\mathrm{row}}([\\mathbf a^{\\mathrm{gate}}_{${layer},2i-1};\\mathbf a^{\\mathrm{gate}}_{${layer},2i}])`}
                     />
                   </Box>
+                  <div
+                    data-compressor-gate-columns
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "max-content max-content 24px max-content",
+                      gap: 24,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    {["1", "2", "\\cdots", "512"].map((d) =>
+                      d === "\\cdots" ? (
+                        <MathFormula key={d} tex={d} />
+                      ) : (
+                        <div
+                          key={d}
+                          data-compressor-gate-column={d}
+                          style={{
+                            display: "grid",
+                            gap: 7,
+                            justifyItems: "center",
+                          }}
+                        >
+                          <strong>第 {d} 列 · 两个 token 之间分配权重</strong>
+                          <Box tone="plum" expanded>
+                            <span>输入 · 上方 Gate 投影的同列分数</span>
+                            {["2i-1", "2i"].map((t) => (
+                              <div
+                                key={t}
+                                style={{
+                                  display: "grid",
+                                  justifyItems: "center",
+                                  paddingTop: 5,
+                                }}
+                              >
+                                <Box tone="plum">
+                                  <MathFormula
+                                    tex={`a^{\\mathrm{gate}}_{${layer},${t},${d}}`}
+                                  />
+                                </Box>
+                              </div>
+                            ))}
+                          </Box>
+                          <div style={{ color: COLORS.amber }}>
+                            Softmax · 只归一化这两个数
+                          </div>
+                          <Box tone="amber" expanded>
+                            <strong>输出 · 归一化压缩权重</strong>
+                            {[1, 2].map((row) => (
+                              <div
+                                key={row}
+                                style={{
+                                  padding: "5px 0",
+                                  display: "grid",
+                                  justifyItems: "center",
+                                }}
+                              >
+                                <Box tone="amber">
+                                  <MathFormula
+                                    tex={`\\alpha_{${layer},i,${row},${d}}=\\frac{\\exp(a^{\\mathrm{gate}}_{${layer},${row === 1 ? "2i-1" : "2i"},${d}})}{\\exp(a^{\\mathrm{gate}}_{${layer},2i-1,${d}})+\\exp(a^{\\mathrm{gate}}_{${layer},2i,${d}})}`}
+                                  />
+                                </Box>
+                              </div>
+                            ))}
+                          </Box>
+                          <MathFormula
+                            tex={`\\alpha_{${layer},i,1,${d}}+\\alpha_{${layer},i,2,${d}}=1`}
+                          />
+                        </div>
+                      ),
+                    )}
+                  </div>
+                  <ModuleHeading>
+                    权重 × 候选内容 · 对齐同一列，合并两行
+                  </ModuleHeading>
+                  <div style={{ textAlign: "center", fontSize: 13 }}>
+                    绿色 vᶜ 是内容，琥珀色 α 是权重；⊙ 表示对应元素相乘，512
+                    列分别使用自己的权重。
+                  </div>
                   <div
                     style={{
                       display: "grid",
@@ -5963,22 +6057,37 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                         <div
                           style={{
                             display: "grid",
-                            gridTemplateColumns: "1fr 22px 1fr",
-                            gap: 4,
+                            gridTemplateColumns: "max-content 24px max-content",
+                            gap: 12,
+                            justifyContent: "center",
                             alignItems: "center",
                           }}
                         >
-                          <Box tone="amber">
-                            <MathFormula
-                              tex={`\\boldsymbol\\alpha_{${layer},i,${row}}`}
-                            />
-                          </Box>
+                          <div
+                            data-compressor-weight-role
+                            style={{ justifySelf: "center" }}
+                          >
+                            <Box tone="amber">
+                              <strong>压缩权重</strong>
+                              <TensorHeading
+                                name={`\\boldsymbol\\alpha_{${layer},i,${row}}`}
+                                shape="1\times512"
+                              />
+                            </Box>
+                          </div>
                           <Operator tex="\odot" />
-                          <Box tone="blue">
-                            <MathFormula
-                              tex={`\\mathbf v_{${layer},${row === 1 ? "2i-1" : "2i"}}^c`}
-                            />
-                          </Box>
+                          <div
+                            data-compressor-content-role
+                            style={{ justifySelf: "center" }}
+                          >
+                            <Box tone="green">
+                              <strong>候选 KV 内容</strong>
+                              <TensorHeading
+                                name={`\\mathbf v_{${layer},${row === 1 ? "2i-1" : "2i"}}^c`}
+                                shape="1\times512"
+                              />
+                            </Box>
+                          </div>
                         </div>
                         <Operator tex="\downarrow" />
                         <VectorStrip
@@ -5997,6 +6106,11 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   <Box tone="green">
                     <MathFormula tex={`\\widehat{\\mathbf g}_{${layer},i}`} /> ·
                     本组逐元素加权和
+                    <div>
+                      <MathFormula
+                        tex={`\\widehat g_{${layer},i,d}=\\alpha_{${layer},i,1,d}\\cdot v^c_{${layer},2i-1,d}+\\alpha_{${layer},i,2,d}\\cdot v^c_{${layer},2i,d},\\quad d=1,\\ldots,512`}
+                      />
+                    </div>
                   </Box>
                 </div>
               ) : (

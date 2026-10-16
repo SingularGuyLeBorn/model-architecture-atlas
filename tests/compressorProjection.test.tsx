@@ -34,6 +34,12 @@ describe("压缩器的整行投影与单列点积", () => {
         ),
       ).not.toBeNull();
       expect(
+        branch.querySelector("[data-compressor-output-role]")?.textContent,
+      ).toContain(gate ? "Gate 原始分数" : "候选 KV 内容");
+      expect(
+        branch.querySelector("[data-compressor-role-destination]")?.textContent,
+      ).toContain(gate ? "同组两行的同一列" : "512 维内容");
+      expect(
         branch.querySelector("[data-projection-column-definition]")
           ?.textContent,
       ).toContain("原参数的切片");
