@@ -1175,7 +1175,9 @@ export function MhcMix({
                 ? "回写当前子层的 4 路权重"
                 : sublayer === "A"
                   ? "供本层 FFN 汇合使用"
-                  : "传给下一层 Attention 汇合"}
+                  : layer === 40
+                    ? "供主干末尾四路汇合使用"
+                    : "传给下一层 Attention 汇合"}
             </span>
           </div>
         ))}
@@ -1417,7 +1419,7 @@ export function MhcPost({
       data-mhc-post={sublayer}
       style={{ display: "grid", gap: 14, fontSize: 13 }}
     >
-      <strong>mHC 回写 · 残差混合与子层输出广播并行，再按目标路相加</strong>
+      <strong>mHC 回写 · 残差混合与输出分发并行，再按目标路相加</strong>
       {/* [OM-FREEPLAY] 扩展为角色配色：紫色 C、玫瑰色 q、青色乘积；沿途保持同色。 */}
       <div
         data-mhc-color-legend
@@ -1427,7 +1429,7 @@ export function MhcPost({
           [
             ["blue", "旧残差 h"],
             ["violet", "混合系数 C"],
-            ["rose", "广播权重 q"],
+            ["rose", "各路接收权重 q（不是 Attention 的 Query）"],
             ["green", "子层输出 o"],
             ["cyan", "加权结果"],
           ] as const
@@ -1589,7 +1591,9 @@ export function MhcPost({
               来自本层{" "}
               {sublayer === "A" ? "Attention 输出投影" : "FFN 专家加权汇总"}
             </span>
-            <FlowStep>展开第 t 行 · 同一个 o 广播到四路</FlowStep>
+            <FlowStep>
+              展开第 t 行 · 同一个输出向量 o 分给四路，各路乘自己的 q
+            </FlowStep>
             <FeatureVector name={output} scalar={outputScalar} tone="green" />
           </div>
           <div style={{ display: "grid", gap: 12 }}>
@@ -1746,7 +1750,7 @@ export function MhcPost({
                 }}
               >
                 <strong style={{ color: COLORS.green }}>
-                  子层输出广播 · 权重 q{j}
+                  接收同一个 o · 乘权重 q{j}
                 </strong>
                 <div
                   data-mhc-post-product={j}
@@ -1804,7 +1808,7 @@ export function MhcPost({
                         </Box>
                         <Operator tex="\to" />
                         <Box tone="cyan">
-                          <MathFormula tex={`q_${j}o_{${d}}`} />
+                          <MathFormula tex={`q_${j}\\cdot o_{${d}}`} />
                         </Box>
                       </div>
                     ),
@@ -1813,8 +1817,8 @@ export function MhcPost({
                 </div>
                 <div data-mhc-broadcast-result>
                   <FeatureVector
-                    name={`q_${j}${output}`}
-                    scalar={(d) => `q_${j}${outputScalar(d)}`}
+                    name={`q_${j}\\cdot ${output}`}
+                    scalar={(d) => `q_${j}\\cdot ${outputScalar(d)}`}
                     tone="cyan"
                   />
                 </div>
@@ -1830,7 +1834,7 @@ export function MhcPost({
             />
             <div style={{ textAlign: "center", fontSize: 12, marginTop: 10 }}>
               <MathFormula
-                tex={`${result(j)}=${residual(j)}+q_${j}${output}`}
+                tex={`${result(j)}=${residual(j)}+q_${j}\\cdot ${output}`}
               />
             </div>
           </section>
@@ -1841,7 +1845,8 @@ export function MhcPost({
         data-mhc-parallel-example
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 24px 1fr 24px 1fr",
+          gridTemplateColumns: "max-content 24px max-content 24px max-content",
+          justifySelf: "start",
           gap: 10,
           alignItems: "center",
           padding: 10,
@@ -1858,11 +1863,191 @@ export function MhcPost({
         <div>
           q=(0.5,1,1.5,2)，o=2
           <br />
-          <MathFormula tex="\mathbf q\,o=(1,2,3,4)" />
+          <MathFormula tex="\mathbf q\cdot o=(1,2,3,4)" />
         </div>
         <Operator tex="=" />
         <MathFormula tex="\mathbf h'=(3.5,4.5,5.5,6.5)" />
       </div>
+    </div>
+  );
+}
+
+// 本层返回两个独立对象；p 不参与本层回写，由下一次 hc_pre 消费。
+export function LayerHandoff({
+  layer,
+  count,
+  connected = false,
+}: {
+  layer: number;
+  count: string;
+  connected?: boolean;
+}) {
+  const next = layer + 1;
+  const engram = layer < 40 && hasEngram(next);
+  const state =
+    layer === 40
+      ? `\\mathbf h_{40,j,t}^{\\mathrm{out}}`
+      : `\\mathbf h_{${next},j,t}^{${engram ? "E" : "\\mathrm{in}"}}`;
+  return (
+    <div
+      data-layer-handoff
+      style={{ display: "grid", gap: 12, padding: 12, fontSize: 13 }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0,3fr) minmax(0,1fr)",
+          gap: 24,
+          alignItems: "start",
+        }}
+      >
+        <div
+          data-layer-state-output
+          style={{ position: "relative", display: "grid", gap: 8 }}
+        >
+          {connected && (
+            <Handle
+              id="main-in"
+              type="target"
+              position={Position.Top}
+              style={handle}
+            />
+          )}
+          <strong>① 四路残差状态 · 来自本层 FFN 回写</strong>
+          <StreamTensor layer={layer} stage="\mathrm{out}" count={count} />
+        </div>
+        <div
+          data-layer-pre-output
+          style={{
+            position: "relative",
+            border: `1px solid ${COLORS.green}`,
+            background: COLORS.greenSoft,
+            padding: 10,
+            borderRadius: 8,
+            display: "grid",
+            gap: 10,
+          }}
+        >
+          {connected && (
+            <Handle
+              id="coefficients"
+              type="target"
+              position={Position.Right}
+              style={handle}
+            />
+          )}
+          <strong>② 下次汇合的四个权重 · 来自本层 FFN 的 mHC 系数分支</strong>
+          <TensorHeading
+            name={`\\mathbf p_{${layer},t}^{F}`}
+            shape="1\times4"
+          />
+          <VectorStrip
+            name=""
+            nameWidth={0}
+            length="4"
+            columns={["1", "2", "3", "4"]}
+            elementTex={(j) => `p_${j}`}
+          />
+          <span>
+            p：pre 汇合权重；F：FFN 侧生成；t：当前 token
+            位置。每个位置有自己的四个数。
+          </span>
+          <span>
+            由四路残差的系数投影与 sigmoid 分支生成，和 ① 分别传递，不与 ①
+            相加。
+          </span>
+        </div>
+      </div>
+      <section
+        data-layer-next-use
+        style={{
+          borderTop: `1px solid ${COLORS.line}`,
+          paddingTop: 12,
+          display: "grid",
+          gap: 0,
+        }}
+      >
+        <strong style={{ marginBottom: 8 }}>
+          {layer === 40
+            ? "主干末尾：四路汇合后进入最终归一化与输出头"
+            : `下一层 Layer ${next}：Attention 前的四路汇合（展开同一 token t）`}
+        </strong>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+            marginBottom: 10,
+          }}
+        >
+          <MathFormula tex={`\\mathcal H_{${layer}}^{\\mathrm{out}}`} />
+          <Operator tex="\to" />
+          {layer === 40 ? (
+            <span>直接使用这四路</span>
+          ) : (
+            <>
+              <MathFormula tex={`\\mathcal H_{${next}}^{\\mathrm{in}}`} />
+              {engram && (
+                <>
+                  <Operator tex="\to" />
+                  <Box tone="green">Layer {next} Engram 门控注入</Box>
+                  <Operator tex="\to" />
+                  <MathFormula tex={`\\mathcal H_{${next}}^{E}`} />
+                </>
+              )}
+            </>
+          )}
+          <span>；p 原样交给下方四个乘法，不经过 Engram。</span>
+        </div>
+        <div
+          data-handoff-products
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4,minmax(0,1fr))",
+            gap: 12,
+          }}
+        >
+          {HC_COPIES.map((j) => (
+            <div key={j} style={{ display: "grid", gap: 5 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "42px 20px minmax(0,1fr)",
+                  alignItems: "center",
+                  gap: 5,
+                }}
+              >
+                <Box tone="green">
+                  <MathFormula tex={`p_${j}`} />
+                </Box>
+                <Operator tex="\times" />
+                <FeatureVector
+                  name={state.replace(",j,", `,${j},`)}
+                  scalar={(d) => `h_{${j},${d}}`}
+                />
+              </div>
+              <Operator tex="\downarrow" />
+              <Box tone="cyan">
+                <MathFormula
+                  tex={`p_${j}\\cdot ${state.replace(",j,", `,${j},`)}`}
+                />
+              </Box>
+            </div>
+          ))}
+        </div>
+        <SumJunction count={4} />
+        <div style={{ width: 500, maxWidth: "100%", justifySelf: "center" }}>
+          <FeatureVector
+            name={
+              layer === 40
+                ? "\\mathbf h_t^{\\mathrm{head}}"
+                : `\\mathbf h_{${next},t}^{\\mathrm{in}}`
+            }
+            scalar={(d) => `h_{t,${d}}`}
+            tone="green"
+          />
+        </div>
+      </section>
     </div>
   );
 }
@@ -3311,34 +3496,32 @@ function Head({ index, layer }: { index: number; layer: number }) {
         scalar={(_, column) => `a_{${column}}`}
       />
       <FlowStep>③ 每个权重乘对应的 V 行，再逐列相加</FlowStep>
-      <div data-attention-value-sum style={{ display: "grid", gap: 5 }}>
-        {["1", "2", "L_t"].map((row, i) => (
-          <div
-            key={row}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "64px 70px 24px 1fr",
-              gap: 6,
-              alignItems: "center",
-            }}
-          >
-            <Operator tex={i === 0 ? "" : i === 2 ? "+\\cdots+" : "+"} />
-            <Box tone="amber">
-              <MathFormula tex={`a_{${row}}`} />
-            </Box>
-            <Operator tex="\times" />
-            <AttentionTensor
-              tex={`\\mathbf v_{${row}}`}
-              rows="1"
-              columns="512"
-              scalar={(_, column) => `v_{${row},${column}}`}
-            />
-          </div>
-        ))}
+      <div data-attention-value-sum>
+        <StackedSum omittedBefore={2}>
+          {["1", "2", "L_t"].map((row) => (
+            <div
+              key={row}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "70px 24px minmax(0,1fr)",
+                gap: 6,
+                alignItems: "center",
+              }}
+            >
+              <Box tone="amber">
+                <MathFormula tex={`a_{${row}}`} />
+              </Box>
+              <Operator tex="\times" />
+              <AttentionTensor
+                tex={`\\mathbf v_{${row}}`}
+                rows="1"
+                columns="512"
+                scalar={(_, column) => `v_{${row},${column}}`}
+              />
+            </div>
+          ))}
+        </StackedSum>
       </div>
-      <FlowStep>
-        <MathFormula tex="\widetilde o_d=\sum_{i=1}^{L_t}a_i v_{i,d},\quad d=1,\ldots,512" />
-      </FlowStep>
       <AttentionTensor
         tex={`\\widetilde{\\mathbf o}_{${layer},${index},t}`}
         rows="1"
@@ -3346,6 +3529,9 @@ function Head({ index, layer }: { index: number; layer: number }) {
         scalar={(_, column) => `\\widetilde o_{${column}}`}
         tone="amber"
       />
+      <div style={{ textAlign: "center", fontSize: 12 }}>
+        <MathFormula tex="\widetilde o_d=\sum_{i=1}^{L_t}a_i\cdot v_{i,d},\quad d=1,\ldots,512" />
+      </div>
       <div
         style={{
           display: "grid",
@@ -4556,8 +4742,15 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
     );
   }
 
-  if (kind === "tensor" || kind === "output") {
-    const output = kind === "output";
+  if (kind === "output")
+    return (
+      <div style={{ ...panel, height: "auto" }}>
+        <Title>本层交接 · 状态与权重分别传递</Title>
+        <LayerHandoff layer={layer} count={count} connected />
+      </div>
+    );
+
+  if (kind === "tensor") {
     return (
       <div style={{ ...panel, height: "auto" }}>
         <Handle
@@ -4580,24 +4773,13 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         />
         <Handle
           id="coefficients"
-          type={output ? "target" : "source"}
+          type="source"
           position={Position.Right}
           style={handle}
         />
-        <Title>
-          {output ? "本层输出 · 四路残差继续传递" : "层输入 · mHC 四路残差"}
-        </Title>
+        <Title>层输入 · mHC 四路残差</Title>
         <div style={{ padding: 12, display: "grid", gap: 8 }}>
-          <StreamTensor
-            layer={layer}
-            stage={output ? "\\mathrm{out}" : "\\mathrm{in}"}
-            count={count}
-          />
-          {output && (
-            <MathFormula
-              tex={`\\mathbf p_{${layer},t}^{F}\\;\\longrightarrow\\;${layer === 40 ? "\\text{主干末尾四路汇合}" : `\\text{Layer ${layer + 1} Attention 汇合}`}`}
-            />
-          )}
+          <StreamTensor layer={layer} stage="\mathrm{in}" count={count} />
         </div>
       </div>
     );
@@ -5799,7 +5981,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     />
                     <Operator tex="\times" />
                     <AttentionTensor
-                      tex={`W^{OA}_{${layer},${group}}`}
+                      tex={`W^{O\\!,\\mathrm{A}}_{${layer},${group}}`}
                       rows="4096"
                       columns="1024"
                       scalar={(row, column) => `w^A_{${row},${column}}`}
@@ -5835,7 +6017,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               />
               <Operator tex="\times" />
               <AttentionTensor
-                tex={`W^{OB}_{${layer}}`}
+                tex={`W^{O\\!,\\mathrm{B}}_{${layer}}`}
                 rows="8192"
                 columns="5120"
                 scalar={(row, column) => `w^B_{${row},${column}}`}
@@ -5860,14 +6042,28 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             fontSize: 16,
           }}
         >
+          <strong>两级输出投影 · 可学习参数</strong>
+          <div
+            data-projection-parameter-origin
+            style={{ fontSize: 13, lineHeight: 1.7 }}
+          >
+            W 表示权重，O 表示 Attention 输出投影；A、B
+            表示第一、第二级，不是三个变量相乘。
+            <br />
+            参数在训练中学习，推理时从模型权重加载，不由上方 C 临时算出。
+            <br />
+            A：每组 4096 → 1024；B：拼接后 8192 → 5120。
+            <br />
+            官方实现：wo_a、wo_b；图采用行向量右乘，矩阵方向与代码存储转置。
+          </div>
           <strong>对应公式</strong>
           {[1, 2, 8].map((group) => (
             <MathFormula
               key={group}
-              tex={`B_{${group}}=C_{${group}}W^{OA}_{${layer},${group}}`}
+              tex={`B_{${group}}=C_{${group}}W^{O\\!,\\mathrm{A}}_{${layer},${group}}`}
             />
           ))}
-          <MathFormula tex={`O_{${layer}}=BW^{OB}_{${layer}}`} />
+          <MathFormula tex={`O_{${layer}}=BW^{O\\!,\\mathrm{B}}_{${layer}}`} />
         </aside>
       </div>
     );
@@ -8842,6 +9038,7 @@ function DiagramCanvas({
             ["router", "Router"],
             ["experts", "专家内部"],
             ["add2", "FFN 回写"],
+            ["output", "本层交接与下次汇合"],
           ]
             .filter(([id]) => nodes.some((node) => node.id === id))
             .map(([id, label]) => (

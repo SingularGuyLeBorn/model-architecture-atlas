@@ -1,4 +1,10 @@
-import React, { useMemo, type ReactNode } from "react";
+import React, {
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { latexHtml } from "./EditableArchitectureGraph";
 import { MathMarkup } from "./MathMarkup";
 
@@ -437,51 +443,104 @@ export function SumCircle({ tone = "cyan" }: { tone?: DiagramTone }) {
   );
 }
 
+// 汇入箭头按真实像素指向圆边，避免 SVG 非等比拉伸后箭头变形或藏进圆内。
+function useDiagramSize() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 400, height: 100 });
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const measure = () => {
+      const width = element.clientWidth,
+        height = element.clientHeight;
+      if (width && height)
+        setSize((current) =>
+          current.width === width && current.height === height
+            ? current
+            : { width, height },
+        );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  return { ref, ...size };
+}
+
+function arrowTip(x: number, y: number, angle: number) {
+  const backX = x - 7 * Math.cos(angle),
+    backY = y - 7 * Math.sin(angle);
+  return `M${backX + 4 * Math.sin(angle)} ${backY - 4 * Math.cos(angle)} L${x} ${y} L${backX - 4 * Math.sin(angle)} ${backY + 4 * Math.cos(angle)}`;
+}
+
 export function SumJunction({ count }: { count: number }) {
+  const { ref, width } = useDiagramSize();
+  const center = width / 2;
   return (
     <div
+      ref={ref}
       data-sum-junction={count}
-      style={{ display: "grid", justifyItems: "center", gap: 0, width: "100%" }}
+      style={{ position: "relative", height: 78, width: "100%" }}
     >
       <svg
         data-merge-arrows={count}
         aria-hidden
-        viewBox="0 0 400 24"
-        preserveAspectRatio="none"
-        style={{ width: "100%", height: 24 }}
+        viewBox={`0 0 ${width} 78`}
+        style={{ width: "100%", height: 78, display: "block" }}
       >
-        {Array.from({ length: count }, (_, i) => (
-          <path
-            key={i}
-            data-sum-input={i}
-            d={`M${((i + 0.5) * 400) / count} 0 V10 L200 24`}
-            fill="none"
-            stroke={COLORS.cyan}
-            strokeWidth="1.5"
-            vectorEffect="non-scaling-stroke"
-          />
-        ))}
-      </svg>
-      <SumCircle />
-      <svg
-        data-sum-output
-        aria-hidden
-        width="20"
-        height="18"
-        viewBox="0 0 20 18"
-      >
+        {Array.from({ length: count }, (_, i) => {
+          const angle =
+            count === 1
+              ? 0
+              : -Math.PI / 3 + (i * ((2 * Math.PI) / 3)) / (count - 1);
+          const x = center + 18 * Math.sin(angle),
+            y = 42 - 18 * Math.cos(angle);
+          const start = ((i + 0.5) * width) / count;
+          return (
+            <g key={i}>
+              <path
+                data-sum-input={i}
+                d={`M${start} 0 V8 L${x} ${y}`}
+                fill="none"
+                stroke={COLORS.cyan}
+                strokeWidth="1.5"
+                vectorEffect="non-scaling-stroke"
+              />
+              <path
+                data-sum-input-arrow={i}
+                d={arrowTip(x, y, Math.atan2(y - 8, x - start))}
+                fill="none"
+                stroke={COLORS.cyan}
+                strokeWidth={1.5}
+              />
+            </g>
+          );
+        })}
         <path
-          d="M10 0 V17 M5 12 L10 17 L15 12"
+          data-sum-output
+          d={`M${center} 60 V77 M${center - 5} 72 L${center} 77 L${center + 5} 72`}
           fill="none"
           stroke={COLORS.cyan}
           strokeWidth="1.5"
         />
       </svg>
+      <div style={{ position: "absolute", left: "calc(50% - 18px)", top: 24 }}>
+        <SumCircle />
+      </div>
     </div>
   );
 }
 
-export function StackedSum({ children }: { children: ReactNode[] }) {
+export function StackedSum({
+  children,
+  omittedBefore,
+}: {
+  children: ReactNode[];
+  omittedBefore?: number;
+}) {
+  const { ref, height } = useDiagramSize();
+  const slots = children.length + (omittedBefore === undefined ? 0 : 1);
   return (
     <div
       data-stacked-sum
@@ -496,39 +555,67 @@ export function StackedSum({ children }: { children: ReactNode[] }) {
       <div
         style={{
           display: "grid",
-          gridTemplateRows: `repeat(${children.length},minmax(0,1fr))`,
+          gridTemplateRows: `repeat(${slots},minmax(0,1fr))`,
         }}
       >
         {children.map((child, i) => (
-          <div
-            key={i}
-            style={{ padding: "4px 0", display: "grid", alignItems: "center" }}
-          >
-            {child}
-          </div>
+          <React.Fragment key={i}>
+            {i === omittedBefore && (
+              <div
+                data-sum-omitted
+                style={{ display: "grid", placeItems: "center" }}
+              >
+                <MathFormula tex="\vdots" />
+              </div>
+            )}
+            <div
+              style={{
+                padding: "4px 0",
+                display: "grid",
+                alignItems: "center",
+              }}
+            >
+              {child}
+            </div>
+          </React.Fragment>
         ))}
       </div>
-      <div style={{ position: "relative" }}>
+      <div ref={ref} style={{ position: "relative" }}>
         <svg
           aria-hidden
-          viewBox="0 0 64 100"
-          preserveAspectRatio="none"
+          viewBox={`0 0 64 ${height}`}
           style={{ position: "absolute", width: "100%", height: "100%" }}
         >
-          {children.map((_, i) => (
-            <path
-              key={i}
-              data-sum-input={i}
-              d={`M0 ${((i + 0.5) * 100) / children.length} L32 50`}
-              fill="none"
-              stroke={COLORS.cyan}
-              strokeWidth="1.5"
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
+          {children.map((_, i) => {
+            const slot =
+              i + (omittedBefore !== undefined && i >= omittedBefore ? 1 : 0);
+            const startY = ((slot + 0.5) * height) / slots;
+            const angle = Math.atan2(height / 2 - startY, 32);
+            const x = 32 - 18 * Math.cos(angle),
+              y = height / 2 - 18 * Math.sin(angle);
+            return (
+              <g key={i}>
+                <path
+                  data-sum-input={i}
+                  d={`M0 ${startY} L${x} ${y}`}
+                  fill="none"
+                  stroke={COLORS.cyan}
+                  strokeWidth="1.5"
+                  vectorEffect="non-scaling-stroke"
+                />
+                <path
+                  data-sum-input-arrow={i}
+                  d={arrowTip(x, y, angle)}
+                  fill="none"
+                  stroke={COLORS.cyan}
+                  strokeWidth={1.5}
+                />
+              </g>
+            );
+          })}
           <path
             data-sum-output
-            d="M32 50 V100"
+            d={`M32 ${height / 2 + 18} V${height}`}
             fill="none"
             stroke={COLORS.cyan}
             strokeWidth="1.5"

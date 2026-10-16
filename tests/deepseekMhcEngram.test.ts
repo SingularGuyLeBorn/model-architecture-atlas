@@ -11,6 +11,7 @@ import {
   MhcMix,
   MhcPost,
   MhcPre,
+  LayerHandoff,
   RmsNormProcess,
 } from "../src/compositions/DeepSeekV41Layer";
 
@@ -30,6 +31,38 @@ function render(element: ReactElement) {
 }
 
 describe("mHC 与 Engram 的真实主路径", () => {
+  it.each([1, 14, 15, 40])(
+    "Layer %s 的状态与 p 分框传递，后续先乘再汇合",
+    (layer) => {
+      const { root, formulas } = render(
+        createElement(LayerHandoff, { layer, count: "N" }),
+      );
+      expect(
+        root
+          .querySelector("[data-layer-state-output]")
+          ?.contains(root.querySelector("[data-layer-pre-output]")),
+      ).toBe(false);
+      expect(
+        root.querySelector("[data-layer-pre-output]")?.textContent,
+      ).toContain("不与 ① 相加");
+      expect(formulas).toContain(`\\mathbf p_{${layer},t}^{F}`);
+      expect(formulas).toContain(`\\mathcal H_{${layer}}^{\\mathrm{out}}`);
+      expect(formulas.some((tex) => tex.includes("\\\\mathrm"))).toBe(false);
+      expect(
+        root.querySelector("[data-handoff-products]")?.children,
+      ).toHaveLength(4);
+      expect(root.querySelectorAll("[data-sum-input-arrow]")).toHaveLength(4);
+      expect(root.querySelectorAll("[data-sum-circle]")).toHaveLength(1);
+      if (layer === 1 || layer === 14)
+        expect(root.textContent).toContain(
+          `Layer ${layer + 1} Engram 门控注入`,
+        );
+      if (layer === 40) {
+        expect(root.textContent).toContain("主干末尾");
+        expect(root.textContent).not.toContain("Layer 41");
+      }
+    },
+  );
   it("40 层均包含两次 mHC 汇合/回写，Engram 只位于 2、15 层且在 Attention 前", () => {
     for (let layer = 1; layer <= 40; layer++) {
       const graph = buildGraph(layer);
@@ -287,7 +320,10 @@ describe("mHC 与 Engram 的真实主路径", () => {
         root.querySelector("[data-mhc-sublayer-input]")?.textContent,
       ).toContain(sublayer === "A" ? "Attention 输出投影" : "FFN 专家加权汇总");
       expect(formulas).toContain("\\mathbf r=(2.5,2.5,2.5,2.5)");
-      expect(formulas).toContain("\\mathbf q\\,o=(1,2,3,4)");
+      expect(formulas).toContain("\\mathbf q\\cdot o=(1,2,3,4)");
+      expect(formulas).toContain(
+        `q_3\\cdot \\mathbf o_{15,t}${sublayer === "F" ? "^{\\mathrm{FFN}}" : ""}`,
+      );
     },
   );
 
@@ -298,10 +334,16 @@ describe("mHC 与 Engram 的真实主路径", () => {
       for (const route of root.querySelectorAll("[data-mhc-output-copy]")) {
         const mixed = route.querySelector("[data-stacked-sum]")!;
         expect(mixed.querySelectorAll("[data-sum-input]")).toHaveLength(4);
+        expect(mixed.querySelectorAll("[data-sum-input-arrow]")).toHaveLength(
+          4,
+        );
         expect(mixed.querySelectorAll("[data-sum-circle]")).toHaveLength(1);
         expect(mixed.querySelector("[data-sum-output]")).not.toBeNull();
         const final = route.querySelector("[data-mhc-final-sum]")!;
         expect(final.querySelectorAll("[data-sum-input]")).toHaveLength(2);
+        expect(final.querySelectorAll("[data-sum-input-arrow]")).toHaveLength(
+          2,
+        );
         expect(final.querySelector("[data-sum-output]")).not.toBeNull();
         expect(
           [...route.querySelectorAll("[data-mhc-broadcast-element]")].map((e) =>
