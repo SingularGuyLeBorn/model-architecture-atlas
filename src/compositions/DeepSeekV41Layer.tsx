@@ -608,6 +608,7 @@ export function RmsNormProcess({
   label,
   rowIndex,
   horizontal = false,
+  horizontalReduction = false,
   outputHandle,
 }: {
   input: string;
@@ -618,6 +619,7 @@ export function RmsNormProcess({
   label: string;
   rowIndex?: string;
   horizontal?: boolean;
+  horizontalReduction?: boolean;
   outputHandle?: string;
 }) {
   const { phase } = useExecutionAxis();
@@ -657,8 +659,19 @@ export function RmsNormProcess({
       // 通道位于两段结构之间，不能取两个小框中心的中点而穿过左侧输入矩阵。
       const mid =
         (sourceStage.right + targetStage.left - 2 * bounds.left) / (2 * scale);
-      const path = `M${x1} ${y1} H${mid} V${y2} H${x2}`;
-      const arrow = `M${x2 - 6} ${y2 - 5} L${x2} ${y2} L${x2 - 6} ${y2 + 5}`;
+      const stacked = targetStage.top >= sourceStage.bottom;
+      const fromX = (from.left + from.width / 2 - bounds.left) / scale;
+      const fromY = (from.bottom - bounds.top) / scale;
+      const toX = (to.left + to.width / 2 - bounds.left) / scale;
+      const toY = (to.top - bounds.top) / scale;
+      const laneY =
+        (sourceStage.bottom + targetStage.top - 2 * bounds.top) / (2 * scale);
+      const path = stacked
+        ? `M${fromX} ${fromY} V${laneY} H${toX} V${toY}`
+        : `M${x1} ${y1} H${mid} V${y2} H${x2}`;
+      const arrow = stacked
+        ? `M${toX - 5} ${toY - 6} L${toX} ${toY} L${toX + 5} ${toY - 6}`
+        : `M${x2 - 6} ${y2 - 5} L${x2} ${y2} L${x2 - 6} ${y2 + 5}`;
       setTransfer((current) =>
         current?.path === path ? current : { path, arrow },
       );
@@ -685,6 +698,9 @@ export function RmsNormProcess({
       data-rmsnorm={label}
       data-rmsnorm-dimension={dimension}
       style={{
+        width: horizontalReduction ? "fit-content" : undefined,
+        maxWidth: "100%",
+        justifySelf: horizontalReduction ? "center" : undefined,
         border: `1px solid ${frameColor(COLORS.green)}`,
         borderRadius: 9,
         padding: 10,
@@ -714,12 +730,14 @@ export function RmsNormProcess({
         data-rmsnorm-layout={horizontal ? "horizontal" : "vertical"}
         style={{
           position: "relative",
-          display: "grid",
+          display: horizontalReduction ? "flex" : "grid",
+          flexWrap: horizontalReduction ? "wrap" : undefined,
+          justifyContent: horizontalReduction ? "center" : undefined,
           gridTemplateColumns: horizontal
             ? "minmax(0,1fr) 38px minmax(0,1fr)"
             : "minmax(0,1fr)",
-          gap: 8,
-          alignItems: "start",
+          gap: horizontalReduction ? 38 : 8,
+          alignItems: horizontalReduction ? "center" : "start",
         }}
       >
         <div
@@ -732,109 +750,174 @@ export function RmsNormProcess({
           }}
         >
           {horizontal && <strong style={{ fontSize: 11 }}>① 本行均方根</strong>}
-          {matrix(input, "z", "blue")}
-          <FlowStep>
-            <MathFormula tex={`\\mathbf z_{${row}}`} /> · 展开这一行的第
-            1、2、…、{dimension} 个平方项
-          </FlowStep>
-          <div style={{ display: "grid", gap: 0 }}>
+          {horizontalReduction ? (
             <div
-              data-rmsnorm-square
+              data-rmsnorm-root-flow="horizontal"
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3,minmax(0,1fr))",
+                display: "flex",
                 alignItems: "center",
-                position: "relative",
-                textAlign: "center",
+                justifyContent: "center",
+                gap: 8,
               }}
             >
-              {columns.map((column) => (
-                <React.Fragment key={column}>
-                  <div
-                    style={{
-                      display: "grid",
-                      gap: 3,
-                      padding: "0 4px",
-                      minWidth: 0,
-                    }}
-                  >
-                    <Box tone="green">
+              <div data-rmsnorm-input style={{ display: "grid", gap: 6 }}>
+                {matrix(input, "z", "blue")}
+                <span style={{ textAlign: "center" }}>
+                  <MathFormula tex={`\\mathbf z_{${row}}`} /> · 本行各元素平方
+                </span>
+              </div>
+              <Operator tex="\longrightarrow" />
+              <div data-rmsnorm-square>
+                <StackedSum omittedBefore={2} outputDirection="right">
+                  {columns.map((column) => (
+                    <Box key={column} tone="green">
                       <MathFormula tex={`z_{${row},${column}}^2`} />
                     </Box>
-                  </div>
-                </React.Fragment>
-              ))}
-              <span
-                style={{
-                  position: "absolute",
-                  left: "66.6667%",
-                  top: "50%",
-                  transform: "translate(-50%,-50%)",
-                }}
-              >
-                <MathFormula tex="\cdots" />
-              </span>
-            </div>
-            <SumJunction count={3} />
-            <div
-              data-rmsnorm-reduction
-              style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(0,1fr)",
-                gap: 3,
-                alignItems: "center",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  gap: 6,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <MathFormula
-                  tex={`\\frac{\\sum_{j=1}^{d}z_{${row},j}^{2}}{d},\\quad d=${dimension}`}
-                />
-                <Operator tex="=" />
-                <Box tone="green">
-                  <MathFormula tex={`m_{${row}}`} />
-                </Box>
+                  ))}
+                </StackedSum>
               </div>
+              <div
+                data-rmsnorm-reduction
+                style={{ display: "flex", alignItems: "center", gap: 8 }}
+              >
+                <Box tone="green">
+                  <MathFormula
+                    tex={`m_{${row}}=\\frac{\\sum_{j=1}^{d}z_{${row},j}^{2}}{d}`}
+                  />
+                </Box>
+                <Operator tex="\longrightarrow" />
+                <div
+                  ref={rootResultRef}
+                  data-rmsnorm-root-result
+                  style={{ width: "fit-content" }}
+                >
+                  <Box tone="green">
+                    <MathFormula
+                      tex={`r_{${row}}=\\sqrt{m_{${row}}+\\varepsilon}`}
+                    />
+                  </Box>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {matrix(input, "z", "blue")}
               <FlowStep>
-                <MathFormula tex="+\varepsilon\;\longrightarrow\;\sqrt{\phantom{x}}" />
+                <MathFormula tex={`\\mathbf z_{${row}}`} /> · 展开这一行的第
+                1、2、…、{dimension} 个平方项
               </FlowStep>
-              <div
-                ref={rootResultRef}
-                data-rmsnorm-root-result
-                style={{ width: "fit-content", justifySelf: "center" }}
-              >
-                <Box tone="green">
-                  <MathFormula tex={`r_{${row}}`} />
-                </Box>
+              <div style={{ display: "grid", gap: 0 }}>
+                <div
+                  data-rmsnorm-square
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3,minmax(0,1fr))",
+                    alignItems: "center",
+                    position: "relative",
+                    textAlign: "center",
+                  }}
+                >
+                  {columns.map((column) => (
+                    <React.Fragment key={column}>
+                      <div
+                        style={{
+                          display: "grid",
+                          gap: 3,
+                          padding: "0 4px",
+                          minWidth: 0,
+                        }}
+                      >
+                        <Box tone="green">
+                          <MathFormula tex={`z_{${row},${column}}^2`} />
+                        </Box>
+                      </div>
+                    </React.Fragment>
+                  ))}
+                  <span
+                    style={{
+                      position: "absolute",
+                      left: "66.6667%",
+                      top: "50%",
+                      transform: "translate(-50%,-50%)",
+                    }}
+                  >
+                    <MathFormula tex="\cdots" />
+                  </span>
+                </div>
+                <SumJunction count={3} />
+                <div
+                  data-rmsnorm-reduction
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "minmax(0,1fr)",
+                    gap: 3,
+                    alignItems: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 6,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <MathFormula
+                      tex={`\\frac{\\sum_{j=1}^{d}z_{${row},j}^{2}}{d},\\quad d=${dimension}`}
+                    />
+                    <Operator tex="=" />
+                    <Box tone="green">
+                      <MathFormula tex={`m_{${row}}`} />
+                    </Box>
+                  </div>
+                  <FlowStep>
+                    <MathFormula tex="+\varepsilon\;\longrightarrow\;\sqrt{\phantom{x}}" />
+                  </FlowStep>
+                  <div
+                    ref={rootResultRef}
+                    data-rmsnorm-root-result
+                    style={{ width: "fit-content", justifySelf: "center" }}
+                  >
+                    <Box tone="green">
+                      <MathFormula tex={`r_{${row}}`} />
+                    </Box>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
-        {horizontal && <div aria-hidden />}
+        {horizontal && !horizontalReduction && <div aria-hidden />}
         <div
           data-rmsnorm-stage="scale"
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0,1fr)",
+            gridTemplateColumns: horizontalReduction
+              ? "max-content max-content max-content"
+              : "minmax(0,1fr)",
+            paddingRight: horizontalReduction && outputHandle ? 6 : undefined,
             gap: 5,
             minWidth: 0,
           }}
         >
           {horizontal && (
-            <strong style={{ fontSize: 11 }}>
+            <strong
+              style={{
+                fontSize: 11,
+                gridColumn: horizontalReduction ? "1 / -1" : undefined,
+              }}
+            >
               ② 用①的结果归一化{gamma ? "与缩放" : ""}
             </strong>
           )}
           <div
             ref={broadcastRef}
             data-rmsnorm-broadcast
-            style={{ width: "fit-content", justifySelf: "center" }}
+            style={{
+              width: "fit-content",
+              justifySelf: "center",
+              gridColumn: horizontalReduction ? 1 : undefined,
+            }}
           >
             {horizontal ? (
               <Box tone="green">
@@ -849,6 +932,8 @@ export function RmsNormProcess({
           <div
             data-rmsnorm-scale
             style={{
+              gridColumn: horizontalReduction ? 1 : undefined,
+              gridRow: horizontalReduction ? 3 : undefined,
               display: "grid",
               gridTemplateColumns: "repeat(3,max-content)",
               justifyContent: "center",
@@ -931,6 +1016,8 @@ export function RmsNormProcess({
                 flexWrap: "wrap",
                 fontSize: 11,
                 lineHeight: 2.4,
+                gridColumn: horizontalReduction ? "1 / -1" : undefined,
+                gridRow: horizontalReduction ? 4 : undefined,
               }}
             >
               <span>本框 γ：各行共用的可学习参数</span>
@@ -941,9 +1028,24 @@ export function RmsNormProcess({
           ) : (
             <span>本处只除以均方根，无可学习缩放参数。</span>
           )}
-          <FlowStep>各输出行组成</FlowStep>
+          {horizontalReduction ? (
+            <>
+              <div style={{ gridColumn: 3, gridRow: 2, textAlign: "center" }}>
+                各输出行组成
+              </div>
+              <div style={{ gridColumn: 2, gridRow: 3, alignSelf: "center" }}>
+                <Operator tex="\longrightarrow" />
+              </div>
+            </>
+          ) : (
+            <FlowStep>各输出行组成</FlowStep>
+          )}
           <div
+            data-rmsnorm-output
             style={{
+              gridColumn: horizontalReduction ? 3 : undefined,
+              gridRow: horizontalReduction ? 3 : undefined,
+              alignSelf: horizontalReduction ? "center" : undefined,
               position: "relative",
               width: "fit-content",
               maxWidth: "100%",
@@ -6159,19 +6261,28 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 gamma={`\\boldsymbol\\gamma_{${layer}}^c`}
                 label="压缩 KV"
                 horizontal
+                horizontalReduction
                 outputHandle="to-indexer"
               />
               <FlowStep>
                 <MathFormula tex={`\\bar G_{${layer}}`} /> 分支送入
                 Indexer；缓存分支按压缩组首 token 的位置旋转
               </FlowStep>
-              <RotaryProcess
-                input={`\\bar{\\mathbf g}_{${layer},i}`}
-                output={`\\mathbf g_{${layer},i}`}
-                position={`(i-1)\\cdot ${ratio}`}
-                layer={layer}
-                compact
-              />
+              <div
+                style={{
+                  width: "fit-content",
+                  maxWidth: "100%",
+                  justifySelf: "center",
+                }}
+              >
+                <RotaryProcess
+                  input={`\\bar{\\mathbf g}_{${layer},i}`}
+                  output={`\\mathbf g_{${layer},i}`}
+                  position={`(i-1)\\cdot ${ratio}`}
+                  layer={layer}
+                  compact
+                />
+              </div>
             </>
           ) : mode === "reindex" ? (
             <div style={{ position: "relative", width: "fit-content" }}>
@@ -6196,6 +6307,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               position: "relative",
               width: "fit-content",
               maxWidth: "100%",
+              justifySelf: "center",
             }}
           >
             <Matrix

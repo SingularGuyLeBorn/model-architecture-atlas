@@ -9,6 +9,40 @@ import {
 } from "../src/compositions/DeepSeekV41Layer";
 
 describe("RMSNorm 的逐行结构与来源", () => {
+  it("压缩均方根横向展开，平方项分别汇入 Σ 后依次得到均值与分母", () => {
+    const root = document.createElement("div");
+    root.innerHTML = renderToStaticMarkup(
+      createElement(RmsNormProcess, {
+        input: "\\widehat G_3",
+        output: "\\bar G_3",
+        dimension: 512,
+        rowCount: "M",
+        rowIndex: "i",
+        label: "压缩 KV",
+        horizontal: true,
+        horizontalReduction: true,
+        gamma: "\\boldsymbol\\gamma_3^c",
+      }),
+    );
+    const flow = root.querySelector('[data-rmsnorm-root-flow="horizontal"]')!;
+    expect(flow).not.toBeNull();
+    expect(flow.querySelectorAll("[data-sum-input]")).toHaveLength(3);
+    expect(flow.querySelectorAll("[data-sum-omitted]")).toHaveLength(1);
+    const tex = [...flow.querySelectorAll("[aria-label]")].map((el) =>
+      el.getAttribute("aria-label"),
+    );
+    expect(tex).toEqual(
+      expect.arrayContaining([
+        "z_{i,1}^2",
+        "z_{i,2}^2",
+        "z_{i,512}^2",
+        "m_{i}=\\frac{\\sum_{j=1}^{d}z_{i,j}^{2}}{d}",
+        "r_{i}=\\sqrt{m_{i}+\\varepsilon}",
+      ]),
+    );
+    expect(tex).not.toContain("\\downarrow");
+    expect(root.querySelector(".katex-error")).toBeNull();
+  });
   it("Indexer 的首、次、末候选列分别汇合三个代表 Head", () => {
     const root = document.createElement("div");
     root.innerHTML = renderToStaticMarkup(
