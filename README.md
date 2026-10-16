@@ -1,8 +1,16 @@
-# 主流的模型 架构全解析
+# 模型架构全解析 · Model Architecture Atlas
 
 用可交互结构图理解模型：矩阵如何投影、token 如何取行、Head 如何拆分、专家如何路由、缓存如何读写。
 
 这是一个独立静态网站，不运行模型、不下载权重，不需要 API Key。技术栈：React 19、TypeScript、Vite、React Flow、KaTeX。
+
+## 在线访问
+
+[打开在线站点](https://model-architecture-atlas.justfox32.chatgpt.site) · [直达 V4.1 逐层图](https://model-architecture-atlas.justfox32.chatgpt.site/#model=v41&chapter=layer)
+
+当前云端站点为私有访问，需要使用站点所有者的账号登录。代码仓库的可见性与网站访问权限分别管理；拿到链接不等于获得访问权限。无需在线账号也可以下载源码，在本机运行。
+
+推荐先选模型与机制章节，再进入 V4.1 逐层图查看具体层、Prefill 与 Decode。选中框或连线后，可在右侧解释中对照变量来源和去向。
 
 ## 内容
 
@@ -21,7 +29,7 @@ V4.1 的逐层图是完整展开的迁移示范。其他模型用机制章节展
 需要 Node.js 22+ 和 pnpm 11.9.0。
 
 ```sh
-pnpm install
+pnpm install --frozen-lockfile
 pnpm dev
 ```
 
@@ -36,9 +44,12 @@ pnpm test:e2e
 
 本机 E2E 默认使用 Chrome；CI 使用 Playwright Chromium。生产预览使用 `pnpm preview`。浏览器测试会启动自己的预览服务，运行前先构建。
 
+`pnpm check` 一次执行类型检查、单元测试和生产构建。`pnpm format:check` 检查格式；GitHub CI 还会运行浏览器测试。
+
 ## 阅读与交互
 
 - 左侧选模型和机制，图旁步骤列表直接定位模块。
+- 左右栏独立收起；在展开按钮上停留可预览并完整操作，预览跳转后收回，固定展开后才保持显示。
 - 拖空白区域平移；机制图滚轮缩放；完整逐层图滚轮上下平移，使用缩放按钮或触控板捏合缩放。
 - Prefill 是 N 行并行计算；Decode 是当前位置 t 的一行，历史来自缓存。
 - 图内节点可拖动、边缘可调整尺寸；连线可调整路径。保存布局只写本浏览器，不修改模型事实。
@@ -46,6 +57,8 @@ pnpm test:e2e
 - 完整 V4.1 图点击模块可查看右侧解释：真实输入输出、变量字典和计算过程。面板独立占位；关闭后不再随点击自动打开，点击“显示解释”恢复。窄屏改为上下对照。
 - “来源与公式”抽屉保留官方配置、推理代码与必要数学关系。
 - 链接中的 `#model=v3&chapter=mla` 可直接定位章节。小屏保留可读缩放，通过平移阅读大图。
+
+布局不会自动跨设备同步。本地地址和云端地址使用不同的浏览器存储，切换地址不会自动带入之前保存的布局；清除网站数据也会清除本地保存。
 
 ## 目录
 
@@ -72,6 +85,6 @@ docs/                        内容边界、扩展与部署说明
 
 代码使用 MIT 许可证。V4.1 可编辑图源自 OasisMind，保留原版权；详见 [第三方说明](THIRD_PARTY_NOTICES.md)。本仓库不包含模型权重、用户文章、账号凭据或运行数据库。
 
-部署到 GitHub Pages 或任意静态托管，见 [部署说明](docs/deployment.md)。
+现有云端站点由 Sites 托管。也可以将 `dist/` 部署到 GitHub Pages 或其他静态托管服务，见 [部署说明](docs/deployment.md)。
 
 本机测试范围与性能数据见 [验收记录](docs/verification.md)。
