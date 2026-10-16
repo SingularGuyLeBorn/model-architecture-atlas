@@ -2,6 +2,8 @@ import { test, expect } from "@playwright/test";
 
 test("Indexer 来源、候选列归约与 S 行列含义", async ({ page }) => {
   test.setTimeout(120000);
+  const runtimeErrors: string[] = [];
+  page.on("pageerror", (error) => runtimeErrors.push(error.message));
   await page.setViewportSize({ width: 2600, height: 2200 });
   await page.goto("/#model=v41&chapter=layer");
   await page.getByRole("button", { name: "收起左栏", exact: true }).click();
@@ -31,6 +33,12 @@ test("Indexer 来源、候选列归约与 S 行列含义", async ({ page }) => {
       "每一行独立选 Top-K",
     );
     await expect(node.locator(".katex-error")).toHaveCount(0);
+    await expect(
+      node.locator("[data-index-matmul-scores] [data-vector-cell]"),
+    ).toHaveCount(9);
+    await expect(node.locator("[data-index-token-matmul]")).toContainText(
+      "A 随 Query 改变",
+    );
     await page.evaluate(
       () =>
         new Promise((resolve) =>
@@ -39,7 +47,7 @@ test("Indexer 来源、候选列归约与 S 行列含义", async ({ page }) => {
     );
     const problems = await node
       .locator(
-        "[data-index-score-column], [data-index-projection], [data-index-result-flow]",
+        "[data-index-score-column], [data-index-projection], [data-index-result-flow], [data-index-score-matmul], [data-index-matmul-weight], [data-index-matmul-scores], [data-index-matmul-result]",
       )
       .evaluateAll((regions) =>
         regions.flatMap((region) => {
@@ -76,8 +84,10 @@ test("Indexer 来源、候选列归约与 S 行列含义", async ({ page }) => {
     for (const gap of gaps) expect(gap).toBeLessThan(2);
     for (const [name, selector] of [
       ["sources", "[data-index-projections]"],
+      ["matmul", "[data-index-score-matmul]"],
       ["scores", "[data-index-score-columns]"],
       ["matrix", "[data-index-result-flow]"],
+      ["score-overview", "[data-index-score-process]"],
     ] as const) {
       const target = node.locator(selector);
       const bounds = (await target.boundingBox())!;
@@ -96,4 +106,24 @@ test("Indexer 来源、候选列归约与 S 行列含义", async ({ page }) => {
       });
     }
   }
+  // 窄屏只改变可视画布，不缩字或裁切内部矩阵；可平移阅读完整运算。
+  await page.setViewportSize({ width: 900, height: 1000 });
+  const node = page.locator('.react-flow__node[data-id="indexer"]');
+  const overflow = await node
+    .locator("[data-index-matmul-operands]")
+    .evaluate((region) => {
+      const bounds = region.getBoundingClientRect();
+      return [...region.querySelectorAll<HTMLElement>("[aria-label]")].some(
+        (el) => {
+          const b = el.getBoundingClientRect();
+          return (
+            b.left < bounds.left - 1 ||
+            b.right > bounds.right + 1 ||
+            b.bottom > bounds.bottom + 1
+          );
+        },
+      );
+    });
+  expect(overflow).toBe(false);
+  expect(runtimeErrors).toEqual([]);
 });

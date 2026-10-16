@@ -41,8 +41,39 @@ describe("RMSNorm 的逐行结构与来源", () => {
     ]
       .map((element) => element.getAttribute("aria-label")!)
       .filter((tex) => tex.startsWith("\\eta") && tex.includes("a^I"));
-    expect(products).toHaveLength(9);
-    expect(products.every((tex) => tex.includes("\\cdot a^I"))).toBe(true);
+    // Head 分支输出未加权分数；η 只在矩阵乘法及其逐列展开中应用。
+    expect(products).toHaveLength(0);
+    const matmul = root.querySelector("[data-index-score-matmul]")!;
+    expect(matmul).not.toBeNull();
+    expect(
+      matmul.querySelectorAll("[data-index-matmul-weight] [data-vector-cell]"),
+    ).toHaveLength(3);
+    expect(
+      matmul.querySelectorAll("[data-index-matmul-scores] [data-vector-cell]"),
+    ).toHaveLength(9);
+    expect(
+      matmul.querySelectorAll("[data-index-matmul-result] [data-vector-cell]"),
+    ).toHaveLength(3);
+    const matrixTex = [...matmul.querySelectorAll("[aria-label]")].map((el) =>
+      el.getAttribute("aria-label"),
+    );
+    expect(matrixTex).toEqual(
+      expect.arrayContaining([
+        "1\\times32",
+        "32\\times M",
+        "1\\times M",
+        "(A^I_{15,t})_{h,i}:=a^I_{h,t,i}",
+        "\\boldsymbol\\eta_{15,t}\\times A^I_{15,t}=\\mathbf s_{15,t}",
+      ]),
+    );
+    for (const h of [1, 2, 32]) {
+      expect(matrixTex).toContain(`\\eta_{15,t,${h}}`);
+      for (const i of ["1", "2", "M"])
+        expect(matrixTex).toContain(`a^I_{${h},t,${i}}`);
+    }
+    expect(
+      root.querySelector("[data-index-token-matmul]")?.textContent,
+    ).toContain("A 随 Query 改变");
     expect(
       root.querySelector("[data-index-symbol-guide]")?.textContent,
     ).toContain("当前 token");

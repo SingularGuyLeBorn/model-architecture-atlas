@@ -521,7 +521,10 @@ describe("mHC 与 Engram 的真实主路径", () => {
         e.getAttribute("data-index-head"),
       ),
     ).toEqual(["1", "2", "32"]);
-    expect(root.querySelectorAll("[data-index-head-weight]")).toHaveLength(3);
+    expect(root.querySelectorAll("[data-index-score-matmul]")).toHaveLength(1);
+    expect(
+      root.querySelectorAll("[data-index-matmul-weight] [data-vector-cell]"),
+    ).toHaveLength(3);
     expect(formulas).toContain(
       "s_{15,t,i}=\\sum_{h=1}^{32}\\eta_{15,t,h}\\cdot a^I_{h,t,i}",
     );

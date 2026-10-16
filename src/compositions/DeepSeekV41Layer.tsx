@@ -1,5 +1,8 @@
 import { frameColor } from "../components/diagram-appearance";
-import { IndexScoreColumns } from "../components/IndexScoreColumns";
+import {
+  IndexScoreColumns,
+  IndexScoreMatrix,
+} from "../components/IndexScoreColumns";
 import { inspectInternalTarget } from "../components/internal-selection";
 import {
   MathFormula,
@@ -3229,7 +3232,7 @@ export function IndexScoreProcess({
       data-index-score-process
       style={{ display: "grid", gap: 7, fontSize: 13 }}
     >
-      <ModuleHeading>③ 每个索引 Head 打分 → 32 路加权求和</ModuleHeading>
+      <ModuleHeading>③ 每个索引 Head 打分 → 权重行乘分数矩阵</ModuleHeading>
       <div data-index-symbol-guide>
         t 是当前 token 的位置；i 是压缩缓存行号；h 是索引 Head 编号。
         <MathFormula tex="\eta" />
@@ -3300,41 +3303,11 @@ export function IndexScoreProcess({
                 tone="green"
               />
               <span>ReLU：负分置 0，正分保留</span>
-              <div
-                data-index-head-weight={h}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 24px 1fr",
-                  alignItems: "center",
-                  gap: 5,
-                }}
-              >
-                <Box tone="amber">
-                  <MathFormula tex={`\\eta_{${layer},t,${h}}`} />
-                </Box>
-                <Operator tex="\times" />
-                <Box tone="green">
-                  <MathFormula tex={`\\mathbf a_{${h},t}^{I}`} />
-                </Box>
-              </div>
-              <Operator tex="\downarrow" />
-              <VectorStrip
-                name=""
-                nameWidth={0}
-                length="M"
-                elementTex={(i) =>
-                  `\\eta_{${layer},t,${h}}\\cdot a^I_{${h},t,${i}}`
-                }
-                tone="green"
-              />
             </div>
           </React.Fragment>
         ))}
       </div>
-      <div style={{ textAlign: "center" }}>
-        取上方各 Head 加权结果的同一列，分别沿 Head 轴求和（展示 1、2、32，省略
-        3–31）：
-      </div>
+      <IndexScoreMatrix layer={layer} />
       <IndexScoreColumns layer={layer} />
       <div
         data-index-result-flow
@@ -3362,6 +3335,12 @@ export function IndexScoreProcess({
               : "各 token 分别计算一行，按 token 顺序组成"}{" "}
             <MathFormula tex={`S_{${layer}}`} />
             ；M 是压缩缓存的候选行数。
+          </div>
+          <div data-index-token-matmul>
+            每个 token 使用自己的{" "}
+            <MathFormula tex={`\\boldsymbol\\eta_{${layer},t}`} />
+            和 <MathFormula tex={`A^I_{${layer},t}`} />
+            ；A 随 Query 改变，不能让所有 token 共用同一份 A。
           </div>
         </div>
         <RowMatrix
