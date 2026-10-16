@@ -6,9 +6,9 @@
 
 ## 在线访问
 
-[打开在线站点](https://model-architecture-atlas.justfox32.chatgpt.site) · [直达 V4.1 逐层图](https://model-architecture-atlas.justfox32.chatgpt.site/#model=v41&chapter=layer)
+[打开在线站点](https://0966b7ac.pinme.dev) · [直达 V4.1 逐层图](https://0966b7ac.pinme.dev/#model=v41&chapter=layer) · [GitHub 源码](https://github.com/SingularGuyLeBorn/model-architecture-atlas)
 
-当前云端站点为私有访问，需要使用站点所有者的账号登录。代码仓库的可见性与网站访问权限分别管理；拿到链接不等于获得访问权限。无需在线账号也可以下载源码，在本机运行。
+网站免登录，GitHub 仓库公开。主入口由 PinMe 托管，[Sites 备用入口](https://model-architecture-atlas.justfox32.chatgpt.site)也已开放匿名访问。大陆不同运营商的可用性尚未完成验证，不能据部署成功保证所有网络都可访问。也可以下载源码，在本机运行。
 
 推荐先选模型与机制章节，再进入 V4.1 逐层图查看具体层、Prefill 与 Decode。选中框或连线后，可在右侧解释中对照变量来源和去向。
 
@@ -85,6 +85,6 @@ docs/                        内容边界、扩展与部署说明
 
 代码使用 MIT 许可证。V4.1 可编辑图源自 OasisMind，保留原版权；详见 [第三方说明](THIRD_PARTY_NOTICES.md)。本仓库不包含模型权重、用户文章、账号凭据或运行数据库。
 
-现有云端站点由 Sites 托管。也可以将 `dist/` 部署到 GitHub Pages 或其他静态托管服务，见 [部署说明](docs/deployment.md)。
+现有主站由 PinMe 托管，Sites 保留备用入口。也可以将 `dist/` 部署到 GitHub Pages 或其他静态托管服务，见 [部署说明](docs/deployment.md)。
 
 本机测试范围与性能数据见 [验收记录](docs/verification.md)。

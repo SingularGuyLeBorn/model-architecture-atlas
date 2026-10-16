@@ -2,12 +2,28 @@
 
 ## 当前云端站点
 
-- 地址：https://model-architecture-atlas.justfox32.chatgpt.site
-- 托管：Sites；静态产物目录为 `dist/`。
-- 访问：仅站点所有者登录后可访问。GitHub 仓库公开与否不会自动改变网站权限。
+- 主站：https://0966b7ac.pinme.dev
+- 备用：https://model-architecture-atlas.justfox32.chatgpt.site
+- 托管：PinMe 主站、Sites 备用；静态产物目录为 `dist/`。
+- 访问：两个网站均开放匿名访问；GitHub 仓库为公开仓库。
+- 源码：https://github.com/SingularGuyLeBorn/model-architecture-atlas
 - 站点身份与发布目录记录在 `.openai/hosting.json`；该文件不包含登录凭据。
 
-GitHub 保存源码，Sites 托管网站，两者相互独立。推送 GitHub 不会自动更新 Sites；修改页面后，需要单独发布新的 Sites 版本。只修改 README 等不参与构建的文档，不改变已上线页面。
+GitHub 保存源码，PinMe 和 Sites 托管网站。推送 GitHub 不会自动更新这两个网站；修改页面后，需要单独发布。只修改 README 等不参与构建的文档，不改变已上线页面。
+
+## PinMe 发布
+
+本次使用 PinMe 2.0.12，上传已通过测试的 `dist/`，不上传源码、凭据或运行数据：
+
+```sh
+pinme login
+pnpm check
+pinme upload dist
+```
+
+发布者需要登录 PinMe，访问网站的读者不需要登录。凭据过期时重新执行 `pinme login`，不要把 AppKey 写入仓库。以每次上传输出的 URL 为准，不假定后续上传会更新原地址；域名绑定可能涉及余额，需单独确认。
+
+当前产物对应应用源码提交 `89810a9`，后续提交仅更新发布文档。大陆不同运营商的可用性尚未完成验证；本机请求成功不代表所有大陆网络均可直连。官方用法见 [PinMe 项目](https://github.com/glitternetwork/pinme)。
 
 ## 静态部署
 
