@@ -150,6 +150,7 @@ export function VectorStrip({
   nameLineHeight,
   outlineSelection = true,
   contentWidth = false,
+  columnSubgrid = false,
 }: {
   name: string;
   length: string;
@@ -162,6 +163,7 @@ export function VectorStrip({
   nameLineHeight?: number;
   outlineSelection?: boolean;
   contentWidth?: boolean;
+  columnSubgrid?: boolean;
 }) {
   const palette = tonePalette(selected ? "amber" : tone);
   const columns = displayedColumns ?? ["1", "2", "\\cdots", length];
@@ -172,10 +174,13 @@ export function VectorStrip({
       data-vector-selected={selected || undefined}
       style={{
         minWidth: 0,
-        width: contentWidth ? "max-content" : undefined,
+        width: contentWidth && !columnSubgrid ? "max-content" : undefined,
         maxWidth: contentWidth ? "100%" : undefined,
         display: "grid",
-        gridTemplateColumns: `${nameWidth ?? (compact ? 52 : 92)}px ${contentWidth ? "max-content" : "minmax(0,1fr)"}`,
+        gridColumn: columnSubgrid ? "1 / -1" : undefined,
+        gridTemplateColumns: columnSubgrid
+          ? "subgrid"
+          : `${nameWidth ?? (compact ? 52 : 92)}px ${contentWidth ? "max-content" : "minmax(0,1fr)"}`,
         gap: 5,
         alignItems: "center",
         padding: compact ? 2 : 5,
@@ -205,17 +210,20 @@ export function VectorStrip({
         style={{
           minWidth: 0,
           display: "grid",
-          gridTemplateColumns: columns
-            .map((column) =>
-              contentWidth
-                ? column === "\\cdots"
-                  ? "24px"
-                  : "max-content"
-                : column === "\\cdots"
-                  ? ".55fr"
-                  : "minmax(0,1fr)",
-            )
-            .join(" "),
+          gridColumn: columnSubgrid ? "2 / -1" : undefined,
+          gridTemplateColumns: columnSubgrid
+            ? "subgrid"
+            : columns
+                .map((column) =>
+                  contentWidth
+                    ? column === "\\cdots"
+                      ? "24px"
+                      : "max-content"
+                    : column === "\\cdots"
+                      ? ".55fr"
+                      : "minmax(0,1fr)",
+                )
+                .join(" "),
           gap: 3,
         }}
       >
@@ -362,6 +370,8 @@ export function RowMatrix({
   contentWidth?: boolean;
 }) {
   const palette = tonePalette(tone);
+  const columns = elementColumns ?? ["1", "2", "\\cdots", rowLength ?? "5120"];
+  const columnSubgrid = contentWidth && Boolean(elementTex && rowLength);
   return (
     <div
       data-expanded-tensor
@@ -390,10 +400,25 @@ export function RowMatrix({
         <MathFormula tex={tex} />
         <MathFormula tex={shape} />
       </div>
-      <div style={{ display: "grid", gap: 3 }}>
+      <div
+        style={{
+          display: "grid",
+          gap: 3,
+          gridTemplateColumns: columnSubgrid
+            ? `52px ${columns.map((column) => (column === "\\cdots" ? "24px" : "max-content")).join(" ")}`
+            : undefined,
+        }}
+      >
         {rows.map((row, index) =>
           row === "\\vdots" ? (
-            <div key={index} style={{ textAlign: "center", fontSize: 9 }}>
+            <div
+              key={index}
+              style={{
+                gridColumn: columnSubgrid ? "1 / -1" : undefined,
+                textAlign: "center",
+                fontSize: 9,
+              }}
+            >
               <MathFormula tex={row} />
             </div>
           ) : elementTex && rowLength ? (
@@ -407,6 +432,7 @@ export function RowMatrix({
               selected={selected === index}
               compact
               contentWidth={contentWidth}
+              columnSubgrid={columnSubgrid}
             />
           ) : (
             <div

@@ -1252,21 +1252,29 @@ export function MhcPre({
         ))}
       </div>
       <SumJunction count={4} />
-      <RowMatrix
-        tex={sublayer === "A" ? `H_{${layer}}^{\\mathrm{in}}` : `H_{${layer}}'`}
-        shape={`${count}\\times5120`}
-        rows={
-          count === "1"
-            ? ["\\mathbf h_t"]
-            : ["\\mathbf h_1", "\\mathbf h_2", "\\vdots", "\\mathbf h_N"]
-        }
-        rowLength="5120"
-        elementTex={(i, j) =>
-          `h_{${count === "1" ? "t" : ["1", "2", "", "N"][i]},${j}}`
-        }
-      />
+      <div
+        data-mhc-pre-output
+        style={{ justifySelf: "center", maxWidth: "100%" }}
+      >
+        <RowMatrix
+          contentWidth
+          tex={
+            sublayer === "A" ? `H_{${layer}}^{\\mathrm{in}}` : `H_{${layer}}'`
+          }
+          shape={`${count}\\times5120`}
+          rows={
+            count === "1"
+              ? ["\\mathbf h_t"]
+              : ["\\mathbf h_1", "\\mathbf h_2", "\\vdots", "\\mathbf h_N"]
+          }
+          rowLength="5120"
+          elementTex={(i, j) =>
+            `h_{${count === "1" ? "t" : ["1", "2", "", "N"][i]},${j}}`
+          }
+        />
+      </div>
       {/* [OM-FREEPLAY] 单个特征的数值例子说明加权汇合，不代表真实激活。 */}
-      <span>
+      <span style={{ justifySelf: "center" }}>
         单元素例：
         <MathFormula
           tex={
