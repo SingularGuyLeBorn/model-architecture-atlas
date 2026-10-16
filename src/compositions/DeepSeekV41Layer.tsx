@@ -4193,7 +4193,6 @@ export function Expert({
           style={{
             display: "grid",
             gridTemplateColumns: "minmax(0,1fr) 24px minmax(0,1fr)",
-            gridTemplateRows: "auto minmax(0,1fr)",
             columnGap: 6,
             alignItems: "start",
           }}
@@ -4202,35 +4201,14 @@ export function Expert({
           <div
             data-expert-down-multiply
             style={{
-              position: "relative",
               display: "grid",
               placeItems: "center",
               alignSelf: "stretch",
             }}
           >
             <Operator tex="\times" />
-            <svg
-              aria-hidden
-              viewBox="0 0 24 100"
-              preserveAspectRatio="none"
-              style={{
-                position: "absolute",
-                top: "calc(50% + 13px)",
-                width: "100%",
-                height: "calc(50% - 13px)",
-                display: "block",
-              }}
-            >
-              <path
-                vectorEffect="non-scaling-stroke"
-                d="M12 0 V100"
-                fill="none"
-                stroke={color}
-                strokeWidth="1.5"
-              />
-            </svg>
           </div>
-          <div style={{ gridColumn: 3, gridRow: "1 / 3", minWidth: 0 }}>
+          <div style={{ gridColumn: 3, minWidth: 0 }}>
             {matrix(
               `W_{${layer},${weightIndex}}^{\\mathrm{down}}`,
               "w^{\\mathrm{down}}",
@@ -4239,38 +4217,20 @@ export function Expert({
               true,
             )}
           </div>
-          <div
-            aria-hidden
-            style={{
-              gridColumn: 2,
-              gridRow: 2,
-              alignSelf: "stretch",
-              position: "relative",
-            }}
-          >
-            <svg
-              viewBox="0 0 24 100"
-              preserveAspectRatio="none"
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                display: "block",
-              }}
-            >
-              <path
-                vectorEffect="non-scaling-stroke"
-                d="M12 0 V100"
-                fill="none"
-                stroke={color}
-                strokeWidth="1.5"
-              />
-            </svg>
-          </div>
         </div>
-        {connector("down")}
-        {matrix(`${expertTex}(Y_{${layer}})`, "o", count, "5120")}
+        <div
+          data-expert-down-result
+          style={{
+            display: "grid",
+            gridTemplateColumns: "24px minmax(0,1fr)",
+            gap: 6,
+            marginTop: 8,
+            alignItems: "center",
+          }}
+        >
+          <Operator tex="=" />
+          {matrix(`${expertTex}(Y_{${layer}})`, "o", count, "5120")}
+        </div>
       </div>
       <span style={{ fontSize: 11, color: COLORS.muted }}>
         <MathFormula tex="d_e" />

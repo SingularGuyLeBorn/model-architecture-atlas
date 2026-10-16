@@ -133,4 +133,26 @@ test("窄通道的箭头在选中与缩放时保持比例且正常进入专家�
   await expect(experts.locator("[data-silu-operand]")).toHaveCount(8);
   await expect(experts.locator("[data-sigmoid-steps]")).toHaveCount(0);
   await experts.screenshot({ path: "artifacts/moe-experts-compact.png" });
+  for (const mode of ["Prefill", "Decode"]) {
+    await page.getByRole("button", { name: new RegExp(mode) }).click();
+    await page
+      .getByRole("combobox", { name: "定位模块" })
+      .selectOption("experts");
+    await expect(experts.locator("[data-expert-down-result]")).toHaveCount(4);
+    await expect(
+      experts.locator("[data-expert-down-projection] svg"),
+    ).toHaveCount(0);
+    for (const result of await experts
+      .locator("[data-expert-down-result]")
+      .all()) {
+      await expect(result.locator('[aria-label="="]')).toHaveCount(1);
+      await expect(result.locator("[data-expert-matrix]")).toBeVisible();
+    }
+    await experts
+      .locator("[data-expert-structure]")
+      .first()
+      .screenshot({
+        path: `artifacts/expert-down-${mode.toLowerCase()}.png`,
+      });
+  }
 });

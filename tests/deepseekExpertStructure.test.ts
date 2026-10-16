@@ -20,7 +20,7 @@ describe("专家内部矩阵乘法与 SiLU 数据流", () => {
         "[data-expert-down-projection]",
       )!;
       expect(projection.style.display).toBe("grid");
-      expect(projection.children).toHaveLength(4);
+      expect(projection.children).toHaveLength(3);
       expect(projection.children[0].getAttribute("data-expert-matrix")).toMatch(
         /^C_\{29,/,
       );
@@ -34,6 +34,19 @@ describe("专家内部矩阵乘法与 SiLU 数据流", () => {
           .querySelector("[data-expert-matrix]")
           ?.getAttribute("data-expert-matrix"),
       ).toContain("\\mathrm{down}");
+      expect(projection.querySelector("svg")).toBeNull();
+      const result = projection.nextElementSibling!;
+      expect(result.hasAttribute("data-expert-down-result")).toBe(true);
+      expect(
+        result.children[0].getAttribute("aria-label") ??
+          result.children[0]
+            .querySelector("[aria-label]")
+            ?.getAttribute("aria-label"),
+      ).toBe("=");
+      expect(result.children[1].getAttribute("data-expert-matrix")).toContain(
+        "(Y_{29})",
+      );
+      expect(result.querySelector("svg")).toBeNull();
       expect(
         root.querySelector<HTMLElement>("[data-expert-structure]")!.style
           .height,
