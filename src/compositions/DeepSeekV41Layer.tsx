@@ -40,8 +40,7 @@ import {
   MhcJointNorm,
   MhcProjection,
   MhcGate,
-  SigmoidSteps,
-  MHC_AFFINE_TONES,
+  SigmoidDefinition,
   MhcSinkhorn,
 } from "../components/MhcCoefficientStages";
 import { BookOpen } from "lucide-react";
@@ -1155,7 +1154,7 @@ export function MhcMix({
         }}
       >
         <div style={{ display: "grid", gap: 12, minWidth: 0 }}>
-          <SigmoidSteps inputTone={MHC_AFFINE_TONES.result} />
+          <SigmoidDefinition />
           <div
             data-mhc-pq-parallel
             style={{

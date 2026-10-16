@@ -5,7 +5,7 @@ import {
   MhcGate,
   MhcSinkhorn,
   MhcProjection,
-  SigmoidSteps,
+  SigmoidDefinition,
   MHC_AFFINE_TONES,
 } from "../src/components/MhcCoefficientStages";
 import {
@@ -34,7 +34,7 @@ function color(tone: DiagramTone) {
 }
 
 it.each(["p", "q"] as const)(
-  "%s 的 s、b、a 区分颜色，a 的消费端沿用结果色",
+  "%s 的 s、b、a 区分颜色，四个门控元素用等式计算",
   (kind) => {
     const root = render(createElement(MhcGate, { kind, children: null }));
     const offset = kind === "p" ? 0 : 4;
@@ -47,8 +47,18 @@ it.each(["p", "q"] as const)(
       ]);
       expect(backgrounds(root, `a^{${kind}}_${j}`)).toEqual([
         color(MHC_AFFINE_TONES.result),
-        color(MHC_AFFINE_TONES.result),
       ]);
+      const equations = root.querySelector("[data-mhc-gate-equations]")!;
+      const formulas = [...equations.querySelectorAll("[aria-label]")].map(
+        (node) => node.getAttribute("aria-label"),
+      );
+      expect(formulas).toContain(`v^{${kind}}_${j}=\\sigma(a^{${kind}}_${j})`);
+      expect(formulas).toContain(
+        kind === "p"
+          ? `p_${j}=v^p_${j}+\\epsilon_{HC}`
+          : `q_${j}=2\\cdot v^q_${j}`,
+      );
+      expect(formulas.some((tex) => tex?.includes("arrow"))).toBe(false);
     }
     expect(new Set(Object.values(MHC_AFFINE_TONES)).size).toBe(3);
   },
@@ -72,7 +82,7 @@ it("C 的偏置矩阵、结果矩阵与展开行继承各自语义色", () => {
     }
 });
 
-it("图例与 sigmoid 输入沿用 mHC 结果色，SiLU 的 z 不被改色", () => {
+it("图例保留语义色，sigmoid 使用单个定义且没有算术箭头链", () => {
   const legend = render(
     createElement(MhcProjection, { layer: 15, sub: "A" }),
   ).querySelector<HTMLElement>("[data-mhc-affine-legend]")!;
@@ -84,8 +94,12 @@ it("图例与 sigmoid 输入沿用 mHC 结果色，SiLU 的 z 不被改色", () 
     expect(backgrounds(legend, symbol)).toEqual([
       color(MHC_AFFINE_TONES[role]),
     ]);
-  const sigmoid = render(<SigmoidSteps inputTone={MHC_AFFINE_TONES.result} />);
-  expect(backgrounds(sigmoid, "a")).toEqual([color(MHC_AFFINE_TONES.result)]);
-  const silu = render(<SigmoidSteps input="z" vertical />);
-  expect(backgrounds(silu, "z")).toEqual([color("amber")]);
+  const sigmoid = render(<SigmoidDefinition />);
+  expect(
+    [...sigmoid.querySelectorAll("[aria-label]")].map((node) =>
+      node.getAttribute("aria-label"),
+    ),
+  ).toEqual(["\\sigma(a)=\\frac{1}{1+e^{-a}}"]);
+  expect(sigmoid.querySelector("[data-sigmoid-steps]")).toBeNull();
+  expect(sigmoid.querySelector(".katex-error")).toBeNull();
 });

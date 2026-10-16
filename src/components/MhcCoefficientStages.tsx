@@ -91,9 +91,7 @@ export function MhcFlatten({ layer, stage }: { layer: number; stage: string }) {
           </div>
         ))}
       </div>
-      <span>
-        将同一 token 的第 1、2、3、4 路向量首尾相接，组成一行。
-      </span>
+      <span>将同一 token 的第 1、2、3、4 路向量首尾相接，组成一行。</span>
       <MathFormula tex="f_{t,(c-1)5120+d}=h_{c,d},\quad c=1,2,3,4,\ d=1,\ldots,5120" />
     </section>
   );
@@ -392,25 +390,20 @@ export function MhcGate({
         ))}
       </div>
       <span>a 是缩放、加偏置后的中间值，上标 p、q 分别标识两个分支。</span>
-      <div style={{ ...grid4, gap: 6 }}>
+      <div data-mhc-gate-equations style={{ ...grid4, gap: 6 }}>
         {copies.map((j) => (
           <div key={j} style={{ display: "grid", gap: 6, textAlign: "center" }}>
-            <Box tone={MHC_AFFINE_TONES.result}>
-              <MathFormula tex={`a^{${kind}}_${j}`} />
-            </Box>
-            <Operator tex="\downarrow\;\sigma" />
             <Box tone="cyan">
-              <MathFormula tex={`v^{${kind}}_${j}`} />
+              <MathFormula tex={`v^{${kind}}_${j}=\\sigma(a^{${kind}}_${j})`} />
             </Box>
-            <Operator
-              tex={
-                kind === "p"
-                  ? "\\downarrow\\; +\\epsilon_{HC}"
-                  : "\\downarrow\\;\\times 2"
-              }
-            />
             <Box tone={kind === "p" ? "green" : "rose"}>
-              <MathFormula tex={`${kind}_${j}`} />
+              <MathFormula
+                tex={
+                  kind === "p"
+                    ? `p_${j}=v^p_${j}+\\epsilon_{HC}`
+                    : `q_${j}=2\\cdot v^q_${j}`
+                }
+              />
             </Box>
           </div>
         ))}
@@ -425,58 +418,22 @@ export function MhcGate({
   );
 }
 
-export function SigmoidSteps({
-  input = "a",
-  vertical = false,
-  inputTone = "amber",
-}: { input?: string; vertical?: boolean; inputTone?: DiagramTone } = {}) {
-  const arrow = (label: string) =>
-    vertical ? `\\downarrow\\;${label}` : `\\xrightarrow{${label}}`;
+export function SigmoidDefinition() {
   return (
     <div
-      data-mhc-sigmoid={!vertical || undefined}
-      data-sigmoid-steps={input}
+      data-mhc-sigmoid
       style={{
         ...group,
         gap: 8,
-        ...(vertical ? { padding: 4, border: "none" } : {}),
       }}
     >
-      {!vertical && (
-        <strong>两条分支都使用同一个 σ：对每个 a 单独做以下运算</strong>
-      )}
+      <strong>Sigmoid · 对每个 a 单独计算</strong>
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: vertical
-            ? "max-content"
-            : "minmax(48px,max-content) 80px minmax(48px,max-content) 80px minmax(64px,max-content) 80px minmax(80px,max-content) 80px minmax(96px,max-content)",
-          gap: 6,
-          justifyContent: "center",
-          alignItems: "center",
+          justifySelf: "center",
         }}
       >
-        <Box tone={inputTone}>
-          <MathFormula tex={input} />
-        </Box>
-        <Operator tex={arrow("\\times(-1)")} />
-        <Box tone={inputTone}>
-          <MathFormula tex={`-${input}`} />
-        </Box>
-        <Operator tex={arrow("\\exp")} />
-        <Box tone="cyan">
-          <MathFormula tex={`e^{-${input}}`} />
-        </Box>
-        <Operator tex={arrow("+1")} />
-        <Box tone="cyan">
-          <MathFormula tex={`1+e^{-${input}}`} />
-        </Box>
-        <Operator tex={arrow("1\\div")} />
-        <Box tone="cyan">
-          <MathFormula
-            tex={vertical ? `\\sigma(${input})` : `v=\\sigma(${input})`}
-          />
-        </Box>
+        <MathFormula tex="\sigma(a)=\frac{1}{1+e^{-a}}" />
       </div>
     </div>
   );

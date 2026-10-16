@@ -44,7 +44,7 @@ test("mHC 标量不撑满宽栏，归一化与投影横向接续", async ({ page
         ),
         squareCells: widths("[data-mhc-square-element] > div"),
         divisionCells: widths("[data-mhc-normalized-element] > div"),
-        sigmoidCells: widths("[data-mhc-sigmoid] > div > div"),
+        sigmoidWidth: widths("[data-mhc-sigmoid] > div")[0],
         normBeforeProjection: norm.right < projection.left,
         preparationOverlapsY:
           norm.top < projection.bottom && projection.top < norm.bottom,
@@ -65,11 +65,21 @@ test("mHC 标量不撑满宽栏，归一化与投影横向接续", async ({ page
     for (const cells of [
       measurements.squareCells,
       measurements.divisionCells,
-      measurements.sigmoidCells,
     ]) {
       expect(cells.length).toBeGreaterThan(0);
       expect(cells.every((width) => width <= 120)).toBe(true);
     }
+    expect(measurements.sigmoidWidth).toBeLessThan(220);
+    await expect(
+      root.locator("[data-mhc-sigmoid] [aria-label]"),
+    ).toHaveAttribute("aria-label", "\\sigma(a)=\\frac{1}{1+e^{-a}}");
+    const gateFormulas = await root
+      .locator("[data-mhc-gate-equations] [aria-label]")
+      .evaluateAll((nodes) =>
+        nodes.map((node) => node.getAttribute("aria-label")),
+      );
+    expect(gateFormulas).toHaveLength(16);
+    expect(gateFormulas.some((tex) => tex?.includes("arrow"))).toBe(false);
     expect(measurements.normBeforeProjection).toBe(true);
     expect(measurements.preparationOverlapsY).toBe(true);
     expect(measurements.pqSameY).toBe(true);
@@ -77,6 +87,10 @@ test("mHC 标量不撑满宽栏，归一化与投影横向接续", async ({ page
     console.log(`mHC ${layer} 紧凑尺寸`, measurements);
     if (layer === 15) {
       await root.screenshot({ path: "artifacts/mhc-compact-full.png" });
+      await root
+        .locator("[data-mhc-gate-branches] > div")
+        .first()
+        .screenshot({ path: "artifacts/mhc-sigmoid-symbols.png" });
       await root
         .locator("[data-mhc-sinkhorn] > div")
         .first()
