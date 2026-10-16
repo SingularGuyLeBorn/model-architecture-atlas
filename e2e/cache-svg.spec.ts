@@ -72,6 +72,7 @@ test("缓存示例五步：结构、旁注、宽窄屏、完整 SVG 与离线打
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "导出 SVG", exact: true }).click();
   const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("V41-token-101-layer-3-4-decode.svg");
   const file = path.resolve("artifacts/cache-101.svg");
   await download.saveAs(file);
   const xml = await readFile(file, "utf8");

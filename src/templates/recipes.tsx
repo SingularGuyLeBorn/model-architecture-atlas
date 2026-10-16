@@ -33,6 +33,7 @@ export type Stage = {
 export type RecipeLink = { source: string; target: string; tex: string };
 export type Recipe = {
   introduction: string;
+  exportName?: string;
   stages: Stage[];
   links: RecipeLink[];
   references: { title: string; url: string }[];

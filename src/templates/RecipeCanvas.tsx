@@ -360,7 +360,7 @@ export function RecipeCanvas({
         <div className="canvas-toolbar">
           <DiagramExportButton
             getRoot={() => canvasRef.current}
-            name={storageKey}
+            name={recipe.exportName ?? storageKey}
           />
           <button onClick={save}>保存布局</button>
           <button onClick={undo}>撤销</button>

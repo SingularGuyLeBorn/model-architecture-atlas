@@ -467,6 +467,7 @@ export function cacheDecodeRecipe(references: Recipe["references"]): Recipe {
     },
   ];
   return {
+    exportName: "V41-token-101-layer-3-4-decode",
     introduction:
       "固定 Decode 示例：t=101，前 100 个 token 已缓存。第 3 层 Full → 第 4 层 Reuse；区分时间复用与跨层复用。左侧步骤可定位，框内右侧是同步旁注。",
     stages,
