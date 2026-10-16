@@ -20,11 +20,12 @@ export function CompressorProjections({
   const branches = ratio === 2 ? (["kv", "gate"] as const) : (["kv"] as const);
   return (
     <section data-compressor-projections style={{ display: "grid", gap: 10 }}>
-      <div>
-        <MathFormula tex={`X_{${layer}}`} /> 的第 t 行分别乘训练得到的参数矩阵。
+      <div data-compressor-parameter-origin>
+        <MathFormula tex={`X_{${layer}}`} /> 是上游计算结果，取第 t 行作为输入。
         {ratio === 2
-          ? "两条投影并行，读取同一个输入；此处仍逐 token 输出，尚未合并两行。"
-          : "压缩比 1：只有 KV 投影，没有 gate 分支。"}
+          ? "两份 W 是分别存储和优化的独立参数，互不由对方计算而来；两条投影并行。"
+          : "W 是独立参数，直接从模型权重加载；压缩比 1 没有 gate 分支。"}
+        本层所有 token 使用同一份 W，输出随输入变化。
       </div>
       <div
         style={{
@@ -60,6 +61,12 @@ export function CompressorProjections({
                 }}
               >
                 <div data-projection-input>
+                  <div
+                    data-tensor-origin="activation"
+                    style={{ textAlign: "center", marginBottom: 4 }}
+                  >
+                    上游计算结果
+                  </div>
                   <RowMatrix
                     tex={`\\mathbf x_{${layer},t}`}
                     shape="1\times5120"
@@ -72,6 +79,9 @@ export function CompressorProjections({
                 <Operator tex="\times" />
                 <div data-projection-weight>
                   <Box tone="indigo" expanded>
+                    <div data-tensor-origin="independent-parameter">
+                      独立参数 · 直接加载
+                    </div>
                     <TensorHeading
                       name={`W_{${layer}}^{${sup}}`}
                       shape="5120\times512"
@@ -101,6 +111,7 @@ export function CompressorProjections({
                 <Operator tex="=" />
                 <div data-projection-output>
                   <Box tone={branch === "kv" ? "green" : "amber"} expanded>
+                    <div data-tensor-origin="activation">计算结果 · x × W</div>
                     <TensorHeading name={output} shape="1\times512" />
                     <VectorStrip
                       name=""
@@ -116,7 +127,8 @@ export function CompressorProjections({
                 </div>
               </div>
               <div data-projection-column-definition>
-                每个 w 框代表 W 的一整列（5120 个元素）：
+                每个 w 框是 W 的一列（5120
+                个元素），属于原参数的切片，不是额外参数：
                 <MathFormula
                   tex={`(\\mathbf w_{${layer},j}^{${sup}})_d:=(W_{${layer}}^{${sup}})_{d,j}`}
                 />

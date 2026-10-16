@@ -9,6 +9,10 @@ describe("压缩器的整行投影与单列点积", () => {
       <CompressorProjections layer={layer} ratio={layer === 21 ? 1 : 2} />,
     );
     expect(root.querySelector(".katex-error")).toBeNull();
+    expect(
+      root.querySelector("[data-compressor-parameter-origin]")?.textContent,
+    ).toContain("独立参数");
+    expect(root.textContent).not.toContain("训练得到");
     expect(root.querySelectorAll("[data-compressor-projection]")).toHaveLength(
       layer === 21 ? 1 : 2,
     );
@@ -19,6 +23,20 @@ describe("压缩器的整行投影与单列点积", () => {
       const sup = gate ? "\\mathrm{gate}" : "KV,c";
       const resultSup = gate ? "\\mathrm{gate}" : "c";
       const scalar = gate ? "a" : "v";
+      expect(
+        branch.querySelector(
+          '[data-projection-weight] [data-tensor-origin="independent-parameter"]',
+        ),
+      ).not.toBeNull();
+      expect(
+        branch.querySelector(
+          '[data-projection-output] [data-tensor-origin="activation"]',
+        ),
+      ).not.toBeNull();
+      expect(
+        branch.querySelector("[data-projection-column-definition]")
+          ?.textContent,
+      ).toContain("原参数的切片");
       const formulas = (selector: string) =>
         [...branch.querySelectorAll(`${selector} [aria-label]`)].map((el) =>
           el.getAttribute("aria-label"),
