@@ -58,7 +58,14 @@ test("解释面板显式开关、独立占位、滚轮平移与 mHC 结构验收
   await expect(pane.getByRole("heading", { level: 2 })).toContainText(
     "控制系数",
   );
-  await expect(pane).toContainText("变量字典");
+  await expect(pane.locator(".inspector-prose > p").first()).toContainText(
+    "四路残差",
+  );
+  await expect(pane.locator("dl,h3,h4,ul,ol,.inspector-formula")).toHaveCount(
+    0,
+  );
+  await expect(pane).not.toContainText("变量字典");
+  await pane.screenshot({ path: "artifacts/inspector-prose-mhc.png" });
   const frame = await mix.boundingBox(),
     panel = await pane.boundingBox();
   expect(frame!.x + frame!.width).toBeLessThanOrEqual(panel!.x + 1);
@@ -81,6 +88,7 @@ test("解释面板显式开关、独立占位、滚轮平移与 mHC 结构验收
   await expect(pane.getByRole("heading", { level: 2 })).toContainText(
     "本层独立 KV",
   );
+  await pane.screenshot({ path: "artifacts/inspector-prose-kv.png" });
   const before = await page
     .locator(".react-flow__viewport")
     .getAttribute("style");
@@ -104,6 +112,9 @@ test("解释面板显式开关、独立占位、滚轮平移与 mHC 结构验收
     await page.locator(".react-flow__viewport").getAttribute("style"),
   ).toBe(after);
   await page.setViewportSize({ width: 390, height: 844 });
+  await pane.locator(".inspector-scroll").evaluate((el) => {
+    el.scrollTop = 0;
+  });
   const narrowCanvas = await page
     .locator(".diagram-interaction-surface")
     .boundingBox();
@@ -115,6 +126,9 @@ test("解释面板显式开关、独立占位、滚轮平移与 mHC 结构验收
     390,
   );
   await page.screenshot({ path: "artifacts/module-inspector-mobile.png" });
+  expect(await pane.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
+    true,
+  );
   await expect(page.locator(".katex-error")).toHaveCount(0);
   const timings = await page.evaluate(
     () => (window as unknown as { inspectorTimes: number[] }).inspectorTimes,

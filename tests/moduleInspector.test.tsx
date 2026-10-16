@@ -32,8 +32,12 @@ describe("模块解释的显式开关", () => {
     );
     for (const data of kinds.values()) {
       const result = explainModule(data);
-      expect(result.summary.length).toBeGreaterThan(20);
-      expect(result.variables.length).toBeGreaterThan(2);
+      expect(result.paragraphs.length).toBeGreaterThanOrEqual(2);
+      for (const paragraph of result.paragraphs) {
+        expect(paragraph.length).toBeGreaterThan(50);
+        expect(paragraph.endsWith("。")).toBe(true);
+        expect(paragraph).not.toMatch(/@L|@N|@SUB/);
+      }
       const html = renderToStaticMarkup(
         createElement(ModuleInspector, {
           data,
@@ -42,8 +46,54 @@ describe("模块解释的显式开关", () => {
         }),
       );
       expect(html).not.toContain("katex-error");
+      const root = document.createElement("div");
+      root.innerHTML = html;
+      expect(root.querySelectorAll(".inspector-prose > p")).toHaveLength(
+        result.paragraphs.length,
+      );
+      expect(
+        root.querySelector("dl,h3,h4,ul,ol,.inspector-formula"),
+      ).toBeNull();
+      expect(root.textContent).not.toContain("变量字典");
     }
   });
+});
+
+it("旁注把变量、形状和消费关系写进段落，并随层号及模式更新", () => {
+  const text = explainModule({
+    kind: "hc-mix",
+    layer: 15,
+    sublayer: "F",
+    phase: "decode",
+  }).paragraphs.join("\n");
+  for (const term of [
+    "1\\times4\\times5120",
+    "W_{15}^{HC,F}",
+    "s_1",
+    "b_j",
+    "a^p_j",
+    "C^{(1)}",
+    "\\mathbf r_j",
+    "下一层 Attention",
+    "Decode",
+  ])
+    expect(text).toContain(term);
+  const html = renderToStaticMarkup(
+    createElement(ModuleInspector, {
+      data: { kind: "projection-q", layer: 29 },
+      connections: [
+        { id: "in", direction: "in", other: "输入归一化", label: "X_{29}" },
+        { id: "out", direction: "out", other: "Head 分块", label: "Q_{29}" },
+      ],
+      onClose: () => {},
+    }),
+  );
+  const root = document.createElement("div");
+  root.innerHTML = html;
+  expect(root.querySelectorAll(".inspector-connection-prose")).toHaveLength(2);
+  expect(root.textContent).toContain("本模块从“输入归一化”接收");
+  expect(root.textContent).toContain("本模块向“Head 分块”传递");
+  expect(root.querySelector(".katex-error")).toBeNull();
 });
 
 it("mHC 拼接、归一化、三段 u、仿射与分支运算均展开成结构", () => {

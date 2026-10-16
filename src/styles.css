@@ -780,8 +780,7 @@ h1 {
   /* 模块独立布局；不启用 paint containment，端口和外侧标签不得被裁切。 */
   contain: layout style;
 }
-.inspector-variables > div,
-.module-inspector article {
+.inspector-prose > p {
   /* [OM-FREEPLAY] 仅跳过屏幕外文字的排版，滚入时恢复；100px 是初次滚动条占位估计。 */
   content-visibility: auto;
   contain-intrinsic-block-size: auto 100px;
@@ -839,83 +838,25 @@ h1 {
   font-size: 11px;
   letter-spacing: 0.04em;
 }
-.inspector-summary {
+.inspector-prose {
+  margin: 16px 0 24px;
   font-size: 14px;
-  line-height: 1.85;
-  margin: 12px 0 24px;
+  line-height: 1.95;
+  overflow-wrap: anywhere;
 }
-.module-inspector h3 {
-  font-size: 13px;
-  letter-spacing: 0.06em;
-  margin: 26px 0 12px;
-  color: #40665a;
+.inspector-prose p {
+  margin: 0 0 1.25em;
 }
-.inspector-connections {
-  display: grid;
-  gap: 8px;
-}
-.inspector-connections > div {
-  display: grid;
-  gap: 5px;
-  padding: 10px 12px;
-  background: #f0f2ed;
-  border-radius: 8px;
-  font-size: 13px;
-}
-.inspector-connections span {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: #627269;
-}
-.inspector-connections small {
-  font-size: 11px;
-  color: #747e76;
-}
-.inspector-variables {
-  margin: 0;
-}
-.inspector-variables > div {
-  padding: 12px 0;
-  border-bottom: 1px solid #e9e5dd;
-}
-.inspector-variables dt {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  justify-content: space-between;
-  font-size: 15px;
+.inspector-inline-math {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+  overflow-x: auto;
+  overflow-y: hidden;
   color: #345e50;
 }
-.inspector-variables dt small {
-  font-size: 11px;
-  color: #7a8179;
-}
-.inspector-variables dd {
-  margin: 7px 0 0;
-  font-size: 13px;
-  line-height: 1.8;
-}
-.module-inspector article {
-  margin: 18px 0;
-}
-.module-inspector h4 {
-  font-size: 13px;
-  margin: 0 0 8px;
-}
-.module-inspector article p {
-  font-size: 13px;
-  line-height: 1.85;
-  margin: 0 0 10px;
-}
-.inspector-formula {
-  overflow-x: auto;
-  padding: 12px 10px;
-  border-left: 2px solid #9db2a6;
-  background: #f1f2ed;
-  font-size: 13px;
+.inspector-connection-prose {
+  color: #627269;
 }
 .module-inspector footer {
   display: flex;
