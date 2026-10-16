@@ -1,0 +1,5 @@
+allowBuilds:
+  esbuild: true
+overrides:
+  # React Flow 的间接依赖原锁为 1.2；1.6 明确支持本项目的 React 19。
+  use-sync-external-store: 1.6.0

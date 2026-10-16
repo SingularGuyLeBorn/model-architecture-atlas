@@ -1,0 +1,38 @@
+[
+  {
+    "id": "DeepSeek-V4.1-Flash",
+    "revision": "5254448103b6254fc646dacbca1cbbf20e9216c1",
+    "url": "https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/5254448103b6254fc646dacbca1cbbf20e9216c1/config.json",
+    "checkedAt": "2026-10-16"
+  },
+  {
+    "id": "DeepSeek-V4-Flash",
+    "revision": "60d8d70770c6776ff598c94bb586a859a38244f1",
+    "url": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash/blob/60d8d70770c6776ff598c94bb586a859a38244f1/config.json",
+    "checkedAt": "2026-10-16"
+  },
+  {
+    "id": "DeepSeek-V4-Pro",
+    "revision": "b5968e9190ef611bbf34a7229255be88a0e937c1",
+    "url": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro/blob/b5968e9190ef611bbf34a7229255be88a0e937c1/config.json",
+    "checkedAt": "2026-10-16"
+  },
+  {
+    "id": "DeepSeek-V3",
+    "revision": "e815299b0bcbac849fa540c768ef21845365c9eb",
+    "url": "https://huggingface.co/deepseek-ai/DeepSeek-V3/blob/e815299b0bcbac849fa540c768ef21845365c9eb/config.json",
+    "checkedAt": "2026-10-16"
+  },
+  {
+    "id": "DeepSeek-V3.1",
+    "revision": "c0781d039fb7a1ba2abc4add0bdc293e92d2b8db",
+    "url": "https://huggingface.co/deepseek-ai/DeepSeek-V3.1/blob/c0781d039fb7a1ba2abc4add0bdc293e92d2b8db/config.json",
+    "checkedAt": "2026-10-16"
+  },
+  {
+    "id": "DeepSeek-R1",
+    "revision": "56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad",
+    "url": "https://huggingface.co/deepseek-ai/DeepSeek-R1/blob/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad/config.json",
+    "checkedAt": "2026-10-16"
+  }
+]
