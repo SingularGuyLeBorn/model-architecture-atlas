@@ -30,6 +30,11 @@ describe("RMSNorm 的逐行结构与来源", () => {
       3,
     );
     expect(root.querySelector('[aria-label="Y"]')).not.toBeNull();
+    expect(root.querySelectorAll("[data-rmsnorm-stage]")).toHaveLength(2);
+    expect(root.querySelector("[data-rmsnorm-root-result]")).not.toBeNull();
+    expect(root.querySelector("[data-rmsnorm-broadcast]")).not.toBeNull();
+    expect(root.querySelectorAll("[data-sum-input]")).toHaveLength(3);
+    expect(root.querySelector("[data-sum-circle]")).not.toBeNull();
     expect(root.querySelector(".katex-error")).toBeNull();
   });
   it.each([128, 512, 1280, 5120])(
@@ -94,6 +99,27 @@ describe("RMSNorm 的逐行结构与来源", () => {
     expect(
       graph.edges.find((edge) => edge.id === "q-low-rank-indexer"),
     ).toMatchObject({ source: "q-rmsnorm", target: "indexer" });
+  });
+
+  it("三个投影分支使用可读宽度并保留独立通道，不重叠", () => {
+    for (const layer of [1, 15, 29]) {
+      const graph = buildGraph(layer);
+      const branches = ["q", "kv", "compressor"]
+        .map((id) => graph.nodes.find((node) => node.id === id))
+        .filter((node) => node !== undefined);
+      for (const node of branches)
+        expect(Number(node.style?.width)).toBeGreaterThanOrEqual(800);
+      for (let index = 1; index < branches.length; index++) {
+        const previous = branches[index - 1],
+          current = branches[index];
+        expect(
+          current.position.x -
+            previous.position.x -
+            Number(previous.style?.width),
+        ).toBeGreaterThanOrEqual(100);
+        expect(current.position.y).toBe(previous.position.y);
+      }
+    }
   });
 
   it("保存布局不能用旧高度压住新内容；新增子阶段重排父组并更新语义出线", () => {

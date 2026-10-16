@@ -25,6 +25,7 @@ import React, {
   useContext,
   useDeferredValue,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -535,6 +536,41 @@ export function RmsNormProcess({
     rowIndex ?? (rowCount === "M" ? "i" : phase === "decode" ? "t" : "s");
   const indices = rowCount === "1" ? [row] : ["1", "2", "\\vdots", rowCount];
   const columns = ["1", "2", String(dimension)];
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const rootResultRef = useRef<HTMLDivElement>(null);
+  const broadcastRef = useRef<HTMLDivElement>(null);
+  const [transfer, setTransfer] = useState<{
+    path: string;
+    arrow: string;
+  } | null>(null);
+  useLayoutEffect(() => {
+    if (!horizontal) return;
+    const layout = layoutRef.current,
+      source = rootResultRef.current,
+      target = broadcastRef.current;
+    if (!layout || !source || !target) return;
+    const measure = () => {
+      const bounds = layout.getBoundingClientRect();
+      if (!bounds.width || !layout.offsetWidth) return;
+      const scale = bounds.width / layout.offsetWidth;
+      const from = source.getBoundingClientRect(),
+        to = target.getBoundingClientRect();
+      const x1 = (from.right - bounds.left) / scale,
+        y1 = (from.top + from.height / 2 - bounds.top) / scale;
+      const x2 = (to.left - bounds.left) / scale,
+        y2 = (to.top + to.height / 2 - bounds.top) / scale;
+      const mid = (x1 + x2) / 2;
+      const path = `M${x1} ${y1} H${mid} V${y2} H${x2}`;
+      const arrow = `M${x2 - 6} ${y2 - 5} L${x2} ${y2} L${x2 - 6} ${y2 + 5}`;
+      setTransfer((current) =>
+        current?.path === path ? current : { path, arrow },
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    for (const element of [layout, source, target]) observer.observe(element);
+    return () => observer.disconnect();
+  }, [horizontal]);
   const matrix = (tex: string, symbol: string, tone: "blue" | "green") => (
     <RowMatrix
       tex={tex}
@@ -578,83 +614,139 @@ export function RmsNormProcess({
         本框输入行记作 z，输出行记作 y；每行独立计算
       </span>
       <div
+        ref={layoutRef}
         data-rmsnorm-layout={horizontal ? "horizontal" : "vertical"}
         style={{
+          position: "relative",
           display: "grid",
-          gridTemplateColumns: horizontal ? "1fr 26px 1fr" : "1fr",
+          gridTemplateColumns: horizontal
+            ? "minmax(0,1fr) 38px minmax(0,1fr)"
+            : "minmax(0,1fr)",
           gap: 8,
           alignItems: "start",
         }}
       >
-        <div style={{ display: "grid", gap: 5 }}>
+        <div
+          data-rmsnorm-stage="root"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0,1fr)",
+            gap: 5,
+            minWidth: 0,
+          }}
+        >
+          {horizontal && <strong style={{ fontSize: 11 }}>① 本行均方根</strong>}
           {matrix(input, "z", "blue")}
           <FlowStep>
             <MathFormula tex={`\\mathbf z_{${row}}`} /> 沿本行特征轴展开
           </FlowStep>
-          <div
-            data-rmsnorm-square
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 26px 1fr",
-              alignItems: "center",
-              gap: 5,
-              textAlign: "center",
-            }}
-          >
-            {columns.map((column, index) => (
-              <React.Fragment key={column}>
-                {index === 2 && <Operator tex="\cdots" />}
-                <div style={{ display: "grid", gap: 3 }}>
-                  <Box tone="blue">
-                    <MathFormula tex={`z_{${row},${column}}`} />
-                  </Box>
-                  <Operator tex="\downarrow\;(\cdot)^2" />
-                  <Box tone="green">
-                    <MathFormula tex={`z_{${row},${column}}^2`} />
-                  </Box>
-                </div>
-              </React.Fragment>
-            ))}
-          </div>
-          <FlowStep>本行全部 {dimension} 个平方值汇入均值</FlowStep>
-          <div
-            data-rmsnorm-reduction
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 22px 1fr",
-              gap: 5,
-              alignItems: "center",
-            }}
-          >
-            <Box tone="green">
-              <MathFormula
-                tex={`m_{${row}}=\\frac{1}{${dimension}}\\sum_{j=1}^{${dimension}}z_{${row},j}^{2}`}
-              />
-            </Box>
-            <Operator tex="\to" />
-            <Box tone="green">
-              <MathFormula tex={`r_{${row}}=\\sqrt{m_{${row}}+\\varepsilon}`} />
-            </Box>
+          <div style={{ display: "grid", gap: 0 }}>
+            <div
+              data-rmsnorm-square
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3,minmax(0,1fr))",
+                alignItems: "center",
+                position: "relative",
+                textAlign: "center",
+              }}
+            >
+              {columns.map((column) => (
+                <React.Fragment key={column}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gap: 3,
+                      padding: "0 4px",
+                      minWidth: 0,
+                    }}
+                  >
+                    <Box tone="blue">
+                      <MathFormula tex={`z_{${row},${column}}`} />
+                    </Box>
+                    <Operator tex="\downarrow\;(\cdot)^2" />
+                    <Box tone="green">
+                      <MathFormula tex={`z_{${row},${column}}^2`} />
+                    </Box>
+                  </div>
+                </React.Fragment>
+              ))}
+              <span
+                style={{
+                  position: "absolute",
+                  left: "66.6667%",
+                  top: "50%",
+                  transform: "translate(-50%,-50%)",
+                }}
+              >
+                <MathFormula tex="\cdots" />
+              </span>
+            </div>
+            <SumJunction count={3} />
+            <div
+              data-rmsnorm-reduction
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0,1fr)",
+                gap: 3,
+                alignItems: "center",
+              }}
+            >
+              <Box tone="green">
+                <MathFormula
+                  tex={`m_{${row}}=\\frac{1}{${dimension}}\\sum_{j=1}^{${dimension}}z_{${row},j}^{2}`}
+                />
+              </Box>
+              <Operator tex="\downarrow" />
+              <div ref={rootResultRef} data-rmsnorm-root-result>
+                <Box tone="green">
+                  <MathFormula
+                    tex={`r_{${row}}=\\sqrt{m_{${row}}+\\varepsilon}`}
+                  />
+                </Box>
+              </div>
+            </div>
           </div>
         </div>
-        {horizontal && <Operator tex="\to" />}
-        <div style={{ display: "grid", gap: 5 }}>
-          <FlowStep>
-            <MathFormula tex={`r_{${row}}`} /> 广播回本行每个元素
-          </FlowStep>
+        {horizontal && <div aria-hidden />}
+        <div
+          data-rmsnorm-stage="scale"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0,1fr)",
+            gap: 5,
+            minWidth: 0,
+          }}
+        >
+          {horizontal && (
+            <strong style={{ fontSize: 11 }}>
+              ② 用①的结果归一化{gamma ? "与缩放" : ""}
+            </strong>
+          )}
+          <div ref={broadcastRef} data-rmsnorm-broadcast>
+            {horizontal ? (
+              <Box tone="green">
+                <MathFormula tex={`r_{${row}}`} /> · 广播回本行每个元素
+              </Box>
+            ) : (
+              <FlowStep>
+                <MathFormula tex={`r_{${row}}`} /> 广播回本行每个元素
+              </FlowStep>
+            )}
+          </div>
           <div
             data-rmsnorm-scale
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr 26px 1fr",
-              gap: 5,
+              gridTemplateColumns: "repeat(3,minmax(0,1fr))",
+              position: "relative",
+              gap: 3,
               textAlign: "center",
               alignItems: "center",
             }}
           >
-            {columns.map((column, index) => (
+            {columns.map((column) => (
               <React.Fragment key={column}>
-                {index === 2 && <Operator tex="\cdots" />}
                 <div style={{ display: "grid", gap: 4 }}>
                   <div
                     data-rmsnorm-operands
@@ -702,6 +794,16 @@ export function RmsNormProcess({
                 </div>
               </React.Fragment>
             ))}
+            <span
+              style={{
+                position: "absolute",
+                left: "66.6667%",
+                top: "55%",
+                transform: "translate(-50%,-50%)",
+              }}
+            >
+              <MathFormula tex="\cdots" />
+            </span>
           </div>
           {gamma ? (
             <div
@@ -726,6 +828,33 @@ export function RmsNormProcess({
           <FlowStep>各输出行组成</FlowStep>
           {matrix(output, "y", "green")}
         </div>
+        {horizontal && transfer && (
+          <svg
+            data-rmsnorm-transfer
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              overflow: "visible",
+              pointerEvents: "none",
+            }}
+          >
+            <path
+              d={transfer.path}
+              fill="none"
+              stroke={COLORS.green}
+              strokeWidth={1.5}
+            />
+            <path
+              d={transfer.arrow}
+              fill="none"
+              stroke={COLORS.green}
+              strokeWidth={1.5}
+            />
+          </svg>
+        )}
       </div>
       {/* [OM-FREEPLAY] 四维小例子只解释运算；实际宽度以上方 d 为准。 */}
       <div
@@ -733,8 +862,10 @@ export function RmsNormProcess({
         style={{
           borderTop: `1px solid ${COLORS.line}`,
           paddingTop: 7,
-          display: "grid",
-          gap: 4,
+          display: horizontal ? "flex" : "grid",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: horizontal ? "4px 14px" : 4,
           fontSize: 12,
         }}
       >
@@ -2145,6 +2276,7 @@ function RotaryProcess({
   layer,
   inverse = false,
   dimension = 512,
+  compact = false,
 }: {
   input: string;
   output: string;
@@ -2152,17 +2284,22 @@ function RotaryProcess({
   layer: number;
   inverse?: boolean;
   dimension?: 128 | 512;
+  compact?: boolean;
 }) {
   const compressed = modeForLayer(layer) !== "swa";
   const unchanged = dimension - 64;
   return (
     <div
       data-rotary-process={inverse ? "inverse" : "forward"}
+      data-rotary-layout={compact ? "side-detail" : "stacked"}
       style={{
         border: `1px solid ${COLORS.amber}`,
         borderRadius: 9,
         padding: 10,
         display: "grid",
+        gridTemplateColumns: compact
+          ? "minmax(0,1fr) minmax(0,1.1fr)"
+          : "minmax(0,1fr)",
         gap: 9,
         fontSize: 12,
         minWidth: 0,
@@ -2171,6 +2308,7 @@ function RotaryProcess({
       <div
         style={{
           display: "flex",
+          gridColumn: "1 / -1",
           justifyContent: "space-between",
           alignItems: "baseline",
           gap: 8,
@@ -2184,6 +2322,7 @@ function RotaryProcess({
       <div
         style={{
           display: "grid",
+          gridColumn: "1 / -1",
           gridTemplateColumns: "1fr 24px 1fr",
           alignItems: "center",
           gap: 6,
@@ -2197,7 +2336,14 @@ function RotaryProcess({
           <MathFormula tex={output} />
         </Box>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+      <div
+        style={{
+          gridColumn: "1 / -1",
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
         <span>元素 1–{unchanged}：原样传递</span>
         <span>
           元素 {unchanged + 1}–{dimension}：32 对
@@ -2257,8 +2403,10 @@ function RotaryProcess({
       </div>
       <div
         style={{
-          borderTop: `1px solid ${COLORS.line}`,
-          paddingTop: 8,
+          borderTop: compact ? undefined : `1px solid ${COLORS.line}`,
+          borderLeft: compact ? `1px solid ${COLORS.line}` : undefined,
+          paddingLeft: compact ? 10 : undefined,
+          paddingTop: compact ? 0 : 8,
           display: "grid",
           gap: 5,
         }}
@@ -2327,7 +2475,11 @@ function RotaryProcess({
       {/* [OM-FREEPLAY] 用第一对元素和位置 1 演示旋转，非真实模型激活值。 */}
       <div
         data-rope-example
-        style={{ borderTop: `1px solid ${COLORS.line}`, paddingTop: 6 }}
+        style={{
+          gridColumn: "1 / -1",
+          borderTop: `1px solid ${COLORS.line}`,
+          paddingTop: 6,
+        }}
       >
         例：
         <MathFormula
@@ -2671,6 +2823,7 @@ function LocalKvProjection({ layer }: { layer: number }) {
           rowCount={count}
           gamma={`\\boldsymbol\\gamma_{${layer}}^{KV}`}
           label="本地 KV"
+          horizontal
         />
         <FlowStep>归一化结果按每行自身位置旋转</FlowStep>
         <RotaryProcess
@@ -2678,6 +2831,7 @@ function LocalKvProjection({ layer }: { layer: number }) {
           output={`\\mathbf u_{${layer},${phase === "prefill" ? "s" : "t"}}`}
           position={phase === "prefill" ? "s-1" : "t-1"}
           layer={layer}
+          compact
         />
         <FlowStep>
           {phase === "prefill"
@@ -4483,6 +4637,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           rowCount={count}
           gamma={`\\boldsymbol\\gamma_{${layer},1}`}
           label="Attention 输入"
+          horizontal
         />
       </div>
     );
@@ -4499,6 +4654,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           rowCount={count}
           gamma={`\\boldsymbol\\gamma_{${layer},2}`}
           label="FFN 输入"
+          horizontal
         />
       </div>
     );
@@ -4515,6 +4671,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           rowCount={count}
           gamma={`\\boldsymbol\\gamma_{${layer}}^Q`}
           label="Query 低秩投影"
+          horizontal
         />
         <FlowStep>归一化结果进入下方升维投影</FlowStep>
       </div>
@@ -5034,6 +5191,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 rowIndex="i"
                 gamma={`\\boldsymbol\\gamma_{${layer}}^c`}
                 label="压缩 KV"
+                horizontal
               />
               <FlowStep>
                 <MathFormula tex={`\\bar G_{${layer}}`} /> 分支送入
@@ -5044,6 +5202,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 output={`\\mathbf g_{${layer},i}`}
                 position={`(i-1)\\cdot ${ratio}`}
                 layer={layer}
+                compact
               />
             </>
           ) : (
@@ -6989,7 +7148,7 @@ export function buildGraph(
       ),
       data: { kind: "hc-mix", layer, mode, sublayer: "A" },
     },
-    node("norm1", "norm1", layer, mode, 450, norm1Y, 700, norm1Height),
+    node("norm1", "norm1", layer, mode, 400, norm1Y, 800, norm1Height),
     {
       ...node(
         "q",
@@ -7011,7 +7170,7 @@ export function buildGraph(
       mode,
       920,
       projectionY,
-      500,
+      800,
       localKvProjectionHeight,
     ),
     node(
@@ -7057,7 +7216,7 @@ export function buildGraph(
       ),
       data: { kind: "hc-mix", layer, mode, sublayer: "F" },
     },
-    node("norm2", "norm2", layer, mode, 450, norm2Y, 700, norm2Height),
+    node("norm2", "norm2", layer, mode, 400, norm2Y, 800, norm2Height),
     node("moe-input", "moe-input", layer, mode, 715, moeInputY, 170, 80),
     node("router", "router", layer, mode, 320, routerY, 960, routerHeight),
     node(
@@ -7470,9 +7629,9 @@ export function buildGraph(
         "compressor",
         layer,
         mode,
-        1450,
+        1820,
         projectionY,
-        480,
+        800,
         compressorHeight,
       ),
     );
