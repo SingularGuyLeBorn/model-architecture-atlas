@@ -56,9 +56,12 @@ it("mHC 拼接、归一化、三段 u、仿射与分支运算均展开成结构"
     root.querySelector("[data-mhc-concat-segments]")?.children,
   ).toHaveLength(4);
   expect(root.querySelector("[data-mhc-u-segments]")?.children).toHaveLength(3);
-  expect(root.querySelector("[data-mhc-gate-branches]")?.children).toHaveLength(
-    3,
+  expect(root.querySelector("[data-mhc-pq-parallel]")?.children).toHaveLength(
+    2,
   );
+  expect(
+    root.querySelector("[data-mhc-gate-branches] > [data-mhc-sinkhorn]"),
+  ).not.toBeNull();
   expect(
     root.querySelector("[data-mhc-column-normalize] [data-stacked-sum]"),
   ).not.toBeNull();

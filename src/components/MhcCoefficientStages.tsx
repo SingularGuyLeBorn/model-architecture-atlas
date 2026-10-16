@@ -107,16 +107,29 @@ export function MhcJointNorm() {
           alignItems: "center",
         }}
       >
-        <div style={{ display: "grid", gap: 6 }}>
+        <div
+          style={{
+            display: "grid",
+            gap: 6,
+            width: "100%",
+            maxWidth: 350,
+            justifySelf: "center",
+          }}
+        >
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3,minmax(0,1fr))",
+              gridTemplateColumns: "repeat(3,minmax(0,110px))",
               gap: 10,
+              justifyContent: "center",
             }}
           >
             {columns.map((d) => (
-              <div key={d} style={{ display: "grid", gap: 6 }}>
+              <div
+                key={d}
+                data-mhc-square-element
+                style={{ display: "grid", gap: 6 }}
+              >
                 <Box tone="blue">
                   <MathFormula tex={`f_{t,${d}}`} />
                 </Box>
@@ -132,8 +145,10 @@ export function MhcJointNorm() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 22px 1fr 22px 1fr",
+              gridTemplateColumns:
+                "max-content 22px max-content 22px max-content",
               gap: 6,
+              justifyContent: "center",
               alignItems: "center",
             }}
           >
@@ -166,8 +181,10 @@ export function MhcJointNorm() {
               data-mhc-normalized-element
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 20px 1fr 20px 1fr",
+                gridTemplateColumns:
+                  "minmax(60px,max-content) 20px minmax(50px,max-content) 20px minmax(75px,max-content)",
                 gap: 6,
+                justifyContent: "center",
                 alignItems: "center",
               }}
             >
@@ -400,8 +417,10 @@ export function SigmoidSteps() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 75px 1fr 75px 1fr 75px 1fr 75px 1fr",
+          gridTemplateColumns:
+            "minmax(48px,max-content) 80px minmax(48px,max-content) 80px minmax(64px,max-content) 80px minmax(80px,max-content) 80px minmax(96px,max-content)",
           gap: 6,
+          justifyContent: "center",
           alignItems: "center",
         }}
       >
@@ -543,13 +562,18 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
         </div>
         <section data-mhc-column-normalize style={group}>
           <strong>② 每列分别除以本列之和 · 展开第 1 列</strong>
-          <StackedSum>
-            {copies.map((k) => (
-              <Box key={k} tone="violet">
-                <MathFormula tex={`T_{${k}1}`} />
-              </Box>
-            ))}
-          </StackedSum>
+          <div
+            data-mhc-compact-column
+            style={{ width: 168, maxWidth: "100%", justifySelf: "center" }}
+          >
+            <StackedSum>
+              {copies.map((k) => (
+                <Box key={k} tone="violet">
+                  <MathFormula tex={`T_{${k}1}`} />
+                </Box>
+              ))}
+            </StackedSum>
+          </div>
           <Operator tex="\downarrow\; +\epsilon_{HC}" />
           <Box tone="violet">
             <MathFormula tex="d^{col}_1=T_{11}+T_{21}+T_{31}+T_{41}+\epsilon_{HC}" />
@@ -559,8 +583,10 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
               key={k}
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 20px 1fr 20px 1fr",
+                gridTemplateColumns:
+                  "minmax(64px,max-content) 20px max-content 20px minmax(76px,max-content)",
                 gap: 4,
+                justifyContent: "center",
                 alignItems: "center",
               }}
             >

@@ -1106,20 +1106,42 @@ export function MhcMix({
         mHC 系数生成 · Layer {layer} · {sublayer === "A" ? "Attention" : "FFN"}
       </strong>
       <MhcFlatten layer={layer} stage={source} />
-      <MhcJointNorm />
-      <MhcProjection layer={layer} sub={sublayer} />
-      <SigmoidSteps />
+      <div
+        data-mhc-preparation
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0,1fr) 52px minmax(0,1.15fr)",
+          gap: 12,
+          alignItems: "center",
+        }}
+      >
+        <MhcJointNorm />
+        <Operator tex="\xrightarrow{\bar{\mathbf f}_t}" />
+        <MhcProjection layer={layer} sub={sublayer} />
+      </div>
       <div
         data-mhc-gate-branches
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) minmax(0,2fr)",
+          gridTemplateColumns: "repeat(2,minmax(0,1fr))",
           gap: 16,
           alignItems: "start",
         }}
       >
-        <MhcGate kind="p">{coefficient("p")}</MhcGate>
-        <MhcGate kind="q">{coefficient("q")}</MhcGate>
+        <div style={{ display: "grid", gap: 12, minWidth: 0 }}>
+          <SigmoidSteps />
+          <div
+            data-mhc-pq-parallel
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2,minmax(0,1fr))",
+              gap: 12,
+            }}
+          >
+            <MhcGate kind="p">{coefficient("p")}</MhcGate>
+            <MhcGate kind="q">{coefficient("q")}</MhcGate>
+          </div>
+        </div>
         <MhcSinkhorn>{coefficient("C")}</MhcSinkhorn>
       </div>
     </div>
@@ -7411,7 +7433,7 @@ export function buildGraph(
         mode,
         HC_COEFFICIENT_X,
         preAY,
-        2640,
+        2240,
         mixAHeight,
       ),
       data: { kind: "hc-mix", layer, mode, sublayer: "A" },
@@ -7479,7 +7501,7 @@ export function buildGraph(
         mode,
         HC_COEFFICIENT_X,
         preFY,
-        2640,
+        2240,
         mixFHeight,
       ),
       data: { kind: "hc-mix", layer, mode, sublayer: "F" },
