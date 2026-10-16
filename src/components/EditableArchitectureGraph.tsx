@@ -521,6 +521,11 @@ export function sharedRouteLength(first: XYPosition[], second: XYPosition[]) {
   return total;
 }
 
+function routeComplexityScore(pointCount: number, length: number) {
+  // 已合并同向共线点；无碰撞、无拥挤时先比较折点，长度只用于同折点数的择优。
+  return pointCount * 8 + length / (1 + length);
+}
+
 function routeScore(
   points: XYPosition[],
   obstacles: Obstacle[],
@@ -535,17 +540,15 @@ function routeScore(
       Math.abs(points[index].x - points[index - 1].x) +
       Math.abs(points[index].y - points[index - 1].y);
   // 长度与折点已经给出成本下界；劣于当前解的候选无需再逐个检查全图障碍。
-  if (length + points.length * 8 >= upperBound) return Infinity;
+  const complexity = routeComplexityScore(points.length, length);
+  if (complexity >= upperBound) return Infinity;
   for (let index = 0; index < points.length - 1; index += 1) {
     const start = points[index];
     const end = points[index + 1];
     // 所有代价非负：一旦不可能优于已有路线，停止检查剩余障碍和线段；评分规则不变。
     for (const obstacle of obstacles) {
       if (segmentCrossesObstacle(start, end, obstacle)) crossings += 1;
-      if (
-        crossings * 100_000_000 + crowding + length + points.length * 8 >=
-        upperBound
-      )
+      if (crossings * 100_000_000 + crowding + complexity >= upperBound)
         return Infinity;
     }
     const horizontal = start.y === end.y;
@@ -583,14 +586,11 @@ function routeScore(
         })
       )
         crowding += 800;
-      if (
-        crossings * 100_000_000 + crowding + length + points.length * 8 >=
-        upperBound
-      )
+      if (crossings * 100_000_000 + crowding + complexity >= upperBound)
         return Infinity;
     }
   }
-  return crossings * 100_000_000 + crowding + length + points.length * 8;
+  return crossings * 100_000_000 + crowding + complexity;
 }
 
 function defaultOrthogonalPoints(
@@ -728,10 +728,10 @@ function defaultOrthogonalPoints(
     }
   };
   for (const candidate of candidates) consider(candidate);
-  const minimumScore =
-    Math.abs(sourceX - targetX) +
-    Math.abs(sourceY - targetY) +
-    (sourceX === targetX || sourceY === targetY ? 2 : 3) * 8;
+  const minimumScore = routeComplexityScore(
+    sourceX === targetX || sourceY === targetY ? 2 : 3,
+    Math.abs(sourceX - targetX) + Math.abs(sourceY - targetY),
+  );
   if (bestScore <= minimumScore) return best;
   for (const x of nearX)
     for (const y of nearY) {
@@ -740,7 +740,7 @@ function defaultOrthogonalPoints(
         Math.abs(x - targetX) +
         Math.abs(sourceY - y) +
         Math.abs(y - targetY);
-      if (minimumLength + 16 >= bestScore) continue;
+      if (routeComplexityScore(2, minimumLength) >= bestScore) continue;
       consider([
         { x: sourceX, y: sourceY },
         { x: sourceX, y },

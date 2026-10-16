@@ -13,6 +13,38 @@ import {
 } from "../src/components/EditableArchitectureGraph";
 import { buildGraph } from "../src/compositions/DeepSeekV41Layer";
 
+it("无遮挡右出上入优先一次转折，垂直对齐优先零转折", () => {
+  for (const distance of [200, 2000, 20000]) {
+    const corner = automaticOrthogonalPoints(
+      0,
+      0,
+      distance,
+      distance,
+      Position.Right,
+      Position.Top,
+      [],
+    );
+    expect(corner).toEqual([
+      { x: 0, y: 0 },
+      { x: distance, y: 0 },
+      { x: distance, y: distance },
+    ]);
+    const straight = automaticOrthogonalPoints(
+      0,
+      0,
+      0,
+      distance,
+      Position.Bottom,
+      Position.Top,
+      [],
+    );
+    expect(straight).toEqual([
+      { x: 0, y: 0 },
+      { x: 0, y: distance },
+    ]);
+  }
+});
+
 it("全层箭头独立于线宽，箭翼不占满相邻通道，转角到端口留足直线", () => {
   const marker = architectureArrowMarker("#123456");
   expect(marker.markerUnits).toBe("userSpaceOnUse");

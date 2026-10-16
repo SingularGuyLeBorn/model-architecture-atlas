@@ -5,7 +5,7 @@ test("简单平方合并、汇入线正交、透明矩阵保留有色元素", as
   await page.goto("/#model=v41&chapter=layer");
   await page.getByRole("button", { name: "15", exact: true }).click();
   const focus = page.getByRole("combobox", { name: "定位模块" });
-  for (const id of ["norm1", "hc-mix-f", "concat", "experts"]) {
+  for (const id of ["norm1", "hc-mix-f", "concat", "experts", "heads"]) {
     await focus.selectOption(id);
     const node = page.locator(`.react-flow__node[data-id="${id}"]`);
     await expect(node.locator("[data-detail-suspended]")).toHaveCount(0);
@@ -20,6 +20,21 @@ test("简单平方合并、汇入线正交、透明矩阵保留有色元素", as
     }
     for (const path of await node.locator("[data-sum-input]").all()) {
       await expect(path).toHaveAttribute("d", /^M[^LQC]*[HV]/);
+    }
+    for (const path of await node
+      .locator("[data-sum-junction] [data-sum-input]")
+      .all()) {
+      // 圆周入口可按来源分配：直达零折弯，左右侧接入只有一次折弯。
+      await expect(path).toHaveAttribute(
+        "d",
+        /^M[\d.e+-]+ 0 V[\d.e+-]+(?: H[\d.e+-]+)?$/,
+      );
+    }
+    if (id === "heads") {
+      await node
+        .locator("[data-attention-denominator]")
+        .first()
+        .screenshot({ path: "artifacts/minimum-bends-denominator.png" });
     }
     if (id === "hc-mix-f") {
       const rowNorm = node.locator("[data-mhc-row-normalize]");

@@ -749,16 +749,21 @@ export function SumJunction({ count }: { count: number }) {
             count === 1
               ? 0
               : -Math.PI / 3 + (i * 2 * Math.PI) / (3 * (count - 1));
-          const offset = radius * Math.sin(angle),
-            y = centerY - radius * Math.cos(angle);
-          const x = width / 2 + offset;
-          const laneY = 8 + Math.min(i, count - 1 - i) * 6;
+          const sourceX = ((i + 0.5) * width) / count;
+          const sourceOffset = sourceX - width / 2;
+          // 圆周允许按来源选择入口：能垂直直达就不折弯，否则一次折弯从侧面接入。
+          // 外侧输入的横段低于内侧输入，保持独立落点并避免交叉。
+          const straight = Math.abs(sourceOffset) < radius;
+          const x = straight ? sourceX : width / 2 + radius * Math.sin(angle);
+          const y = straight
+            ? centerY - Math.sqrt(radius * radius - sourceOffset * sourceOffset)
+            : centerY - radius * Math.cos(angle);
           return (
             <path
               key={i}
               data-sum-input={i}
               data-sum-input-arrow={i}
-              d={`M${((i + 0.5) * width) / count} 0 V${laneY} H${x} V${y}`}
+              d={`M${sourceX} 0 V${y}${straight ? "" : ` H${x}`}`}
               markerEnd={`url(#${marker})`}
               fill="none"
               stroke={COLORS.cyan}
