@@ -41,6 +41,19 @@ describe("mHC 与 Engram 的真实主路径", () => {
       expect(
         pre.root.querySelector("[data-mhc-single-pass]")?.textContent,
       ).toContain("只计算一次");
+      expect(pre.root.querySelector("[data-mhc-matmul]")).not.toBeNull();
+      expect(pre.formulas).toContain("4\\times5120");
+      expect(pre.formulas).toContain(`Z_{${layer}}^{${sublayer}}`);
+      expect(pre.formulas).toContain(`\\mathbf z_{${layer},t}^{${sublayer}}`);
+      const edge = buildGraph(layer).edges.find(
+        (e) => e.id === `pre-${sublayer.toLowerCase()}-norm`,
+      );
+      expect(edge?.data?.labelTex).toBe(`Z_{${layer}}^{${sublayer}}`);
+      expect(
+        pre.root
+          .querySelector("[data-mhc-pre-output] [aria-label]")
+          ?.getAttribute("aria-label"),
+      ).toBe(`Z_{${layer}}^{${sublayer}}`);
       if (layer !== 1 || sublayer !== "A") {
         expect(pre.formulas).toContain("(0.2,0.4,0.6,0.8)\\cdot(1,2,3,4)=6");
       }
@@ -285,7 +298,8 @@ describe("mHC 与 Engram 的真实主路径", () => {
       createElement(MhcPre, { layer: 1, sublayer: "A", count: "N" }),
     );
     expect(pre.formulas).toContain("\\mathbf p=(1,0,0,0)");
-    expect(pre.root.querySelector('[data-merge-arrows="4"]')).not.toBeNull();
+    expect(pre.root.querySelector("[data-mhc-matmul]")).not.toBeNull();
+    expect(pre.root.querySelector("[data-sum-node]")).toBeNull();
     const post = render(createElement(MhcPost, { layer: 15, sublayer: "F" }));
     expect(post.root.querySelectorAll("[data-mhc-output-copy]")).toHaveLength(
       4,

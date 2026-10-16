@@ -1262,6 +1262,8 @@ export function MhcPre({
       : `\\mathbf p_{${layer},t}^{A}`;
   const stage =
     sublayer === "F" ? "A" : hasEngram(layer) ? "E" : "\\mathrm{in}";
+  const merged = `Z_{${layer}}^{${sublayer}}`;
+  const mergedRow = `\\mathbf z_{${layer},t}^{${sublayer}}`;
   return (
     <div
       data-mhc-pre={sublayer}
@@ -1287,7 +1289,7 @@ export function MhcPre({
             style={handle}
           />
         )}
-        <Box tone="amber">
+        <Box tone="green">
           <MathFormula tex={`\\mathbf p=${p}`} /> ·{" "}
           {sublayer === "F"
             ? "来自本层 Attention 的系数分支"
@@ -1305,53 +1307,97 @@ export function MhcPre({
       <div data-notation-alias>
         本次汇合固定 token t：{" "}
         <MathFormula
-          tex={`p_c:=(\\mathbf p)_c,\\quad h_{c,d}:=(\\mathbf h_{${layer},c,t}^{${stage}})_d`}
+          tex={`p_c:=(\\mathbf p)_c,\\quad \\mathbf h_c:=\\mathbf h_{${layer},c,t}^{${stage}},\\quad h_{c,d}:=(\\mathbf h_c)_d`}
         />
+        <div>
+          汇合后的行与元素记为{" "}
+          <MathFormula
+            tex={`\\mathbf z_s:=\\mathbf z_{${layer},s}^{${sublayer}},\\quad z_{s,d}:=(${merged})_{s,d}`}
+          />
+          ，s 为 token 行号。
+        </div>
+      </div>
+      <div data-mhc-matrix-definition>
+        从四路状态 <MathFormula tex={`\\mathcal H_{${layer}}^{${stage}}`} />
+        取同一个 token 的四路向量，按路号排成矩阵{" "}
+        <MathFormula tex={`H_{${layer},t}^{${stage}}`} />
+        ：每行一路，每列一个特征。
       </div>
       <div
-        data-four-stream-row
+        data-mhc-matmul
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4,minmax(0,1fr))",
-          gap: 7,
+          display: "flex",
+          width: "max-content",
+          maxWidth: "100%",
+          justifySelf: "center",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 12,
         }}
       >
-        {HC_COPIES.map((c) => (
-          <div key={c} style={{ display: "grid", gap: 6 }}>
-            <FeatureVector
-              name={`\\mathbf h_{${layer},${c},t}^{${stage}}`}
-              scalar={(d) => `h_{${c},${d}}`}
-            />
-            <Operator tex="\downarrow" />
-            <FeatureVector
-              name={`p_${c}\\cdot\\mathbf h_{${layer},${c},t}^{${stage}}`}
-              scalar={(d) => `p_${c}\\cdot h_{${c},${d}}`}
-              tone="green"
-            />
+        <Box tone="green" expanded>
+          <TensorHeading name="\mathbf p" shape="1\times4" />
+          <div style={{ display: "flex", gap: 4 }}>
+            {HC_COPIES.map((c) => (
+              <Box key={c} tone="green">
+                <MathFormula tex={`p_${c}`} />
+              </Box>
+            ))}
           </div>
-        ))}
+        </Box>
+        <Operator tex="\times" />
+        <RowMatrix
+          tex={`H_{${layer},t}^{${stage}}`}
+          shape="4\times5120"
+          rows={HC_COPIES.map((c) => `\\mathbf h_${c}`)}
+          rowLength="5120"
+          elementTex={(i, d) => `h_{${i + 1},${d}}`}
+          tone="blue"
+        />
+        <Operator tex="=" />
+        <FeatureVector
+          name={mergedRow}
+          scalar={(d) => `z_{t,${d}}`}
+          tone="green"
+        />
       </div>
-      <SumJunction count={4} />
+      <div data-mhc-matmul-equation style={{ textAlign: "center" }}>
+        <div>
+          对每一列做行乘列：
+          <MathFormula
+            tex={`z_{t,d}:=(${mergedRow})_d=\\sum_{c=1}^{4}p_c h_{c,d},\\quad d=1,\\ldots,5120`}
+          />
+        </div>
+      </div>
+      <FlowStep>
+        {count === "1"
+          ? "当前 token 的结果组成一行"
+          : "各 token 分别使用自己的 p 与四路向量，所得行按 token 顺序排列"}
+      </FlowStep>
       <div
         data-mhc-pre-output
         style={{ justifySelf: "center", maxWidth: "100%" }}
       >
         <RowMatrix
           contentWidth
-          tex={
-            sublayer === "A" ? `H_{${layer}}^{\\mathrm{in}}` : `H_{${layer}}'`
-          }
+          tex={merged}
           shape={`${count}\\times5120`}
           rows={
             count === "1"
-              ? ["\\mathbf h_t"]
-              : ["\\mathbf h_1", "\\mathbf h_2", "\\vdots", "\\mathbf h_N"]
+              ? ["\\mathbf z_t"]
+              : ["\\mathbf z_1", "\\mathbf z_2", "\\vdots", "\\mathbf z_N"]
           }
           rowLength="5120"
           elementTex={(i, j) =>
-            `h_{${count === "1" ? "t" : ["1", "2", "", "N"][i]},${j}}`
+            `z_{${count === "1" ? "t" : ["1", "2", "", "N"][i]},${j}}`
           }
         />
+      </div>
+      <div data-mhc-merged-destination style={{ textAlign: "center" }}>
+        每行是该 token 的汇合结果。
+        <MathFormula tex={merged} /> 经 RMSNorm 得到{" "}
+        <MathFormula tex={`${sublayer === "A" ? "X" : "Y"}_{${layer}}`} />
+        ，送入 {sublayer === "A" ? "Attention" : "FFN"}。
       </div>
       {/* [OM-FREEPLAY] 单个特征的数值例子说明加权汇合，不代表真实激活。 */}
       <span style={{ justifySelf: "center" }}>
@@ -5412,7 +5458,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           style={{ ...handle, left: "85%", background: COLORS.amber }}
         />
         <RmsNormProcess
-          input={`H_{${layer}}^{\\mathrm{in}}`}
+          input={`Z_{${layer}}^{A}`}
           output={`X_{${layer}}`}
           dimension={5120}
           rowCount={count}
@@ -5429,7 +5475,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
       <div style={{ ...panel, height: "auto", padding: 10 }}>
         {both}
         <RmsNormProcess
-          input={`H_{${layer}}'`}
+          input={`Z_{${layer}}^{F}`}
           output={`Y_{${layer}}`}
           dimension={5120}
           rowCount={count}
@@ -7796,8 +7842,8 @@ function node(
         ? { minWidth: 480 }
         : {}),
       ...(["add1", "add2"].includes(kind) ? { minWidth: 2800 } : {}),
-      // [OM-FREEPLAY] 四个带乘点的代表向量各需约 228px，连同间距与外框留 980px。
-      ...(kind === "hc-pre" ? { minWidth: 980 } : {}),
+      // [OM-FREEPLAY] 权重行、四路矩阵、输出行与运算符按内容排列，840px 留出完整下标和必要间距。
+      ...(kind === "hc-pre" ? { minWidth: 840 } : {}),
     },
     deletable: false,
   };
@@ -7976,7 +8022,7 @@ export function buildGraph(
     node("hc-expand", "hc-expand", layer, mode, 360, expandY, 880, 240),
     node("input", "tensor", layer, mode, 300, inputY, 1200, tensorHeight),
     {
-      ...node("hc-pre-a", "hc-pre", layer, mode, 300, preAY, 980, 420),
+      ...node("hc-pre-a", "hc-pre", layer, mode, 370, preAY, 840, 420),
       data: { kind: "hc-pre", layer, mode, sublayer: "A" },
     },
     {
@@ -8044,7 +8090,7 @@ export function buildGraph(
     node("add1", "add1", layer, mode, 300, add1Y, 2800, add1Height),
     node("state1", "state1", layer, mode, 300, state1Y, 1200, state1Height),
     {
-      ...node("hc-pre-f", "hc-pre", layer, mode, 300, preFY, 980, 420),
+      ...node("hc-pre-f", "hc-pre", layer, mode, 370, preFY, 840, 420),
       data: { kind: "hc-pre", layer, mode, sublayer: "F" },
     },
     {
@@ -8589,7 +8635,7 @@ export function buildGraph(
       `\\mathcal H_{${layer}}^{${hasEngram(layer) ? "E" : "\\mathrm{in}"}}`,
       { sourceHandle: "coefficients" },
     ),
-    makeEdge("pre-a-norm", "hc-pre-a", "norm1"),
+    mathEdge("pre-a-norm", "hc-pre-a", "norm1", `Z_{${layer}}^{A}`),
     mathEdge("norm-q", "norm1", "q", `X_{${layer}}`, {
       sourceHandle: "query",
       targetHandle: "port-top",
@@ -8667,7 +8713,7 @@ export function buildGraph(
         sourceHandle: "coefficients",
       },
     ),
-    makeEdge("pre-f-norm", "hc-pre-f", "norm2"),
+    mathEdge("pre-f-norm", "hc-pre-f", "norm2", `Z_{${layer}}^{F}`),
     mathEdge("mix-f-post", "hc-mix-f", "add2", `\\mathbf q_{${layer},t}^{F}`, {
       ...coefficientStyle("rose"),
       sourceHandle: "post",

@@ -21,6 +21,8 @@ test("四路复制、单次子层计算与系数用途可直接读图和旁注",
       "hc-expand",
       "hc-pre-a",
       "hc-pre-f",
+      "norm1",
+      "norm2",
       "hc-mix-a",
       "hc-mix-f",
       "add1",
@@ -42,6 +44,14 @@ test("四路复制、单次子层计算与系数用途可直接读图和旁注",
           );
         }
       } else if (id.startsWith("hc-pre")) {
+        const sub = id.endsWith("a") ? "A" : "F";
+        await expect(node.locator("[data-mhc-matmul]")).toHaveCount(1);
+        await expect(
+          node.locator(`[aria-label="Z_{${layer}}^{${sub}}"]`).first(),
+        ).toBeVisible();
+        await expect(
+          node.getByLabel("4\\times5120", { exact: true }),
+        ).toHaveCount(1);
         await expect(node.locator("[data-mhc-single-pass]")).toContainText(
           "只计算一次",
         );
@@ -50,6 +60,11 @@ test("四路复制、单次子层计算与系数用途可直接读图和旁注",
           .boundingBox();
         const note = await node.locator("[data-mhc-single-pass]").boundingBox();
         expect(note!.y).toBeGreaterThan(weights!.y + weights!.height);
+      } else if (id.startsWith("norm")) {
+        const sub = id === "norm1" ? "A" : "F";
+        await expect(
+          node.locator(`[aria-label="Z_{${layer}}^{${sub}}"]`),
+        ).toBeVisible();
       } else if (id.startsWith("hc-mix")) {
         await expect(
           node.locator("[data-mhc-coefficient-origin]"),
