@@ -1,5 +1,6 @@
 import { frameColor } from "../components/diagram-appearance";
 import { CompressorProjections } from "../components/CompressorProjections";
+import { KvRowConcat } from "../components/KvRowConcat";
 import {
   IndexScoreColumns,
   IndexScoreMatrix,
@@ -307,6 +308,7 @@ const CONTENT_SIZED_KINDS = new Set<NodeKind>([
   "query-norm",
   "projection-kv",
   "heads",
+  "kv-merge",
   "concat",
   "compressor",
   "indexer",
@@ -6464,7 +6466,11 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
       return (
         <div
           data-swa-only-kv
-          style={{ ...panel, borderColor: frameColor(COLORS.green) }}
+          style={{
+            ...panel,
+            height: "auto",
+            borderColor: frameColor(COLORS.green),
+          }}
         >
           <Handle
             id="local"
@@ -6498,64 +6504,43 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         </div>
       );
     return (
-      <div style={{ ...panel, borderColor: frameColor(COLORS.green) }}>
-        <Handle
-          id="local"
-          type="target"
-          position={Position.Top}
-          style={{ ...handle, left: "30%" }}
-        />
-        <Handle
-          id="global"
-          type="target"
-          position={Position.Top}
-          style={{ ...handle, left: "70%" }}
-        />
-        <Handle
-          id="kv"
-          type="source"
-          position={Position.Bottom}
-          style={handle}
-        />
+      <div
+        style={{
+          ...panel,
+          height: "auto",
+          borderColor: frameColor(COLORS.green),
+        }}
+      >
         <Title>沿 KV 行维拼接：本地窗口 + 选中的全局行</Title>
-        <div
-          style={{
-            padding: 10,
-            display: "grid",
-            gridTemplateColumns: "1fr 30px 1fr 30px 1.3fr",
-            alignItems: "center",
-            gap: 6,
-            minWidth: 0,
-          }}
-        >
-          <Box tone="green">
-            <TensorHeading
-              name={`U_{${layer},t}^{\\mathrm{SWA}}`}
-              shape="\min(128,t)\times512"
+        <KvRowConcat
+          layer={layer}
+          kvSource={kvSource}
+          indexSource={indexSource}
+          localPort={
+            <Handle
+              id="local"
+              type="target"
+              position={Position.Left}
+              style={handle}
             />
-          </Box>
-          <Arrow />
-          <Box tone="green">
-            <TensorHeading
-              name={`G_{${kvSource},t}^{\\mathrm{selected}}`}
-              shape={`K_{${indexSource},t}\\times512`}
+          }
+          globalPort={
+            <Handle
+              id="global"
+              type="target"
+              position={Position.Left}
+              style={handle}
             />
-          </Box>
-          <Arrow />
-          <Box tone="green">
-            <TensorHeading
-              name={`\\mathrm{KV}_{${layer},t}`}
-              shape={`(\\min(128,t)+K_{${indexSource},t})\\times512`}
+          }
+          outputPort={
+            <Handle
+              id="kv"
+              type="source"
+              position={Position.Right}
+              style={handle}
             />
-          </Box>
-          <div
-            style={{ gridColumn: "1 / -1", textAlign: "right", fontSize: 12 }}
-          >
-            <MathFormula
-              tex={`\\mathrm{KV}_{${layer},t}=[U_{${layer},t}^{\\mathrm{SWA}};G_{${kvSource},t}^{\\mathrm{selected}}]`}
-            />
-          </div>
-        </div>
+          }
+        />
       </div>
     );
   }
@@ -8113,7 +8098,7 @@ export function buildGraph(
   const mergeY = hasGlobal
     ? Math.max(swaY + swaHeight, globalSelectY + globalSelectHeight) + mainGap
     : swaY + swaHeight + mainGap;
-  const mergeHeight = hasGlobal ? 200 : 220;
+  const mergeHeight = contentHeights.get("kv-merge") ?? (hasGlobal ? 700 : 220);
   const headsY = mergeY + mergeHeight + mainGap;
   const headsHeight = contentHeights.get("heads") ?? 374;
   const concatY = headsY + headsHeight + mainGap;
