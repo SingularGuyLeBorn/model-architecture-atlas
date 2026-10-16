@@ -507,6 +507,7 @@ function Grid4({
 }
 
 export function MhcSinkhorn({ children }: { children: ReactNode }) {
+  // [OM-FREEPLAY] 指数项用激活绿、分母用缩放琥珀、T 用归一化青、首轮 C 用蓝；最终 C 保留混合紫。
   return (
     <section data-mhc-sinkhorn style={{ ...group, borderColor: COLORS.violet }}>
       <strong>C · u 的第 9–24 个数，按顺序每四个排成一行</strong>
@@ -572,14 +573,14 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
             <div style={grid4}>
               {copies.map((j) => (
                 <div key={j} style={{ display: "grid" }}>
-                  <Box tone="violet">
+                  <Box tone="green">
                     <MathFormula tex={`e_{1${j}}`} />
                   </Box>
                 </div>
               ))}
             </div>
             <SumJunction count={4} />
-            <Box tone="violet">
+            <Box tone="amber">
               <MathFormula tex="d_1=e_{11}+e_{12}+e_{13}+e_{14}" />
             </Box>
           </div>
@@ -598,7 +599,7 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
           >
             {copies.map((j) => (
               <div key={j} style={{ display: "grid", gap: 5 }}>
-                <Box tone="violet">
+                <Box tone="cyan">
                   <MathFormula
                     tex={`T_{1${j}}=\\frac{e_{1${j}}}{d_1}+\\epsilon_{HC}`}
                   />
@@ -619,13 +620,13 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
           >
             <StackedSum>
               {copies.map((k) => (
-                <Box key={k} tone="violet">
+                <Box key={k} tone="cyan">
                   <MathFormula tex={`T_{${k}1}`} />
                 </Box>
               ))}
             </StackedSum>
           </div>
-          <Box tone="violet">
+          <Box tone="amber">
             <MathFormula tex="d^{col}_1=T_{11}+T_{21}+T_{31}+T_{41}+\epsilon_{HC}" />
           </Box>
           {copies.map((k) => (
@@ -640,13 +641,15 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
                 alignItems: "center",
               }}
             >
-              <Box tone="violet">
+              <Box tone="cyan">
                 <MathFormula tex={`T_{${k}1}`} />
               </Box>
               <Operator tex="\div" />
-              <MathFormula tex="d^{col}_1" />
+              <Box tone="amber">
+                <MathFormula tex="d^{col}_1" />
+              </Box>
               <Operator tex="=" />
-              <Box tone="violet">
+              <Box tone="blue">
                 <MathFormula tex={`C^{(1)}_{${k}1}`} />
               </Box>
             </div>
@@ -663,7 +666,11 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
           alignItems: "center",
         }}
       >
-        <Grid4 name="C^{(1)}" cell={(k, j) => `c^{(1)}_{${k}${j}}`} />
+        <Grid4
+          name="C^{(1)}"
+          cell={(k, j) => `c^{(1)}_{${k}${j}}`}
+          tone="blue"
+        />
         <Operator tex="\to" />
         <div style={{ display: "grid", gap: 10 }}>
           <strong>再做 19 轮 · 共 20 轮</strong>

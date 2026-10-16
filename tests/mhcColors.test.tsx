@@ -82,6 +82,18 @@ it("C 的偏置矩阵、结果矩阵与展开行继承各自语义色", () => {
     }
 });
 
+it("Sinkhorn 的指数、分母、行结果和首轮矩阵区分，前后引用同色", () => {
+  const root = render(createElement(MhcSinkhorn, { children: null }));
+  expect(backgrounds(root, "e_{11}")).toEqual([color("green")]);
+  expect(backgrounds(root, "d_1=e_{11}+e_{12}+e_{13}+e_{14}")).toEqual([
+    color("amber"),
+  ]);
+  expect(backgrounds(root, "T_{11}")).toEqual([color("cyan"), color("cyan")]);
+  expect(backgrounds(root, "d^{col}_1")).toEqual(Array(4).fill(color("amber")));
+  expect(backgrounds(root, "C^{(1)}_{11}")).toEqual([color("blue")]);
+  expect(backgrounds(root, "c^{(1)}_{11}")).toEqual([color("blue")]);
+});
+
 it("图例保留语义色，sigmoid 使用单个定义且没有算术箭头链", () => {
   const legend = render(
     createElement(MhcProjection, { layer: 15, sub: "A" }),

@@ -408,8 +408,9 @@ export function RecipeCanvas({
               );
               commitHistory();
             }}
-            minZoom={0.08}
-            maxZoom={2}
+            // [OM-FREEPLAY] 与完整层图统一为 2%–800% 的手动缩放范围。
+            minZoom={0.02}
+            maxZoom={8}
             deleteKeyCode={null}
             onlyRenderVisibleElements={loaded.current}
             proOptions={{ hideAttribution: true }}

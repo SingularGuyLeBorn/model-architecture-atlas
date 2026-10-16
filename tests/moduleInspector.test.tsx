@@ -10,6 +10,25 @@ import { buildGraph, MhcMix } from "../src/compositions/DeepSeekV41Layer";
 import { createElement } from "react";
 
 describe("模块解释的显式开关", () => {
+  it("临时预览离开或换层收回，固定后离开保持", () => {
+    const closed: InspectorState = { mode: "closed", nodeId: "q" };
+    const preview = inspectorReducer(closed, { type: "preview" });
+    expect(preview.preview).toBe(true);
+    const auto = inspectorReducer(
+      { mode: "auto", nodeId: null },
+      { type: "preview" },
+    );
+    expect(inspectorReducer(auto, { type: "leave" }).mode).toBe("auto");
+    expect(inspectorReducer(preview, { type: "leave" }).mode).toBe("closed");
+    expect(inspectorReducer(preview, { type: "context-change" }).mode).toBe(
+      "closed",
+    );
+    expect(
+      inspectorReducer(inspectorReducer(preview, { type: "open" }), {
+        type: "leave",
+      }).mode,
+    ).toBe("open");
+  });
   it("第一次选框打开，关闭后选框与换层不擅自打开，再次开启展示最后所选框", () => {
     let state: InspectorState = { mode: "auto", nodeId: null };
     state = inspectorReducer(state, { type: "select", nodeId: "q" });

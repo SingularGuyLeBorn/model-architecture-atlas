@@ -5,22 +5,36 @@ import type { InternalSelection } from "./internal-selection";
 
 export type InspectorState = {
   mode: "auto" | "open" | "closed";
+  preview?: boolean;
   nodeId: string | null;
   detail?: InternalSelection;
 };
 export type InspectorAction =
   | { type: "select"; nodeId: string; detail?: InternalSelection }
   | { type: "open" }
+  | { type: "preview" }
+  | { type: "leave" }
   | { type: "context-change" }
   | { type: "close" };
 export function inspectorReducer(
   state: InspectorState,
   action: InspectorAction,
 ): InspectorState {
-  if (action.type === "close") return { ...state, mode: "closed" };
-  if (action.type === "open") return { ...state, mode: "open" };
+  const persistent = {
+    mode: state.mode,
+    nodeId: state.nodeId,
+    ...(state.detail ? { detail: state.detail } : {}),
+  };
+  if (action.type === "close") return { ...persistent, mode: "closed" };
+  if (action.type === "open") return { ...persistent, mode: "open" };
+  if (action.type === "preview")
+    return state.mode === "open" ? state : { ...persistent, preview: true };
+  if (action.type === "leave") return state.preview ? persistent : state;
   if (action.type === "context-change")
-    return { mode: state.mode, nodeId: state.nodeId };
+    return {
+      mode: state.mode,
+      nodeId: state.nodeId,
+    };
   return {
     nodeId: action.nodeId,
     ...(action.detail ? { detail: action.detail } : {}),

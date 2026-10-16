@@ -9534,7 +9534,8 @@ function DiagramCanvas({
   }, []);
 
   useLayoutEffect(() => {
-    if (inspector.mode !== "open" || !inspector.nodeId) return;
+    if ((inspector.mode !== "open" && !inspector.preview) || !inspector.nodeId)
+      return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const reveal = () => {
@@ -9598,12 +9599,12 @@ function DiagramCanvas({
     const observer = new ResizeObserver(reveal);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [inspector.mode, inspector.nodeId, inspector.detail]);
+  }, [inspector.mode, inspector.preview, inspector.nodeId, inspector.detail]);
 
   return (
     <div
       className="diagram-workspace"
-      data-inspector-open={inspector.mode === "open"}
+      data-inspector-open={inspector.mode === "open" || !!inspector.preview}
     >
       <div
         ref={canvasRef}
@@ -9914,8 +9915,9 @@ function DiagramCanvas({
               onSelectionDragStop={commitHistory}
               fitView
               fitViewOptions={FIT_VIEW_OPTIONS}
-              minZoom={0.18}
-              maxZoom={1.5}
+              // [OM-FREEPLAY] 扩展手动缩放至 2%–800%，定位模块仍沿用阅读倍率。
+              minZoom={0.02}
+              maxZoom={8}
               nodesDraggable
               nodesConnectable
               // [OM-FREEPLAY] 吸附时保持目标边框静止，避免靠近画布边缘时自动平移使落点漂移。
@@ -9985,14 +9987,43 @@ function DiagramCanvas({
           </svg>
         )}
       </div>
-      {inspector.mode === "open" && (
-        <ModuleInspector
-          data={inspectedData}
-          detail={inspector.detail}
-          connections={moduleConnections}
-          onClose={closeInspector}
-        />
-      )}
+      <div
+        className="inspector-rail"
+        data-expanded={inspector.mode === "open" || !!inspector.preview}
+        onMouseLeave={() => dispatchInspector({ type: "leave" })}
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest("a[href]"))
+            dispatchInspector({ type: "leave" });
+        }}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget))
+            dispatchInspector({ type: "leave" });
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") closeInspector();
+        }}
+      >
+        {inspector.mode !== "open" && (
+          <button
+            className="inspector-preview-trigger"
+            aria-label="固定展开右栏"
+            aria-expanded={!!inspector.preview}
+            onMouseEnter={() => dispatchInspector({ type: "preview" })}
+            onFocus={() => dispatchInspector({ type: "preview" })}
+            onClick={() => dispatchInspector({ type: "open" })}
+          >
+            <BookOpen size={16} />
+          </button>
+        )}
+        {(inspector.mode === "open" || inspector.preview) && (
+          <ModuleInspector
+            data={inspectedData}
+            detail={inspector.detail}
+            connections={moduleConnections}
+            onClose={closeInspector}
+          />
+        )}
+      </div>
     </div>
   );
 }

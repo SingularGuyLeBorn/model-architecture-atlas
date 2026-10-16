@@ -1,6 +1,15 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
-import { BookOpen, Layers, ExternalLink, Menu, X, Code2 } from "lucide-react";
+import {
+  BookOpen,
+  Layers,
+  ExternalLink,
+  Menu,
+  X,
+  Code2,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
 import {
   models,
   chapterNames,
@@ -31,7 +40,10 @@ export function App() {
   const [phase, setPhase] = useState<Phase>("prefill");
   const [layer, setLayer] = useState(1);
   const [sources, setSources] = useState(false);
+  const [sourcePreview, setSourcePreview] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [navPinned, setNavPinned] = useState(true);
+  const [navPreview, setNavPreview] = useState(false);
   useEffect(() => {
     const syncRoute = () => {
       setRoute(routeFromUrl());
@@ -54,61 +66,100 @@ export function App() {
     setRoute({ id, chapter: selected });
     setLayer(1);
     setMenu(false);
+    setNavPreview(false);
+    setSourcePreview(false);
     history.replaceState(null, "", `#model=${id}&chapter=${selected}`);
   };
   return (
     <div className="app-shell">
-      <aside className={`sidebar ${menu ? "open" : ""}`}>
-        <div className="brand">
-          <Layers size={26} />
-          <div>
-            主流的模型<small>架构全解析</small>
+      <div
+        className="navigation-rail"
+        data-expanded={navPinned || navPreview}
+        onMouseLeave={() => setNavPreview(false)}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget))
+            setNavPreview(false);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            setNavPinned(false);
+            setNavPreview(false);
+          }
+        }}
+      >
+        <button
+          className="navigation-toggle icon-button"
+          aria-label={navPinned ? "收起左栏" : "固定展开左栏"}
+          aria-expanded={navPinned || navPreview}
+          onMouseEnter={() => {
+            if (!navPinned) setNavPreview(true);
+          }}
+          onFocus={() => {
+            if (!navPinned) setNavPreview(true);
+          }}
+          onClick={() => {
+            setNavPinned(!navPinned);
+            setNavPreview(false);
+          }}
+        >
+          {navPinned ? (
+            <PanelLeftClose size={18} />
+          ) : (
+            <PanelLeftOpen size={18} />
+          )}
+        </button>
+        <aside className={`sidebar ${menu ? "open" : ""}`}>
+          <div className="brand">
+            <Layers size={26} />
+            <div>
+              主流的模型<small>架构全解析</small>
+            </div>
+            <button
+              className="close-menu icon-button"
+              aria-label="关闭菜单"
+              onClick={() => setMenu(false)}
+            >
+              <X size={18} />
+            </button>
           </div>
-          <button
-            className="close-menu icon-button"
-            aria-label="关闭菜单"
-            onClick={() => setMenu(false)}
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <div className="nav-caption">
-          MODEL ATLAS <span>01 / DEEPSEEK</span>
-        </div>
-        <nav aria-label="模型选择" className="model-nav">
-          {models.map((item) => (
-            <button
-              key={item.id}
-              aria-current={route.id === item.id ? "page" : undefined}
-              onClick={() => navigate(item.id, "overview")}
-            >
-              <span>{item.name}</span>
-              <small>{item.subtitle}</small>
-            </button>
-          ))}
-        </nav>
-        <div className="nav-caption">展开机制</div>
-        <nav aria-label="章节选择" className="chapter-nav">
-          {model.chapters.map((chapter, i) => (
-            <button
-              key={chapter}
-              aria-current={route.chapter === chapter ? "page" : undefined}
-              onClick={() => navigate(model.id, chapter)}
-            >
-              <span>{String(i + 1).padStart(2, "0")}</span>
-              {chapterNames[chapter]}
-            </button>
-          ))}
-        </nav>
-        <div className="sidebar-footer">
-          <BookOpen size={16} />
-          <span>
-            官方配置 · 可追溯来源
-            <br />
-            结构先行，公式用于核对。
-          </span>
-        </div>
-      </aside>
+          <div className="nav-caption">
+            MODEL ATLAS <span>01 / DEEPSEEK</span>
+          </div>
+          <nav aria-label="模型选择" className="model-nav">
+            {models.map((item) => (
+              <button
+                key={item.id}
+                aria-current={route.id === item.id ? "page" : undefined}
+                onClick={() => navigate(item.id, "overview")}
+              >
+                <span>{item.name}</span>
+                <small>{item.subtitle}</small>
+              </button>
+            ))}
+          </nav>
+          <div className="nav-caption">展开机制</div>
+          <nav aria-label="章节选择" className="chapter-nav">
+            {model.chapters.map((chapter, i) => (
+              <button
+                key={chapter}
+                aria-current={route.chapter === chapter ? "page" : undefined}
+                onClick={() => navigate(model.id, chapter)}
+              >
+                <span>{String(i + 1).padStart(2, "0")}</span>
+                {chapterNames[chapter]}
+              </button>
+            ))}
+          </nav>
+          <div className="sidebar-footer">
+            <BookOpen size={16} />
+            <span>
+              官方配置 · 可追溯来源
+              <br />
+              结构先行，公式用于核对。
+            </span>
+          </div>
+        </aside>
+      </div>
       {menu && (
         <button
           className="menu-scrim"
@@ -219,44 +270,78 @@ export function App() {
           </ReactFlowProvider>
         </section>
       </main>
-      {sources && (
-        <aside className="source-drawer">
-          <header>
-            <h2>核对依据</h2>
+      {(route.chapter !== "layer" || sources) && (
+        <div
+          className="source-rail"
+          onMouseLeave={() => setSourcePreview(false)}
+          onClick={(event) => {
+            if ((event.target as HTMLElement).closest("a[href]"))
+              setSourcePreview(false);
+          }}
+        >
+          {!sources && (
             <button
               className="icon-button"
-              aria-label="关闭来源"
-              onClick={() => setSources(false)}
+              aria-label="固定展开来源栏"
+              aria-expanded={sourcePreview}
+              onMouseEnter={() => setSourcePreview(true)}
+              onFocus={() => setSourcePreview(true)}
+              onClick={() => {
+                setSourcePreview(false);
+                setSources(true);
+              }}
             >
-              <X size={20} />
+              <BookOpen size={18} />
             </button>
-          </header>
-          <p>数学关系与官方来源。数值例子用于演示计算过程。</p>
-          {(
-            recipe?.references ?? [
-              { title: "官方配置", url: model.provenance.url },
-              {
-                title: "官方推理实现",
-                url: `https://huggingface.co/deepseek-ai/${model.source}/tree/main/inference`,
-              },
-            ]
-          ).map((ref) => (
-            <a key={ref.url} href={ref.url} target="_blank" rel="noreferrer">
-              {ref.title}
-              <ExternalLink size={14} />
-            </a>
-          ))}
-          {recipe?.stages
-            .filter((stage) => stage.formula)
-            .map((stage) => (
-              <section key={stage.id}>
-                <h3>{stage.title}</h3>
-                <MathFormula tex={stage.formula!} display />
-              </section>
-            ))}
-          <p>校验日期：{model.provenance.checkedAt}</p>
-          <pre>{JSON.stringify(model.config, null, 2)}</pre>
-        </aside>
+          )}
+          {(sources || sourcePreview) && (
+            <aside className="source-drawer">
+              <header>
+                <h2>核对依据</h2>
+                <button
+                  className="icon-button"
+                  aria-label="关闭来源"
+                  onClick={() => {
+                    setSourcePreview(false);
+                    setSources(false);
+                  }}
+                >
+                  <X size={20} />
+                </button>
+              </header>
+              <p>数学关系与官方来源。数值例子用于演示计算过程。</p>
+              {(
+                recipe?.references ?? [
+                  { title: "官方配置", url: model.provenance.url },
+                  {
+                    title: "官方推理实现",
+                    url: `https://huggingface.co/deepseek-ai/${model.source}/tree/main/inference`,
+                  },
+                ]
+              ).map((ref) => (
+                <a
+                  key={ref.url}
+                  href={ref.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {ref.title}
+                  <ExternalLink size={14} />
+                </a>
+              ))}
+              {recipe?.stages
+                .filter((stage) => stage.formula)
+                .map((stage) => (
+                  <section key={stage.id}>
+                    <h3>{stage.title}</h3>
+                    <MathFormula tex={stage.formula!} display />
+                  </section>
+                ))}
+              <p>校验日期：{model.provenance.checkedAt}</p>
+              <pre>{JSON.stringify(model.config, null, 2)}</pre>
+            </aside>
+          )}
+        </div>
       )}
     </div>
   );
