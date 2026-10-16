@@ -10,9 +10,123 @@ import {
   sharedRouteLength,
   pathWithLabelGap,
   moveSegment,
+  manualOrthogonalPoints,
   simplifyOrthogonalPoints,
 } from "../src/components/EditableArchitectureGraph";
 import { buildGraph } from "../src/compositions/DeepSeekV41Layer";
+
+describe("人工折线端点接入", () => {
+  it("窄间隙直线横移后，两端引线不重叠", () => {
+    const line = [
+      { x: 0, y: 0 },
+      { x: 0, y: 20 },
+    ];
+    const path = manualOrthogonalPoints(
+      0,
+      0,
+      0,
+      20,
+      Position.Bottom,
+      Position.Top,
+      moveSegment(line, 0, { x: 30, y: 0 }),
+    );
+    expect(path).toHaveLength(6);
+    expect(path[1].y).toBeGreaterThan(0);
+    expect(path[1].y).toBeLessThan(path.at(-2)!.y);
+    expect(path.at(-2)!.y).toBeLessThan(20);
+  });
+  const base = [
+    { x: 0, y: 0 },
+    { x: 0, y: 100 },
+    { x: 900, y: 100 },
+    { x: 900, y: 500 },
+  ];
+  const rotate = (p: { x: number; y: number }, turns: number) => {
+    for (let i = 0; i < turns; i++) p = { x: -p.y, y: p.x };
+    return { x: p.x || 0, y: p.y || 0 };
+  };
+  const sides = [Position.Bottom, Position.Left, Position.Top, Position.Right];
+  for (let turn = 0; turn < 4; turn++) {
+    it(`${sides[turn]} 出线：拖动首段、中段、末段不重走线段，端点方向正确且恢复幂等`, () => {
+      const points = base.map((p) => rotate(p, turn));
+      const source = points[0],
+        target = points.at(-1)!;
+      const route = (waypoints: typeof points) =>
+        manualOrthogonalPoints(
+          source.x,
+          source.y,
+          target.x,
+          target.y,
+          sides[turn],
+          sides[(turn + 2) % 4],
+          waypoints,
+        );
+      for (const segment of [0, 1, 2]) {
+        for (const displacement of [0, 8, 90, -70, 600, -180, 0]) {
+          const delta = rotate(
+            segment === 1
+              ? { x: 0, y: displacement }
+              : { x: displacement, y: 0 },
+            turn,
+          );
+          const path = route(moveSegment(points, segment, delta));
+          expect(path[0]).toEqual(source);
+          expect(path.at(-1)).toEqual(target);
+          expect(route(path.slice(1, -1))).toEqual(path);
+          const normal = rotate({ x: 0, y: 1 }, turn);
+          const dot = (a: typeof source, b: typeof source) =>
+            (b.x - a.x) * normal.x + (b.y - a.y) * normal.y;
+          expect(dot(source, path[1])).toBeGreaterThan(0);
+          expect(dot(path.at(-2)!, target)).toBeGreaterThan(0);
+          const segments = path.slice(1).map((b, i) => ({ a: path[i], b }));
+          for (const [i, { a, b }] of segments.entries()) {
+            expect(a.x === b.x || a.y === b.y).toBe(true);
+            for (const { a: c, b: d } of segments.slice(i + 1)) {
+              if (a.x === b.x && c.x === d.x && a.x === c.x)
+                expect(
+                  Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) -
+                    Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y)),
+                ).toBeLessThanOrEqual(0);
+              if (a.y === b.y && c.y === d.y && a.y === c.y)
+                expect(
+                  Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) -
+                    Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x)),
+                ).toBeLessThanOrEqual(0);
+            }
+          }
+        }
+      }
+      expect(route(base.slice(1, -1).map((p) => rotate(p, turn)))).toEqual(
+        points,
+      );
+    });
+  }
+  it("恢复已有尾刺时只消去重走部分，不改变连接对象或远端通道", () => {
+    const path = manualOrthogonalPoints(
+      0,
+      0,
+      900,
+      500,
+      Position.Bottom,
+      Position.Top,
+      [
+        { x: 0, y: 100 },
+        { x: 990, y: 100 },
+        { x: 990, y: 500 },
+        { x: 990, y: 476 },
+        { x: 900, y: 476 },
+      ],
+    );
+    expect(path).toEqual([
+      { x: 0, y: 0 },
+      { x: 0, y: 100 },
+      { x: 990, y: 100 },
+      { x: 990, y: 476 },
+      { x: 900, y: 476 },
+      { x: 900, y: 500 },
+    ]);
+  });
+});
 
 it("重合折点化简保留直角，不能删成斜线", () => {
   const a = { x: 0, y: 0 },

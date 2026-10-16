@@ -866,70 +866,81 @@ function pointsWithAnchoredEndpoints(
   return [{ x: sourceX, y: sourceY }, ...adjusted, { x: targetX, y: targetY }];
 }
 
-function pointsWithDirectedTarget(
-  points: XYPosition[],
-  targetX: number,
-  targetY: number,
-  targetPosition: Position,
-) {
-  const lead = EDGE_PORT_LEAD;
-  const approach =
-    targetPosition === Position.Top
-      ? { x: targetX, y: targetY - lead }
-      : targetPosition === Position.Bottom
-        ? { x: targetX, y: targetY + lead }
-        : targetPosition === Position.Left
-          ? { x: targetX - lead, y: targetY }
-          : { x: targetX + lead, y: targetY };
-  const body = points.slice(0, -1);
-  while (
-    body.length > 1 &&
-    body.at(-1)?.x === targetX &&
-    body.at(-1)?.y === targetY
-  )
-    body.pop();
-  const previous = body.at(-1) ?? points[0];
-  const elbow =
-    targetPosition === Position.Top || targetPosition === Position.Bottom
-      ? { x: previous.x, y: approach.y }
-      : { x: approach.x, y: previous.y };
-  return simplifyOrthogonalPoints([
-    ...body,
-    elbow,
-    approach,
-    { x: targetX, y: targetY },
-  ]);
+// 人工路径中的原路往返没有连接语义。先消去重走部分，再校验端口方向；
+// 自动路由仍使用保留折返的化简函数，以便候选校验拒绝非法路线。
+function removeManualRetraces(points: XYPosition[]) {
+  const result: XYPosition[] = [];
+  for (const point of points) {
+    if (result.at(-1)?.x === point.x && result.at(-1)?.y === point.y) continue;
+    while (result.length > 1) {
+      const a = result.at(-2)!,
+        b = result.at(-1)!;
+      if (
+        !((a.x === b.x && b.x === point.x) || (a.y === b.y && b.y === point.y))
+      )
+        break;
+      result.pop();
+    }
+    if (result.at(-1)?.x !== point.x || result.at(-1)?.y !== point.y)
+      result.push(point);
+  }
+  return result;
 }
 
-function pointsWithDirectedSource(
-  points: XYPosition[],
+function withDirectedDeparture(points: XYPosition[], side: Position) {
+  const source = points[0],
+    next = points[1];
+  if (!next) return points;
+  const departure = portLeadPoint(source.x, source.y, side);
+  const vertical = side === Position.Top || side === Position.Bottom;
+  const normalAligned = vertical ? next.x === source.x : next.y === source.y;
+  const outward =
+    (next.x - source.x) * (departure.x - source.x) +
+    (next.y - source.y) * (departure.y - source.y);
+  // 合法首段原样保留，包括窄间隙内的直连；不能每次编辑都重插引出段。
+  if (normalAligned && outward > 0) return points;
+
+  const target = points.at(-1)!;
+  const normal = {
+    x: (departure.x - source.x) / EDGE_PORT_LEAD,
+    y: (departure.y - source.y) / EDGE_PORT_LEAD,
+  };
+  const gap =
+    (target.x - source.x) * normal.x + (target.y - source.y) * normal.y;
+  // [OM-FREEPLAY] 窄间隙内新接入段至多占法向间距的三分之一，给两端转弯和中段分别留空间。
+  if (gap > 0) {
+    const lead = Math.min(EDGE_PORT_LEAD, gap / 3);
+    departure.x = source.x + normal.x * lead;
+    departure.y = source.y + normal.y * lead;
+  }
+
+  // 横移端点相邻线段时，替换旧接入折点。保留旧点再补 elbow 会先走过头
+  // 又沿原线倒退，形成看似额外分支的尾刺。错误方向的首段连同下一折点替换。
+  const body = points.slice(Math.min(normalAligned ? 3 : 2, points.length - 1));
+  const join = body[0];
+  const elbow = vertical
+    ? { x: join.x, y: departure.y }
+    : { x: departure.x, y: join.y };
+  return simplifyOrthogonalPoints([source, departure, elbow, ...body]);
+}
+
+export function manualOrthogonalPoints(
   sourceX: number,
   sourceY: number,
+  targetX: number,
+  targetY: number,
   sourcePosition: Position,
+  targetPosition: Position,
+  waypoints: XYPosition[],
 ) {
-  const lead = EDGE_PORT_LEAD;
-  const departure =
-    sourcePosition === Position.Top
-      ? { x: sourceX, y: sourceY - lead }
-      : sourcePosition === Position.Bottom
-        ? { x: sourceX, y: sourceY + lead }
-        : sourcePosition === Position.Left
-          ? { x: sourceX - lead, y: sourceY }
-          : { x: sourceX + lead, y: sourceY };
-  const body = points.slice(1);
-  while (body.length > 1 && body[0]?.x === sourceX && body[0]?.y === sourceY)
-    body.shift();
-  const next = body[0] ?? points.at(-1) ?? departure;
-  const elbow =
-    sourcePosition === Position.Top || sourcePosition === Position.Bottom
-      ? { x: next.x, y: departure.y }
-      : { x: departure.x, y: next.y };
-  return simplifyOrthogonalPoints([
-    { x: sourceX, y: sourceY },
-    departure,
-    elbow,
-    ...body,
-  ]);
+  const anchored = removeManualRetraces(
+    pointsWithAnchoredEndpoints(sourceX, sourceY, targetX, targetY, waypoints),
+  );
+  const fromSource = withDirectedDeparture(anchored, sourcePosition);
+  return withDirectedDeparture(
+    [...fromSource].reverse(),
+    targetPosition,
+  ).reverse();
 }
 
 function portLeadPoint(x: number, y: number, position: Position) {
@@ -1477,22 +1488,14 @@ export function planArchitectureRoutes(
         edge.id,
         cached?.edgeKeys.get(edge.id) === edgeKeys.get(edge.id) && previous
           ? previous
-          : pointsWithDirectedTarget(
-              pointsWithDirectedSource(
-                pointsWithAnchoredEndpoints(
-                  source.x,
-                  source.y,
-                  target.x,
-                  target.y,
-                  waypoints,
-                ),
-                source.x,
-                source.y,
-                source.side,
-              ),
+          : manualOrthogonalPoints(
+              source.x,
+              source.y,
               target.x,
               target.y,
+              source.side,
               target.side,
+              waypoints,
             ),
       );
     } else if (
