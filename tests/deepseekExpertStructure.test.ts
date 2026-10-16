@@ -45,14 +45,15 @@ describe("专家内部矩阵乘法与 SiLU 数据流", () => {
   it("SiLU 两路有箭头进入乘法，输出与示例都命名为 a", () => {
     const root = expertElement();
     expect(root.querySelectorAll("[data-silu-operand]")).toHaveLength(2);
-    const sigmoid = root.querySelector('[data-sigmoid-steps="z"]')!;
-    expect(sigmoid).not.toBeNull();
-    for (const tex of ["-z", "e^{-z}", "1+e^{-z}", "\\sigma(z)"])
-      expect(
-        [...sigmoid.querySelectorAll("[aria-label]")].some(
-          (el) => el.getAttribute("aria-label") === tex,
-        ),
-      ).toBe(true);
+    expect(root.querySelector('[data-sigmoid-steps="z"]')).toBeNull();
+    expect(
+      root.querySelectorAll("[data-silu-operand] [aria-label]"),
+    ).toHaveLength(2);
+    expect(
+      root
+        .querySelectorAll("[data-silu-operand] [aria-label]")[1]
+        .getAttribute("aria-label"),
+    ).toBe("\\sigma(z)=\\frac1{1+e^{-z}}");
     expect(
       [...root.querySelectorAll("[data-silu-arrow]")].map((node) =>
         node.getAttribute("data-silu-arrow"),

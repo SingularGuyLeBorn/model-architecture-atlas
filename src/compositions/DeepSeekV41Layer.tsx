@@ -57,7 +57,6 @@ import {
   ConnectionMode,
   Controls,
   Handle,
-  MarkerType,
   Position,
   ReactFlow,
   useEdgesState,
@@ -78,6 +77,7 @@ import {
   EightResizeHandles,
   findBoundaryConnection,
   architectureFanoutGap,
+  architectureArrowMarker,
   type BoundaryAnchor,
   type EditableEdge,
   type EditableEdgeData,
@@ -4069,7 +4069,7 @@ export function Expert({
                     key={tex}
                     data-silu-operand
                     style={{
-                      border: tex === "z" ? undefined : `1px solid ${color}`,
+                      border: `1px solid ${color}`,
                       borderRadius: 4,
                       padding: "7px 2px",
                       display: "grid",
@@ -4077,28 +4077,7 @@ export function Expert({
                       minWidth: 0,
                     }}
                   >
-                    {tex === "z" ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          height: "100%",
-                        }}
-                      >
-                        <div
-                          style={{ borderLeft: `1px solid ${color}`, flex: 1 }}
-                        />
-                        <Box tone={shared ? "blue" : "amber"}>
-                          <MathFormula tex={tex} />
-                        </Box>
-                        <div
-                          style={{ borderLeft: `1px solid ${color}`, flex: 1 }}
-                        />
-                      </div>
-                    ) : (
-                      <SigmoidSteps input="z" vertical />
-                    )}
+                    <MathFormula tex={tex} />
                   </div>
                 ))}
               </div>
@@ -8220,12 +8199,7 @@ export function buildGraph(
       targetHandle: "main-in",
       type: "editable-orthogonal",
       reconnectable: true,
-      markerEnd: {
-        type: MarkerType.Arrow,
-        width: 22,
-        height: 22,
-        color: COLORS.green,
-      },
+      markerEnd: architectureArrowMarker(COLORS.green),
       style: { stroke: COLORS.green, strokeWidth: 2.2 },
       data: { labelTex },
     };
@@ -8248,24 +8222,14 @@ export function buildGraph(
   const skipStyle = {
     style: { stroke: COLORS.blue, strokeWidth: 2.2 },
     data: { color: COLORS.blue },
-    markerEnd: {
-      type: MarkerType.Arrow,
-      width: 22,
-      height: 22,
-      color: COLORS.blue,
-    },
+    markerEnd: architectureArrowMarker(COLORS.blue),
   } as Partial<EditableEdge>;
   const coefficientStyle = (
     tone: "violet" | "rose",
   ): Partial<EditableEdge> => ({
     style: { stroke: COLORS[tone], strokeWidth: 2.2 },
     data: { color: COLORS[tone] },
-    markerEnd: {
-      type: MarkerType.Arrow,
-      width: 22,
-      height: 22,
-      color: COLORS[tone],
-    },
+    markerEnd: architectureArrowMarker(COLORS[tone]),
   });
 
   const edges: EditableEdge[] = [
@@ -8390,12 +8354,7 @@ export function buildGraph(
       sourceHandle: "shared",
       targetHandle: "shared",
       style: { stroke: COLORS.blue, strokeWidth: 2.2 },
-      markerEnd: {
-        type: MarkerType.Arrow,
-        width: 22,
-        height: 22,
-        color: COLORS.blue,
-      },
+      markerEnd: architectureArrowMarker(COLORS.blue),
     }),
     makeEdge("sum-moe-output", "moe-sum", "moe-output"),
     mathEdge(
@@ -8487,12 +8446,7 @@ export function buildGraph(
           sourceHandle: `score-${expert.id}`,
           targetHandle: `expert-${expert.id}`,
           style: { stroke: COLORS.amber, strokeWidth: 2 },
-          markerEnd: {
-            type: MarkerType.Arrow,
-            width: 20,
-            height: 20,
-            color: COLORS.amber,
-          },
+          markerEnd: architectureArrowMarker(COLORS.amber),
         },
       ),
     );
@@ -8503,7 +8457,7 @@ export function buildGraph(
     const color = branch.expertId === undefined ? COLORS.blue : COLORS.amber;
     const branchStyle = {
       style: { stroke: color, strokeWidth: 2 },
-      markerEnd: { type: MarkerType.Arrow, width: 20, height: 20, color },
+      markerEnd: architectureArrowMarker(color),
       data: { color },
     };
     edges.push(
@@ -8613,12 +8567,7 @@ export function buildGraph(
           sourceHandle: "indices",
           targetHandle: "indices",
           style: { stroke: COLORS.amber, strokeWidth: 2.2 },
-          markerEnd: {
-            type: MarkerType.Arrow,
-            width: 22,
-            height: 22,
-            color: COLORS.amber,
-          },
+          markerEnd: architectureArrowMarker(COLORS.amber),
         },
       ),
     );
@@ -8802,12 +8751,7 @@ export function applySavedLayout(
         ...(baseline ?? {
           id: item.id,
           type: "editable-orthogonal" as const,
-          markerEnd: {
-            type: MarkerType.Arrow,
-            width: 22,
-            height: 22,
-            color: COLORS.green,
-          },
+          markerEnd: architectureArrowMarker(COLORS.green),
           style: { stroke: COLORS.green, strokeWidth: 2.2 },
           reconnectable: true,
         }),
@@ -9163,12 +9107,7 @@ function DiagramCanvas({
           id: `manual-${Date.now()}`,
           type: "editable-orthogonal",
           reconnectable: true,
-          markerEnd: {
-            type: MarkerType.Arrow,
-            width: 22,
-            height: 22,
-            color: COLORS.green,
-          },
+          markerEnd: architectureArrowMarker(COLORS.green),
           style: { stroke: COLORS.green, strokeWidth: 2.2 },
           data: { labelTex: "", targetAnchor },
         },
@@ -9732,6 +9671,7 @@ function DiagramCanvas({
                 refY="0"
                 markerWidth="10"
                 markerHeight="10"
+                markerUnits="userSpaceOnUse"
                 orient="auto"
               >
                 <path
@@ -9797,7 +9737,6 @@ export const DeepSeekV41Layer: React.FC<Props> = ({ initialLayer = 1 }) => {
       .architecture-flow .architecture-resize-handle:hover { opacity: 1 !important; }
       .architecture-flow .architecture-edge-endpoint { opacity: 0; z-index: 1001; }
       .architecture-flow .architecture-edge-endpoint:hover { opacity: 1; }
-      .architecture-flow .architecture-edge-endpoint[data-selected="true"] { opacity: 1; }
     `}</style>
       <div
         style={{

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { Position } from "@xyflow/react";
 import {
   architectureFanoutGap,
+  architectureArrowMarker,
   automaticOrthogonalPoints,
   findBoundaryConnection,
   labelPointOnPath,
@@ -10,6 +11,72 @@ import {
   terminalLabelPoint,
   pathWithLabelGap,
 } from "../src/components/EditableArchitectureGraph";
+import { buildGraph } from "../src/compositions/DeepSeekV41Layer";
+
+it("全层箭头独立于线宽，箭翼不占满相邻通道，转角到端口留足直线", () => {
+  const marker = architectureArrowMarker("#123456");
+  expect(marker.markerUnits).toBe("userSpaceOnUse");
+  // React Flow 开口箭头路径为 -5,-4 → 0,0 → -5,4，视口为 20×20。
+  const arrowWidth = ((8 + marker.strokeWidth!) * marker.height!) / 20;
+  const arrowLength = ((5 + marker.strokeWidth!) * marker.width!) / 20;
+  expect(arrowWidth + 3.4).toBeLessThan(16);
+  for (const side of [
+    Position.Top,
+    Position.Bottom,
+    Position.Left,
+    Position.Right,
+  ]) {
+    const points = automaticOrthogonalPoints(
+      0,
+      0,
+      300,
+      300,
+      Position.Bottom,
+      side,
+      [],
+    );
+    const end = points.at(-1)!,
+      before = points.at(-2)!;
+    expect(Math.hypot(end.x - before.x, end.y - before.y)).toBeGreaterThan(
+      arrowLength + 8,
+    );
+  }
+  for (const layer of [1, 15, 29, 40]) {
+    for (const edge of buildGraph(layer).edges) {
+      expect(edge.markerEnd).toMatchObject({
+        markerUnits: "userSpaceOnUse",
+        width: 24,
+        height: 24,
+      });
+    }
+  }
+});
+
+it("窄入口不能先沿框边到达再倒车，自动路径不留下反向尾刺", () => {
+  const frame = { left: 62, top: 500, right: 1500, bottom: 1500 };
+  const points = automaticOrthogonalPoints(
+    715,
+    0,
+    70,
+    1000,
+    Position.Left,
+    Position.Left,
+    [frame],
+    [],
+    [],
+    [frame],
+  );
+  for (let i = 1; i < points.length - 1; i++) {
+    const a = points[i - 1],
+      b = points[i],
+      c = points[i + 1];
+    expect(
+      (b.x - a.x) * (c.x - b.x) + (b.y - a.y) * (c.y - b.y),
+    ).toBeGreaterThanOrEqual(0);
+  }
+  expect(points.at(-2)!.x).toBeLessThanOrEqual(46);
+  expect(points.at(-2)!.y).toBe(1000);
+});
 
 function addFrame(
   id: string,

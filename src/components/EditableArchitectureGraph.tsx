@@ -17,6 +17,7 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   Handle,
+  MarkerType,
   NodeResizeControl,
   Position,
   ResizeControlVariant,
@@ -24,6 +25,7 @@ import {
   useReactFlow,
   useStoreApi,
   type Edge,
+  type EdgeMarker,
   type EdgeProps,
   type ConnectionLineComponentProps,
   type Node,
@@ -39,6 +41,19 @@ export type EditableEdgeData = {
   targetAnchor?: BoundaryAnchor;
   labelPosition?: number;
 };
+
+// [OM-FREEPLAY] 24×24 的 marker 视口对应约 6×10px 的开口箭头，含描边仍小于
+// 16px 线间距与 24px 端口引入段。使用世界坐标，选中加粗不能把箭头一起撑大。
+export function architectureArrowMarker(color = "#37685a"): EdgeMarker {
+  return {
+    type: MarkerType.Arrow,
+    markerUnits: "userSpaceOnUse",
+    width: 24,
+    height: 24,
+    strokeWidth: 1.8,
+    color,
+  };
+}
 
 export type BoundaryAnchor = { side: Position; offset: number };
 export type BoundaryConnection = { nodeId: string; anchor: BoundaryAnchor };
@@ -353,6 +368,7 @@ export function EditableConnectionLine({
           refY="0"
           markerWidth="10"
           markerHeight="10"
+          markerUnits="userSpaceOnUse"
           orient="auto"
         >
           <path
@@ -463,6 +479,23 @@ function simplifyOrthogonalPoints(points: XYPosition[]) {
   });
 }
 
+function hasRouteBacktrack(points: XYPosition[]) {
+  const distinct = points.filter(
+    (point, i) =>
+      i === 0 || point.x !== points[i - 1].x || point.y !== points[i - 1].y,
+  );
+  return distinct.some((point, i) => {
+    if (i === 0 || i === distinct.length - 1) return false;
+    const before = distinct[i - 1],
+      after = distinct[i + 1];
+    return (
+      (point.x - before.x) * (after.x - point.x) +
+        (point.y - before.y) * (after.y - point.y) <
+      0
+    );
+  });
+}
+
 export function sharedRouteLength(first: XYPosition[], second: XYPosition[]) {
   let total = 0;
   for (let a = 0; a < first.length - 1; a += 1)
@@ -566,6 +599,7 @@ function defaultOrthogonalPoints(
   targetY: number,
   obstacles: Obstacle[],
   reserved: ReservedSegment[],
+  ports?: { source: XYPosition; target: XYPosition },
 ) {
   const middleY = sourceY + (targetY - sourceY) / 2;
   const middleX = sourceX + (targetX - sourceX) / 2;
@@ -591,6 +625,8 @@ function defaultOrthogonalPoints(
   );
   const horizontalChannels = [
     ...new Set([
+      sourceY,
+      targetY,
       top,
       bottom,
       ...laneOffsets.map((offset) => middleY + offset),
@@ -605,6 +641,8 @@ function defaultOrthogonalPoints(
   ];
   const verticalChannels = [
     ...new Set([
+      sourceX,
+      targetX,
       left,
       right,
       ...laneOffsets.map((offset) => middleX + offset),
@@ -678,6 +716,10 @@ function defaultOrthogonalPoints(
   let bestScore = Infinity;
   const consider = (candidate: XYPosition[]) => {
     const points = simplifyOrthogonalPoints(candidate);
+    // 端口引入段也是路径约束：禁止先越过引入点，再沿原线倒车形成箭头尾刺。
+    // 在候选阶段拒绝，不能事后删点破坏落线方向或用户保存的折点。
+    if (ports && hasRouteBacktrack([ports.source, ...points, ports.target]))
+      return;
     const score = routeScore(points, obstacles, reserved, bestScore);
     if (score < bestScore) {
       best = points;
@@ -868,6 +910,7 @@ export function automaticOrthogonalPoints(
     approach.y,
     obstacles,
     reserved,
+    { source: { x: sourceX, y: sourceY }, target: { x: targetX, y: targetY } },
   );
   return simplifyOrthogonalPoints([
     { x: sourceX, y: sourceY },

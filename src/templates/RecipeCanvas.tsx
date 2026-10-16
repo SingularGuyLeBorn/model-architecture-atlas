@@ -3,7 +3,6 @@ import {
   Background,
   Controls,
   Handle,
-  MarkerType,
   Position,
   ReactFlow,
   useNodesState,
@@ -17,6 +16,7 @@ import {
 } from "@xyflow/react";
 import {
   EditableOrthogonalEdge,
+  architectureArrowMarker,
   EditHistoryProvider,
   EightResizeHandles,
   type EditableEdge,
@@ -153,12 +153,7 @@ export function RecipeCanvas({
       targetHandle: `in-${i}`,
       type: "editable-orthogonal",
       data: { labelTex: link.tex, color: "#37685a" },
-      markerEnd: {
-        type: MarkerType.Arrow,
-        color: "#37685a",
-        width: 18,
-        height: 18,
-      },
+      markerEnd: architectureArrowMarker(),
     }));
     return { nodes: layoutStages(nodes), edges };
   }, [recipe]);
@@ -300,9 +295,14 @@ export function RecipeCanvas({
           );
           const ids = new Set(initial.nodes.map((node) => node.id));
           setEdges(
-            saved.edges.filter(
-              (edge) => ids.has(edge.source) && ids.has(edge.target),
-            ),
+            saved.edges
+              .filter((edge) => ids.has(edge.source) && ids.has(edge.target))
+              .map((edge) => ({
+                ...edge,
+                markerEnd: architectureArrowMarker(
+                  edge.data?.color ?? String(edge.style?.stroke ?? "#37685a"),
+                ),
+              })),
           );
         }
       }
@@ -401,7 +401,7 @@ export function RecipeCanvas({
                     ...connection,
                     type: "editable-orthogonal",
                     data: { labelTex: "x" },
-                    markerEnd: { type: MarkerType.Arrow },
+                    markerEnd: architectureArrowMarker(),
                   },
                   values,
                 ),
