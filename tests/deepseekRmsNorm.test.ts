@@ -17,6 +17,21 @@ describe("RMSNorm 的逐行结构与来源", () => {
     expect(root.querySelectorAll("[data-sum-input]")).toHaveLength(3);
     expect(root.querySelector("[data-sum-node]")).not.toBeNull();
     expect(root.querySelector("[data-sum-output]")).not.toBeNull();
+    const products = [
+      ...root.querySelectorAll("[data-index-head] [aria-label]"),
+    ]
+      .map((element) => element.getAttribute("aria-label")!)
+      .filter((tex) => tex.startsWith("\\eta") && tex.includes("a^I"));
+    expect(products).toHaveLength(9);
+    expect(products.every((tex) => tex.includes("\\cdot a^I"))).toBe(true);
+    expect(
+      root.querySelector("[data-index-symbol-guide]")?.textContent,
+    ).toContain("当前 token");
+    expect(
+      root
+        .querySelector("[data-index-score-definition] [aria-label]")
+        ?.getAttribute("aria-label"),
+    ).toBe("s_{15,t,i}=\\sum_{h=1}^{32}\\eta_{15,t,h}\\cdot a^I_{h,t,i}");
   });
   it("横向紧凑排布仍保留平方、归约、缩放和输出矩阵", () => {
     const root = document.createElement("div");

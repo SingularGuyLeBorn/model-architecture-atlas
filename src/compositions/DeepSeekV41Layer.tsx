@@ -3222,6 +3222,12 @@ export function IndexScoreProcess({
       style={{ display: "grid", gap: 7, fontSize: 13 }}
     >
       <ModuleHeading>③ 每个索引 Head 打分 → 32 路加权求和</ModuleHeading>
+      <div data-index-symbol-guide>
+        t 是当前 token 的位置；i 是压缩缓存行号；h 是索引 Head 编号。
+        <MathFormula tex="\eta" />
+        （eta）是 Head 权重，
+        <MathFormula tex="a^I" /> 是 ReLU 后的分数（拉丁字母 a）。
+      </div>
       <div
         style={{
           display: "grid",
@@ -3306,7 +3312,9 @@ export function IndexScoreProcess({
                 name=""
                 nameWidth={0}
                 length="M"
-                elementTex={(i) => `\\eta_{${layer},t,${h}}a^I_{${h},t,${i}}`}
+                elementTex={(i) =>
+                  `\\eta_{${layer},t,${h}}\\cdot a^I_{${h},t,${i}}`
+                }
                 tone="green"
               />
             </div>
@@ -3330,6 +3338,25 @@ export function IndexScoreProcess({
           gap: 7,
         }}
       >
+        <div data-index-score-definition style={{ textAlign: "center" }}>
+          <MathFormula
+            tex={`s_{${layer},t,i}=\\sum_{h=1}^{32}\\eta_{${layer},t,h}\\cdot a^I_{h,t,i}`}
+          />
+          <div>
+            同一候选行 i 的 32 路加权分数相加，得到当前 token 的分数行
+            <MathFormula
+              tex={`\\mathbf s_{${layer},t}\\in\\mathbb R^{1\\times M}`}
+            />
+            。
+          </div>
+          <div>
+            {count === "1"
+              ? "当前一步只计算这一行，组成"
+              : "各 token 分别计算一行，按 token 顺序组成"}{" "}
+            <MathFormula tex={`S_{${layer}}`} />
+            ；M 是压缩缓存的候选行数。
+          </div>
+        </div>
         <RowMatrix
           tex={`S_{${layer}}`}
           contentWidth
