@@ -3,6 +3,7 @@ import {
   COLORS,
   FeatureVector,
   MathFormula,
+  ModuleHeading,
   Operator,
   ParameterColumn,
   RowMatrix,
@@ -53,7 +54,9 @@ export function MhcFlatten({ layer, stage }: { layer: number; stage: string }) {
         justifySelf: "center",
       }}
     >
-      <strong>① 输入：同一 token t 的四路残差，每路 5120 个数</strong>
+      <ModuleHeading>
+        ① 输入：同一 token t 的四路残差，每路 5120 个数
+      </ModuleHeading>
       <div data-notation-alias>
         本段固定 Layer {layer} 与 token t：{" "}
         <MathFormula
@@ -127,7 +130,9 @@ export function MhcJointNorm() {
   const columns = ["1", "2", "20480"];
   return (
     <section data-mhc-joint-norm data-rmsnorm-dimension="20480" style={group}>
-      <strong>② 四路一起算一个均方根 rₜ，再让每个 f 元素除以同一个 rₜ</strong>
+      <ModuleHeading>
+        ② 四路一起算一个均方根 rₜ，再让每个 f 元素除以同一个 rₜ
+      </ModuleHeading>
       <div
         style={{
           display: "grid",
@@ -250,7 +255,7 @@ export function MhcProjection({
 }) {
   return (
     <section data-mhc-projection style={group}>
-      <strong>③ 归一化后的整行 × 本子层参数 → 24 个控制数</strong>
+      <ModuleHeading>③ 归一化后的整行 × 本子层参数 → 24 个控制数</ModuleHeading>
       <div data-notation-alias style={{ display: "grid", gap: 4 }}>
         <span>
           wⱼ 表示参数矩阵第 j 列（20480 个元素）；uⱼ 表示本次投影结果的第 j
@@ -383,11 +388,11 @@ export function MhcGate({
         borderColor: kind === "p" ? COLORS.green : COLORS.rose,
       }}
     >
-      <strong>
+      <ModuleHeading>
         {kind === "p"
           ? "p · 第 1–4 个数，供下一子层汇合"
           : "q · 第 5–8 个数，控制本子层输出写回多少"}
-      </strong>
+      </ModuleHeading>
       <div style={{ display: "grid", gap: 7 }}>
         {copies.map((j) => (
           <div
@@ -460,7 +465,7 @@ export function SigmoidDefinition() {
         justifySelf: "center",
       }}
     >
-      <strong>Sigmoid · 对每个 a 单独计算</strong>
+      <ModuleHeading>Sigmoid · 对每个 a 单独计算</ModuleHeading>
       <div
         style={{
           justifySelf: "center",
@@ -501,7 +506,7 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
   // [OM-FREEPLAY] 指数项用激活绿、分母用缩放琥珀、T 用归一化青、首轮 C 用蓝；最终 C 保留混合紫。
   return (
     <section data-mhc-sinkhorn style={{ ...group, borderColor: COLORS.violet }}>
-      <strong>C · u 的第 9–24 个数，按顺序每四个排成一行</strong>
+      <ModuleHeading>C · u 的第 9–24 个数，按顺序每四个排成一行</ModuleHeading>
       <div
         style={{
           display: "grid",
@@ -545,7 +550,7 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
         }}
       >
         <section data-mhc-row-normalize style={group}>
-          <strong>① 每行单独做 Softmax · 展开第 1 行</strong>
+          <ModuleHeading>① 每行单独做 Softmax · 展开第 1 行</ModuleHeading>
           <VectorStrip
             name=""
             nameWidth={0}
@@ -604,7 +609,7 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
           <Operator tex="\to" />
         </div>
         <section data-mhc-column-normalize style={group}>
-          <strong>② 每列分别除以本列之和 · 展开第 1 列</strong>
+          <ModuleHeading>② 每列分别除以本列之和 · 展开第 1 列</ModuleHeading>
           <div
             data-mhc-compact-column
             style={{ width: 168, maxWidth: "100%", justifySelf: "center" }}

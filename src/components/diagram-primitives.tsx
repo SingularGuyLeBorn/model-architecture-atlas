@@ -150,15 +150,25 @@ export function ParameterColumn({ tex }: { tex: string }) {
 export function Title({ children }: { children: ReactNode }) {
   return (
     <div
+      data-module-title
       style={{
         padding: "10px 14px 9px",
         borderBottom: `1px solid ${COLORS.line}`,
-        fontSize: 15,
+        fontSize: 21,
         fontWeight: 800,
       }}
     >
       {children}
     </div>
+  );
+}
+
+export function ModuleHeading({ children }: { children: ReactNode }) {
+  // [OM-FREEPLAY] 字号按 2px 一档提高三档；子模块保留低于顶层标题的层级。
+  return (
+    <strong data-module-title style={{ fontSize: 19, lineHeight: 1.4 }}>
+      {children}
+    </strong>
   );
 }
 
@@ -839,9 +849,11 @@ export function SumJunction({ count }: { count: number }) {
 export function StackedSum({
   children,
   omittedBefore,
+  outputDirection = "bottom",
 }: {
   children: ReactNode[];
   omittedBefore?: number;
+  outputDirection?: "bottom" | "right";
 }) {
   const { ref, height } = useDiagramSize();
   const { ref: resultRef, width: resultWidth } = useDiagramSize();
@@ -860,14 +872,14 @@ export function StackedSum({
       style={{
         display: "grid",
         gridTemplateColumns: `max-content ${wireWidth}px`,
-        gridTemplateRows: "1fr 22px",
+        gridTemplateRows: outputDirection === "right" ? "1fr" : "1fr 22px",
         minWidth: 0,
         width: "fit-content",
         maxWidth: "100%",
         alignSelf: "center",
         justifySelf: "center",
         marginInline: "auto",
-        flex: 1,
+        flex: outputDirection === "right" ? "0 0 auto" : 1,
       }}
     >
       <div
@@ -960,12 +972,24 @@ export function StackedSum({
           })}
           <path
             data-sum-output
-            d={`M${centerX + 18} ${height / 2} H${outputX} V${height}`}
+            d={
+              outputDirection === "right"
+                ? `M${centerX + 18} ${height / 2} H${wireWidth}`
+                : `M${centerX + 18} ${height / 2} H${outputX} V${height}`
+            }
             fill="none"
             stroke={COLORS.cyan}
             strokeWidth="1.5"
             vectorEffect="non-scaling-stroke"
           />
+          {outputDirection === "right" && (
+            <path
+              d={arrowTip(wireWidth, height / 2, 0)}
+              fill="none"
+              stroke={COLORS.cyan}
+              strokeWidth="1.5"
+            />
+          )}
         </svg>
         <div
           style={{
@@ -977,36 +1001,38 @@ export function StackedSum({
           <SumNode />
         </div>
       </div>
-      <div
-        ref={resultRef}
-        data-sum-result-line
-        style={{
-          gridColumn: "1 / -1",
-          position: "relative",
-          height: 22,
-          minWidth: 0,
-        }}
-      >
-        <svg
-          aria-hidden
-          width="100%"
-          height="22"
-          style={{ position: "absolute", inset: 0, display: "block" }}
+      {outputDirection === "bottom" && (
+        <div
+          ref={resultRef}
+          data-sum-result-line
+          style={{
+            gridColumn: "1 / -1",
+            position: "relative",
+            height: 22,
+            minWidth: 0,
+          }}
         >
-          <WirePath
-            d={`M${resultWidth - outputInset} 0 V9 H${resultWidth / 2} V21`}
-            fill="none"
-            stroke={COLORS.cyan}
-            strokeWidth="1.5"
-          />
-          <path
-            d={arrowTip(resultWidth / 2, 21, Math.PI / 2)}
-            fill="none"
-            stroke={COLORS.cyan}
-            strokeWidth="1.5"
-          />
-        </svg>
-      </div>
+          <svg
+            aria-hidden
+            width="100%"
+            height="22"
+            style={{ position: "absolute", inset: 0, display: "block" }}
+          >
+            <WirePath
+              d={`M${resultWidth - outputInset} 0 V9 H${resultWidth / 2} V21`}
+              fill="none"
+              stroke={COLORS.cyan}
+              strokeWidth="1.5"
+            />
+            <path
+              d={arrowTip(resultWidth / 2, 21, Math.PI / 2)}
+              fill="none"
+              stroke={COLORS.cyan}
+              strokeWidth="1.5"
+            />
+          </svg>
+        </div>
+      )}
     </div>
   );
 }

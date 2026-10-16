@@ -7,6 +7,7 @@ import {
   Operator,
   ParameterColumn,
   Title,
+  ModuleHeading,
   tonePalette,
   VectorStrip,
   Matrix,
@@ -690,7 +691,7 @@ export function RmsNormProcess({
           gap: 8,
         }}
       >
-        <strong>RMSNorm · {label}</strong>
+        <ModuleHeading>RMSNorm · {label}</ModuleHeading>
         <MathFormula tex={`d=${dimension}`} />
       </div>
       <span style={{ fontSize: 11, color: COLORS.muted }}>
@@ -1182,9 +1183,9 @@ export function MhcMix({
       data-mhc-mix={sublayer}
       style={{ display: "grid", gap: 16, fontSize: 13, lineHeight: 1.6 }}
     >
-      <strong>
+      <ModuleHeading>
         mHC 系数生成 · Layer {layer} · {sublayer === "A" ? "Attention" : "FFN"}
-      </strong>
+      </ModuleHeading>
       <div data-notation-alias style={{ display: "grid", gap: 4 }}>
         <span>本模块固定当前层、token t 与子层；各分支的局部元素名对应：</span>
         <MathFormula
@@ -1258,9 +1259,9 @@ export function MhcPre({
       data-mhc-pre={sublayer}
       style={{ display: "grid", gap: 8, fontSize: 13, lineHeight: 2.2 }}
     >
-      <strong>
+      <ModuleHeading>
         mHC 汇合 · 4 路 → {sublayer === "A" ? "Attention" : "FFN"} 的一路输入
-      </strong>
+      </ModuleHeading>
       <div
         style={{
           position: "relative",
@@ -1390,7 +1391,9 @@ export function MhcPost({
           tex={`c_{kj}:=(C_{${layer},t}^{${sublayer}})_{kj},\\quad q_j:=(\\mathbf q_{${layer},t}^{${sublayer}})_j,\\quad h_{k,d}:=(${old("k")})_d`}
         />
       </div>
-      <strong>mHC 回写 · 残差混合与输出分发并行，再按目标路相加</strong>
+      <ModuleHeading>
+        mHC 回写 · 残差混合与输出分发并行，再按目标路相加
+      </ModuleHeading>
       {/* [OM-FREEPLAY] 扩展为角色配色：紫色 C、玫瑰色 q、青色乘积；沿途保持同色。 */}
       <div
         data-mhc-color-legend
@@ -2252,7 +2255,9 @@ export function EngramLookup({
   const rows = layer === 2 ? 384006168 : 384016682;
   return (
     <div data-engram-lookup style={{ display: "grid", gap: 10, fontSize: 13 }}>
-      <strong>Engram · Layer {layer} · Token ID → N-gram → 哈希查表</strong>
+      <ModuleHeading>
+        Engram · Layer {layer} · Token ID → N-gram → 哈希查表
+      </ModuleHeading>
       <Box tone="blue">
         沿用 Tokenizer 的真实 ID；同一张压缩映射表将等价文本归到同一 ID
         <br />
@@ -2480,9 +2485,9 @@ export function EngramInject({
   const count = phase === "prefill" ? "N" : "1";
   return (
     <div data-engram-inject style={{ display: "grid", gap: 10, fontSize: 13 }}>
-      <strong>
+      <ModuleHeading>
         Engram 注入 · 每个 token、每一路 c 独立计算门控（c=1,2,3,4）
-      </strong>
+      </ModuleHeading>
       <div
         style={{
           display: "grid",
@@ -2511,65 +2516,64 @@ export function EngramInject({
           horizontal
         />
       </div>
-      <FlowStep>同一路归一化结果逐元素相乘，再沿 5120 维求和</FlowStep>
+      <div data-engram-notation style={{ lineHeight: 1.8 }}>
+        本段固定第 {layer} 层与 token t，c 是残差路编号，j 是这一路的特征编号：
+        <MathFormula
+          tex={`\\widehat h_{c,j}:=(\\widehat{\\mathbf h}_{${layer},c,t})_j,\\quad \\widehat k_{c,j}:=(\\widehat{\\mathbf k}_{${layer},c,t}^{E})_j`}
+        />
+        。下面每个框表示同一特征上的乘积；累加全部 5120 项后得到点积，再除以
+        √5120。
+      </div>
       <div
         data-engram-dot-sum
         style={{
           width: "fit-content",
           maxWidth: "100%",
           justifySelf: "center",
+          display: "flex",
+          alignItems: "center",
+          gap: 0,
         }}
       >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3,max-content)",
-            gap: 36,
-          }}
-        >
+        <StackedSum omittedBefore={2} outputDirection="right">
           {["1", "2", "5120"].map((j) => (
-            <div
-              key={j}
-              style={{ display: "flex", gap: 6, alignItems: "center" }}
-            >
-              <Box tone="green">
-                <MathFormula tex={`\\widehat h_{c,${j}}`} />
-              </Box>
-              <Operator tex="\times" />
-              <Box tone="green">
-                <MathFormula tex={`\\widehat k_{c,${j}}`} />
+            <div key={j} data-engram-dot-product={j}>
+              <Box tone="cyan">
+                <MathFormula
+                  tex={`\\widehat h_{c,${j}}\\times\\widehat k_{c,${j}}`}
+                />
               </Box>
             </div>
           ))}
+        </StackedSum>
+        <div data-engram-dot-result>
+          <Box tone="cyan">
+            <MathFormula tex="d_c=\frac{\sum_{j=1}^{5120}\widehat h_{c,j}\widehat k_{c,j}}{\sqrt{5120}}" />
+          </Box>
         </div>
-        <SumJunction count={3} />
-      </div>
-      <FlowStep>
-        <span style={{ lineHeight: 2.4 }}>
-          <MathFormula tex="d_c=\sum_{j=1}^{5120}\widehat h_{c,j}\widehat k_{c,j}/\sqrt{5120}" />
-        </span>
-      </FlowStep>
-      <div
-        data-engram-gate
-        style={{
-          display: "grid",
-          gridTemplateColumns: "max-content 22px max-content 22px max-content",
-          justifyContent: "center",
-          gap: 6,
-          alignItems: "center",
-        }}
-      >
-        <Box tone="green">
-          <MathFormula tex="a_c=\max(|d_c|,10^{-6})" />
-        </Box>
-        <Operator tex="\to" />
-        <Box tone="green">
-          <MathFormula tex="s_c=\operatorname{copysign}(\sqrt{a_c},d_c)" />
-        </Box>
-        <Operator tex="\to" />
-        <Box tone="amber">
-          <MathFormula tex="g_c=\frac{1}{1+e^{-s_c}}" />
-        </Box>
+        <Operator tex="\;\longrightarrow\;" />
+        <div
+          data-engram-gate
+          style={{
+            display: "grid",
+            gridTemplateColumns: "max-content 22px max-content",
+            justifyContent: "center",
+            gap: 6,
+            alignItems: "center",
+          }}
+        >
+          <Box tone="green">
+            <div style={{ display: "grid", gap: 6 }}>
+              <span>绝对值设下限后开方，保留点积的符号</span>
+              <MathFormula tex="a_c=\max(|d_c|,10^{-6})" />
+              <MathFormula tex="s_c=\operatorname{copysign}(\sqrt{a_c},d_c)" />
+            </div>
+          </Box>
+          <Operator tex="\to" />
+          <Box tone="amber">
+            <MathFormula tex="g_c=\frac{1}{1+e^{-s_c}}" />
+          </Box>
+        </div>
       </div>
       <span>
         copysign 保留 d 的符号（+0 取正号）。两组 γ 各为 4 ×
@@ -2595,7 +2599,7 @@ export function EngramInject({
               gap: 7,
             }}
           >
-            <strong>残差路 {c} · 独立 Key 与门控</strong>
+            <ModuleHeading>残差路 {c} · 独立 Key 与门控</ModuleHeading>
             <FeatureVector
               name={`\\mathbf h_{${layer},${c},t}^{\\mathrm{in}}`}
               scalar={(j) => `h_{${c},${j}}`}
@@ -2719,9 +2723,9 @@ function RotaryProcess({
           gap: 8,
         }}
       >
-        <strong>
+        <ModuleHeading>
           {inverse ? "逆旋转 · 回到输出坐标系" : "RoPE · 相邻两个元素一起旋转"}
-        </strong>
+        </ModuleHeading>
         <MathFormula tex={`p=${position}`} />
       </div>
       <div
@@ -2935,7 +2939,7 @@ function IndexProjection({
       data-index-projection={title}
       style={{ display: "grid", gap: 7, minWidth: 0 }}
     >
-      <strong>{title}</strong>
+      <ModuleHeading>{title}</ModuleHeading>
       <div
         style={{
           display: "grid",
@@ -3128,7 +3132,7 @@ export function IndexScoreProcess({
       data-index-score-process
       style={{ display: "grid", gap: 7, fontSize: 13 }}
     >
-      <strong>③ 每个索引 Head 打分 → 32 路加权求和</strong>
+      <ModuleHeading>③ 每个索引 Head 打分 → 32 路加权求和</ModuleHeading>
       <div
         style={{
           display: "grid",
@@ -3750,7 +3754,8 @@ function Head({ index, layer }: { index: number; layer: number }) {
         style={{ ...handle, background: COLORS.blue }}
       />
       <strong
-        style={{ color: COLORS.green, textAlign: "center", fontSize: 16 }}
+        data-module-title
+        style={{ color: COLORS.green, textAlign: "center", fontSize: 22 }}
       >
         Layer {layer} · Head {index} ·{" "}
         {phase === "prefill" ? "放大第 t 行" : "当前唯一 Query · 位置 t"}
@@ -4247,7 +4252,7 @@ export function Expert({
           justifyContent: "space-between",
           color: shared ? COLORS.blue : COLORS.amber,
           fontWeight: 800,
-          fontSize: 11,
+          fontSize: 17,
         }}
       >
         <span>
@@ -4304,7 +4309,7 @@ export function Expert({
                 fontSize: 12,
               }}
             >
-              <strong style={{ fontSize: 12 }}>SiLU · 对矩阵中每个元素</strong>
+              <ModuleHeading>SiLU · 对矩阵中每个元素</ModuleHeading>
               <div data-silu-input style={{ marginTop: 8 }}>
                 <MathFormula tex="z" />
               </div>
@@ -5039,10 +5044,11 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
       >
         {data.title && (
           <div
+            data-module-title
             style={{
               padding: "6px 9px",
               borderBottom: `1px solid ${COLORS.line}`,
-              fontSize: 10.5,
+              fontSize: 16.5,
               fontWeight: 800,
               color,
               lineHeight: 1.2,

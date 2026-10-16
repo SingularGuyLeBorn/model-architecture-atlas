@@ -33,6 +33,28 @@ function render(element: ReactElement) {
 }
 
 describe("mHC 与 Engram 的真实主路径", () => {
+  it.each([2, 15])(
+    "第 %s 层的 Engram 求和读取明确的乘积，先声明局部变量",
+    (layer) => {
+      const { root, formulas } = render(
+        createElement(EngramInject, { layer, phase: "prefill" }),
+      );
+      const sum = root.querySelector("[data-engram-dot-sum]")!;
+      expect(sum.querySelectorAll("[data-engram-dot-product]")).toHaveLength(3);
+      expect(sum.querySelectorAll("[data-sum-input]")).toHaveLength(3);
+      for (const j of ["1", "2", "5120"]) {
+        expect(formulas).toContain(
+          `\\widehat h_{c,${j}}\\times\\widehat k_{c,${j}}`,
+        );
+      }
+      expect(
+        root.querySelector("[data-engram-notation]")?.textContent,
+      ).toContain(`第 ${layer} 层`);
+      expect(formulas).toContain(
+        "d_c=\\frac{\\sum_{j=1}^{5120}\\widehat h_{c,j}\\widehat k_{c,j}}{\\sqrt{5120}}",
+      );
+    },
+  );
   it.each([1, 14, 15, 40])(
     "Layer %s 的状态与 p 分框传递，后续先乘再汇合",
     (layer) => {
