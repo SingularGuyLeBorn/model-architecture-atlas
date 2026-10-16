@@ -14,6 +14,12 @@ import {
 import type { ReactNode } from "react";
 
 const copies = [1, 2, 3, 4];
+// [OM-FREEPLAY] 色相选用琥珀、蓝、梅紫，分别区分缩放参数、偏置参数和仿射结果。
+export const MHC_AFFINE_TONES = {
+  scale: "amber",
+  bias: "blue",
+  result: "plum",
+} as const;
 const grid4 = {
   display: "grid",
   gridTemplateColumns: "repeat(4,minmax(0,1fr))",
@@ -320,6 +326,19 @@ export function MhcProjection({
         三段同时计算，各自使用缩放 s₁ / s₂ / s₃ 和对应偏置 b。u
         的元素仍沿用同一绿色。
       </span>
+      <div data-mhc-affine-legend style={{ ...row, flexWrap: "wrap" }}>
+        {(
+          [
+            ["scale", "s", "缩放参数"],
+            ["bias", "b", "偏置参数"],
+            ["result", "a", "缩放、加偏置后的结果"],
+          ] as const
+        ).map(([role, symbol, label]) => (
+          <Box key={role} tone={MHC_AFFINE_TONES[role]}>
+            <MathFormula tex={symbol} /> · {label}
+          </Box>
+        ))}
+      </div>
     </section>
   );
 }
@@ -362,15 +381,15 @@ export function MhcGate({
               <MathFormula tex={`u_{${offset + j}}`} />
             </Box>
             <Operator tex="\times" />
-            <Box tone="amber">
+            <Box tone={MHC_AFFINE_TONES.scale}>
               <MathFormula tex={`s_${s}`} />
             </Box>
             <Operator tex="+" />
-            <Box tone="amber">
+            <Box tone={MHC_AFFINE_TONES.bias}>
               <MathFormula tex={`b_{${offset + j}}`} />
             </Box>
             <Operator tex="=" />
-            <Box tone="amber">
+            <Box tone={MHC_AFFINE_TONES.result}>
               <MathFormula tex={`a^{${kind}}_${j}`} />
             </Box>
           </div>
@@ -382,7 +401,9 @@ export function MhcGate({
       <div style={{ ...grid4, gap: 6 }}>
         {copies.map((j) => (
           <div key={j} style={{ display: "grid", gap: 6, textAlign: "center" }}>
-            <MathFormula tex={`a^{${kind}}_${j}`} />
+            <Box tone={MHC_AFFINE_TONES.result}>
+              <MathFormula tex={`a^{${kind}}_${j}`} />
+            </Box>
             <Operator tex="\downarrow\;\sigma" />
             <Box tone="cyan">
               <MathFormula tex={`v^{${kind}}_${j}`} />
@@ -413,7 +434,8 @@ export function MhcGate({
 export function SigmoidSteps({
   input = "a",
   vertical = false,
-}: { input?: string; vertical?: boolean } = {}) {
+  inputTone = "amber",
+}: { input?: string; vertical?: boolean; inputTone?: DiagramTone } = {}) {
   const arrow = (label: string) =>
     vertical ? `\\downarrow\\;${label}` : `\\xrightarrow{${label}}`;
   return (
@@ -440,11 +462,11 @@ export function SigmoidSteps({
           alignItems: "center",
         }}
       >
-        <Box tone="amber">
+        <Box tone={inputTone}>
           <MathFormula tex={input} />
         </Box>
         <Operator tex={arrow("\\times(-1)")} />
-        <Box tone="amber">
+        <Box tone={inputTone}>
           <MathFormula tex={`-${input}`} />
         </Box>
         <Operator tex={arrow("\\exp")} />
@@ -509,17 +531,21 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
           tone="green"
         />
         <Operator tex="\times" />
-        <Box tone="amber">
+        <Box tone={MHC_AFFINE_TONES.scale}>
           <MathFormula tex="s_3" />
         </Box>
         <Operator tex="+" />
         <Grid4
           name="B^C"
           cell={(k, j) => `b_{${8 + 4 * (k - 1) + j}}`}
-          tone="amber"
+          tone={MHC_AFFINE_TONES.bias}
         />
         <Operator tex="=" />
-        <Grid4 name="A^C" cell={(k, j) => `a^C_{${k}${j}}`} tone="amber" />
+        <Grid4
+          name="A^C"
+          cell={(k, j) => `a^C_{${k}${j}}`}
+          tone={MHC_AFFINE_TONES.result}
+        />
       </div>
       <span>
         Uᶜ、Bᶜ 是这 16 个数及对应偏置的 4×4 排列；aᶜₖⱼ = s₃·u₈₊₄₍ₖ₋₁₎₊ⱼ +
@@ -541,14 +567,14 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
             columns={["1", "2", "3", "4"]}
             length="4"
             elementTex={(j) => `a^C_{1${j}}`}
-            tone="amber"
+            tone={MHC_AFFINE_TONES.result}
           />
           <span>先减去本行最大值 m₁，避免指数溢出</span>
           <div style={grid4}>
             {copies.map((j) => (
               <div key={j} style={{ display: "grid", gap: 5 }}>
                 <Operator tex="\downarrow\; -m_1" />
-                <Box tone="amber">
+                <Box tone={MHC_AFFINE_TONES.result}>
                   <MathFormula tex={`a^C_{1${j}}-m_1`} />
                 </Box>
                 <Operator tex="\downarrow\;\exp" />

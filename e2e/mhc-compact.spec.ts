@@ -15,6 +15,17 @@ test("mHC 标量不撑满宽栏，归一化与投影横向接续", async ({ page
     await focus.selectOption("hc-mix-a");
     const root = page.locator('.react-flow__node[data-id="hc-mix-a"]');
     await expect(root.locator("[data-mhc-compact-column]")).toBeVisible();
+    const roleColors = await root
+      .locator('[data-mhc-gate="p"] [data-mhc-affine-row]')
+      .first()
+      .evaluate((el) =>
+        [...el.children]
+          .filter((child) => child.tagName === "DIV")
+          .map((child) => getComputedStyle(child).backgroundColor),
+      );
+    expect(roleColors).toHaveLength(4);
+    expect(new Set(roleColors).size).toBe(4);
+    await expect(root.locator("[data-mhc-affine-legend]")).toBeVisible();
     const measurements = await root.evaluate((el) => {
       const widths = (selector: string) =>
         [...el.querySelectorAll<HTMLElement>(selector)].map(
@@ -66,6 +77,13 @@ test("mHC 标量不撑满宽栏，归一化与投影横向接续", async ({ page
     console.log(`mHC ${layer} 紧凑尺寸`, measurements);
     if (layer === 15) {
       await root.screenshot({ path: "artifacts/mhc-compact-full.png" });
+      await root
+        .locator("[data-mhc-sinkhorn] > div")
+        .first()
+        .screenshot({ path: "artifacts/mhc-affine-colors.png" });
+      await root
+        .locator('[data-mhc-gate="q"]')
+        .screenshot({ path: "artifacts/mhc-gate-colors.png" });
       await root
         .locator("[data-mhc-preparation]")
         .screenshot({ path: "artifacts/mhc-compact-preparation.png" });

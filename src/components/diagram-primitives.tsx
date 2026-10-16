@@ -17,6 +17,7 @@ export type DiagramTone =
   | "blue"
   | "violet"
   | "rose"
+  | "plum"
   | "cyan";
 export const COLORS = {
   paper: "#f7f5f0",
@@ -33,6 +34,8 @@ export const COLORS = {
   blueSoft: "#e9edf2",
   rose: "#9a625d",
   roseSoft: "#f4e7e5",
+  plum: "#975381",
+  plumSoft: "#f2e5ef",
   violet: "#795a97",
   violetSoft: "#eee7f5",
   cyan: "#287e87",
