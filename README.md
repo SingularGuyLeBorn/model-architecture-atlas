@@ -6,7 +6,7 @@
 
 ## 在线访问
 
-[打开在线站点](https://4e8492f9.pinme.dev) · [第 101 个 token 缓存示例](https://4e8492f9.pinme.dev/#model=v41&chapter=cache) · [直达 V4.1 逐层图](https://4e8492f9.pinme.dev/#model=v41&chapter=layer) · [GitHub 源码](https://github.com/SingularGuyLeBorn/model-architecture-atlas)
+[打开在线站点](https://ad1ac497.pinme.dev) · [第 101 个 token 缓存示例](https://ad1ac497.pinme.dev/#model=v41&chapter=cache) · [直达 V4.1 逐层图](https://ad1ac497.pinme.dev/#model=v41&chapter=layer) · [GitHub 源码](https://github.com/SingularGuyLeBorn/model-architecture-atlas)
 
 网站免登录，GitHub 仓库公开。主入口由 PinMe 托管，[Sites 备用入口](https://model-architecture-atlas.justfox32.chatgpt.site)也已开放匿名访问。大陆不同运营商的可用性尚未完成验证，不能据部署成功保证所有网络都可访问。也可以下载源码，在本机运行。
 
