@@ -2909,12 +2909,111 @@ function IndexProjection({
   );
 }
 
+export function IndexSelection({
+  indexSource,
+  kvSource,
+}: {
+  indexSource: number;
+  kvSource: number;
+}) {
+  return (
+    <div
+      data-index-selection
+      style={{
+        width: "max-content",
+        maxWidth: "100%",
+        border: `1px solid ${COLORS.amber}`,
+        borderRadius: 8,
+        padding: 9,
+        display: "grid",
+        gap: 8,
+      }}
+    >
+      <strong>④ 因果可见位置 → Top-K → 按位置排序的行号</strong>
+      <MathFormula
+        tex={`i\\le\\lfloor t/${compressionRatioForLayer(kvSource)}\\rfloor,\\qquad K_{${indexSource},t}=\\min(512,\\lfloor t/${compressionRatioForLayer(kvSource)}\\rfloor)`}
+      />
+      {/* [OM-FREEPLAY] 五个位置、取两个的缩小算例，说明筛选；实际上限仍为 512。 */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(5,max-content)",
+          gap: 8,
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <span>小例子 · 前 4 行可见，取 2 行</span>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(5,max-content)",
+              gap: 5,
+            }}
+          >
+            {[0.4, 0.1, 0.8, 0.3, 0.9].map((score, i) => (
+              <div
+                key={i}
+                style={{
+                  textAlign: "center",
+                  opacity: i === 4 ? 0.4 : 1,
+                }}
+              >
+                <span>行 {i + 1}</span>
+                <Box tone={i === 0 || i === 2 ? "amber" : "blue"}>
+                  <MathFormula tex={i === 4 ? "-\\infty" : String(score)} />
+                </Box>
+              </div>
+            ))}
+          </div>
+        </div>
+        <Operator tex="\to" />
+        <div>
+          <strong>分数最高：第 3、1 行</strong>
+          <VectorStrip
+            name=""
+            nameWidth={0}
+            length="2"
+            columns={["3", "1"]}
+            contentWidth
+            elementTex={(i) => i}
+            tone="amber"
+          />
+        </div>
+        <Operator tex="\to" />
+        <div>
+          <strong>按位置排序：第 1、3 行</strong>
+          <VectorStrip
+            name=""
+            nameWidth={0}
+            length="2"
+            columns={["1", "3"]}
+            contentWidth
+            elementTex={(i) => i}
+            tone="green"
+          />
+        </div>
+      </div>
+      <FlowStep>行号连接到下方全局 KV 矩阵，逐行选取</FlowStep>
+      <VectorStrip
+        name={`I_{${indexSource},t}`}
+        contentWidth
+        length={`K_{${indexSource},t}`}
+        elementTex={(i) => `i_{${indexSource},t,${i}}`}
+        tone="amber"
+      />
+    </div>
+  );
+}
+
 export function IndexScoreProcess({
   layer,
   kvSource,
+  children,
 }: {
   layer: number;
   kvSource: number;
+  children?: React.ReactNode;
 }) {
   const { count } = useExecutionAxis();
   return (
@@ -3017,32 +3116,49 @@ export function IndexScoreProcess({
       <div style={{ position: "relative" }}>
         <SumJunction count={3} />
         <span
-          style={{ position: "absolute", left: "calc(50% + 42px)", top: 42 }}
+          style={{ position: "absolute", left: "calc(50% + 42px)", top: 82 }}
         >
           <MathFormula tex="\sum_{h=1}^{32}" /> · 32 路同一位置相加
         </span>
       </div>
-      <RowMatrix
-        tex={`S_{${layer}}`}
-        shape={`${count}\\times M`}
-        rows={
-          count === "1"
-            ? ["\\mathbf s_t"]
-            : [
-                "\\mathbf s_1",
-                "\\mathbf s_2",
-                "\\vdots",
-                "\\mathbf s_t",
-                "\\vdots",
-                "\\mathbf s_N",
-              ]
-        }
-        selected={count === "1" ? 0 : 3}
-        rowLength="M"
-        elementTex={(r, i) =>
-          `s_{${layer},${count === "1" ? "t" : ["1", "2", "", "t", "", "N"][r]},${i}}`
-        }
-      />
+      <div
+        data-index-result-flow
+        style={{
+          display: "grid",
+          alignItems: "center",
+          justifyItems: "center",
+          gap: 7,
+        }}
+      >
+        <RowMatrix
+          tex={`S_{${layer}}`}
+          contentWidth
+          shape={`${count}\\times M`}
+          rows={
+            count === "1"
+              ? ["\\mathbf s_t"]
+              : [
+                  "\\mathbf s_1",
+                  "\\mathbf s_2",
+                  "\\vdots",
+                  "\\mathbf s_t",
+                  "\\vdots",
+                  "\\mathbf s_N",
+                ]
+          }
+          selected={count === "1" ? 0 : 3}
+          rowLength="M"
+          elementTex={(r, i) =>
+            `s_{${layer},${count === "1" ? "t" : ["1", "2", "", "t", "", "N"][r]},${i}}`
+          }
+        />
+        {children && (
+          <>
+            <Operator tex="\downarrow" />
+            {children}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -5852,7 +5968,9 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   />
                 </div>
               </div>
-              <IndexScoreProcess layer={layer} kvSource={kvSource} />
+              <IndexScoreProcess layer={layer} kvSource={kvSource}>
+                <IndexSelection indexSource={indexSource} kvSource={kvSource} />
+              </IndexScoreProcess>
             </>
           ) : (
             <div data-index-reuse style={{ display: "grid", gap: 7 }}>
@@ -5869,6 +5987,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   <VectorStrip
                     key={i}
                     name={`I_{${indexSource},${s}}`}
+                    contentWidth
                     length={`K_{${indexSource},${s}}`}
                     elementTex={(j) => `i_{${indexSource},${s},${j}}`}
                     tone="amber"
@@ -5876,91 +5995,6 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 ),
               )}
               <FlowStep>同一组行号送往下方全局 KV 取行</FlowStep>
-            </div>
-          )}
-          {writesIndex && (
-            <div
-              data-index-selection
-              style={{
-                border: `1px solid ${COLORS.amber}`,
-                borderRadius: 8,
-                padding: 9,
-                display: "grid",
-                gap: 8,
-              }}
-            >
-              <strong>④ 因果可见位置 → Top-K → 按位置排序的行号</strong>
-              <MathFormula
-                tex={`i\\le\\lfloor t/${compressionRatioForLayer(kvSource)}\\rfloor,\\qquad K_{${indexSource},t}=\\min(512,\\lfloor t/${compressionRatioForLayer(kvSource)}\\rfloor)`}
-              />
-              {/* [OM-FREEPLAY] 五个位置、取两个的缩小算例，说明筛选；实际上限仍为 512。 */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1.3fr 32px 1fr 32px 1fr",
-                  gap: 8,
-                  alignItems: "center",
-                }}
-              >
-                <div>
-                  <span>小例子 · 前 4 行可见，取 2 行</span>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(5,1fr)",
-                      gap: 5,
-                    }}
-                  >
-                    {[0.4, 0.1, 0.8, 0.3, 0.9].map((score, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          textAlign: "center",
-                          opacity: i === 4 ? 0.4 : 1,
-                        }}
-                      >
-                        <span>行 {i + 1}</span>
-                        <Box tone={i === 0 || i === 2 ? "amber" : "blue"}>
-                          <MathFormula
-                            tex={i === 4 ? "-\\infty" : String(score)}
-                          />
-                        </Box>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <Operator tex="\to" />
-                <div>
-                  <strong>分数最高：第 3、1 行</strong>
-                  <VectorStrip
-                    name=""
-                    nameWidth={0}
-                    length="2"
-                    columns={["3", "1"]}
-                    elementTex={(i) => i}
-                    tone="amber"
-                  />
-                </div>
-                <Operator tex="\to" />
-                <div>
-                  <strong>按位置排序：第 1、3 行</strong>
-                  <VectorStrip
-                    name=""
-                    nameWidth={0}
-                    length="2"
-                    columns={["1", "3"]}
-                    elementTex={(i) => i}
-                    tone="green"
-                  />
-                </div>
-              </div>
-              <FlowStep>行号连接到下方全局 KV 矩阵，逐行选取</FlowStep>
-              <VectorStrip
-                name={`I_{${indexSource},t}`}
-                length={`K_{${indexSource},t}`}
-                elementTex={(i) => `i_{${indexSource},t,${i}}`}
-                tone="amber"
-              />
             </div>
           )}
         </div>

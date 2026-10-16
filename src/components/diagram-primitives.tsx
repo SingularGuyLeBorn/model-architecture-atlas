@@ -148,6 +148,7 @@ export function VectorStrip({
   nameWidth,
   nameLineHeight,
   outlineSelection = true,
+  contentWidth = false,
 }: {
   name: string;
   length: string;
@@ -159,17 +160,21 @@ export function VectorStrip({
   nameWidth?: number;
   nameLineHeight?: number;
   outlineSelection?: boolean;
+  contentWidth?: boolean;
 }) {
   const palette = tonePalette(selected ? "amber" : tone);
   const columns = displayedColumns ?? ["1", "2", "\\cdots", length];
   return (
     <div
       data-vector-elements
+      data-content-width={contentWidth || undefined}
       data-vector-selected={selected || undefined}
       style={{
         minWidth: 0,
+        width: contentWidth ? "max-content" : undefined,
+        maxWidth: contentWidth ? "100%" : undefined,
         display: "grid",
-        gridTemplateColumns: `${nameWidth ?? (compact ? 52 : 92)}px minmax(0,1fr)`,
+        gridTemplateColumns: `${nameWidth ?? (compact ? 52 : 92)}px ${contentWidth ? "max-content" : "minmax(0,1fr)"}`,
         gap: 5,
         alignItems: "center",
         padding: compact ? 2 : 5,
@@ -200,7 +205,15 @@ export function VectorStrip({
           minWidth: 0,
           display: "grid",
           gridTemplateColumns: columns
-            .map((column) => (column === "\\cdots" ? ".55fr" : "minmax(0,1fr)"))
+            .map((column) =>
+              contentWidth
+                ? column === "\\cdots"
+                  ? "24px"
+                  : "max-content"
+                : column === "\\cdots"
+                  ? ".55fr"
+                  : "minmax(0,1fr)",
+            )
             .join(" "),
           gap: 3,
         }}
@@ -220,9 +233,16 @@ export function VectorStrip({
           ) : (
             <span
               key={`${column}-${index}`}
+              data-vector-cell
               style={{
                 minWidth: 0,
-                padding: compact ? "2px 3px" : "4px 3px",
+                padding: contentWidth
+                  ? compact
+                    ? "2px 8px"
+                    : "4px 8px"
+                  : compact
+                    ? "2px 3px"
+                    : "4px 3px",
                 border: `1px solid ${palette.color}`,
                 borderRadius: 4,
                 background: palette.background,
@@ -327,6 +347,7 @@ export function RowMatrix({
   elementTex,
   elementColumns,
   headerLineHeight,
+  contentWidth = false,
 }: {
   tex: string;
   shape: string;
@@ -337,13 +358,17 @@ export function RowMatrix({
   elementTex?: (rowIndex: number, column: string) => string;
   elementColumns?: string[];
   headerLineHeight?: number;
+  contentWidth?: boolean;
 }) {
   const palette = tonePalette(tone);
   return (
     <div
       data-expanded-tensor
+      data-content-width={contentWidth || undefined}
       style={{
         minWidth: 0,
+        width: contentWidth ? "max-content" : undefined,
+        maxWidth: contentWidth ? "100%" : undefined,
         padding: 6,
         border: `1.3px solid ${palette.color}`,
         borderRadius: 7,
@@ -380,6 +405,7 @@ export function RowMatrix({
               tone={tone}
               selected={selected === index}
               compact
+              contentWidth={contentWidth}
             />
           ) : (
             <div
