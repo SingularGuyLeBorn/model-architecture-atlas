@@ -800,6 +800,10 @@ export function StackedSum({
   omittedBefore?: number;
 }) {
   const { ref, height } = useDiagramSize();
+  // [OM-FREEPLAY] 在原有通道内为右侧出线预留 12px 起步段与至少 10px 箭头引入段。
+  const wireWidth = 64;
+  const circleX = 44;
+  const outputInset = wireWidth - circleX;
   const omittedHeight = omittedBefore === undefined ? 0 : 18;
   const tracks = children.flatMap((_, i) =>
     i === omittedBefore ? ["18px", "minmax(0,1fr)"] : ["minmax(0,1fr)"],
@@ -809,7 +813,7 @@ export function StackedSum({
       data-stacked-sum
       style={{
         display: "grid",
-        gridTemplateColumns: "max-content 64px",
+        gridTemplateColumns: `max-content ${wireWidth}px`,
         gridTemplateRows: "1fr 22px",
         minWidth: 0,
         width: "fit-content",
@@ -853,7 +857,7 @@ export function StackedSum({
       <div ref={ref} style={{ position: "relative" }}>
         <svg
           aria-hidden
-          viewBox={`0 0 64 ${height}`}
+          viewBox={`0 0 ${wireWidth} ${height}`}
           style={{ position: "absolute", width: "100%", height: "100%" }}
         >
           {children.map((_, i) => {
@@ -866,11 +870,11 @@ export function StackedSum({
               children.length === 1
                 ? 0
                 : -15 + (i * 30) / (children.length - 1);
-            const x = 32 - Math.sqrt(18 * 18 - offset * offset),
+            const x = circleX - Math.sqrt(18 * 18 - offset * offset),
               y = height / 2 + offset;
             // 末段至少留 10px，容纳开放箭头，箭翼不会越过折点形成反向短尾。
             const laneX = Math.min(
-              2 + Math.min(i, children.length - 1 - i),
+              12 + 4 * Math.min(i, children.length - 1 - i),
               x - 10,
             );
             return (
@@ -895,7 +899,7 @@ export function StackedSum({
           })}
           <path
             data-sum-output
-            d={`M32 ${height / 2 + 18} V${height}`}
+            d={`M${circleX} ${height / 2 + 18} V${height}`}
             fill="none"
             stroke={COLORS.cyan}
             strokeWidth="1.5"
@@ -903,7 +907,11 @@ export function StackedSum({
           />
         </svg>
         <div
-          style={{ position: "absolute", left: 14, top: "calc(50% - 18px)" }}
+          style={{
+            position: "absolute",
+            left: circleX - 18,
+            top: "calc(50% - 18px)",
+          }}
         >
           <SumCircle />
         </div>
@@ -915,7 +923,7 @@ export function StackedSum({
         <span
           style={{
             position: "absolute",
-            right: 32,
+            right: outputInset,
             top: 0,
             height: 9,
             borderLeft: `1.5px solid ${COLORS.cyan}`,
@@ -925,7 +933,7 @@ export function StackedSum({
           style={{
             position: "absolute",
             left: "50%",
-            right: 32,
+            right: outputInset,
             top: 9,
             borderTop: `1.5px solid ${COLORS.cyan}`,
           }}

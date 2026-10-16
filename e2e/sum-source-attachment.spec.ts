@@ -31,6 +31,15 @@ test("所有纵向求和线贴合真实输入，乘积行与省略行保持紧�
                 "[data-sum-input]",
               )) {
                 const index = path.getAttribute("data-sum-input");
+                const segments = path
+                  .getAttribute("d")!
+                  .match(/^M0 ([\d.-]+) H([\d.-]+) V([\d.-]+) H([\d.-]+)$/);
+                if (
+                  !segments ||
+                  Number(segments[2]) < 12 ||
+                  Number(segments[4]) - Number(segments[2]) < 10
+                )
+                  failures.push(`右侧出线或箭头净空不足: ${index}`);
                 const row = sum.querySelector(`[data-sum-operand="${index}"]`)!;
                 const operand =
                   row.querySelector(
@@ -67,6 +76,20 @@ test("所有纵向求和线贴合真实输入，乘积行与省略行保持紧�
           }),
         )
         .toEqual([]);
+      expect(
+        await node
+          .locator("div")
+          .evaluateAll((elements) =>
+            elements
+              .filter(
+                (el) =>
+                  el.clientWidth > 0 &&
+                  !el.querySelector(".react-flow__handle") &&
+                  el.scrollWidth > el.clientWidth + 2,
+              )
+              .map((el) => el.textContent?.slice(0, 60)),
+          ),
+      ).toEqual([]);
       if (layer === 15) {
         const detail = node.locator("[data-stacked-sum]").first();
         if (await detail.count())
