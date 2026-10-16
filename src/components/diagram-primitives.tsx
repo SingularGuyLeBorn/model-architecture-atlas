@@ -317,6 +317,39 @@ export function VectorStrip({
   );
 }
 
+/** 数据列共用最长内容的尺寸；行名与省略列单独占轨道。 */
+export function matrixColumnTracks(columns: string[], nameTrack = "52px") {
+  return `${nameTrack} ${columns.map((column) => (column === "\\cdots" ? "24px" : "minmax(max-content, 1fr)")).join(" ")}`;
+}
+
+/** 沿每个已展示的数据列省略，不能用整行中央的一个点串代替。 */
+export function MatrixEllipsis({ columns }: { columns: string[] }) {
+  return (
+    <div
+      data-matrix-ellipsis-row
+      style={{
+        display: "grid",
+        gridColumn: "1 / -1",
+        gridTemplateColumns: "subgrid",
+        textAlign: "center",
+        alignItems: "center",
+        fontSize: 9,
+      }}
+    >
+      <span />
+      {columns.map((column, index) =>
+        column === "\\cdots" ? (
+          <span key={index} />
+        ) : (
+          <span key={index} data-matrix-ellipsis-column={column}>
+            <MathFormula tex="\vdots" />
+          </span>
+        ),
+      )}
+    </div>
+  );
+}
+
 export function Matrix({
   tex,
   shape,
@@ -337,10 +370,12 @@ export function Matrix({
   rowIndices?: string[];
 }) {
   const rows = rowIndices ?? ["1", "2", "\\vdots", lastRow];
+  const columns = ["1", "2", "3", "\\cdots", vectorLength];
   const palette = tonePalette(tone);
   return (
     <div
       data-expanded-tensor
+      data-uniform-matrix
       style={{
         width: "fit-content",
         maxWidth: "100%",
@@ -366,7 +401,12 @@ export function Matrix({
         style={{
           padding: 6,
           display: "grid",
-          gridTemplateColumns: "52px repeat(3,max-content) 24px max-content",
+          width: "max-content",
+          justifySelf: "center",
+          gridTemplateColumns: matrixColumnTracks(columns),
+          gridTemplateRows: rows
+            .map((row) => (row === "\\vdots" ? "min-content" : "1fr"))
+            .join(" "),
           gap: 3,
           borderTop: `1px solid ${COLORS.line}`,
           fontSize: 9.5,
@@ -374,28 +414,19 @@ export function Matrix({
       >
         {rows.map((row, index) =>
           row === "\\vdots" ? (
-            <div
-              key={`${row}-${index}`}
-              style={{
-                gridColumn: "1 / -1",
-                minHeight: 22,
-                display: "grid",
-                placeItems: "center",
-              }}
-            >
-              <MathFormula tex="\vdots" />
-            </div>
+            <MatrixEllipsis key={`${row}-${index}`} columns={columns} />
           ) : (
             <VectorStrip
               key={`${row}-${index}`}
               name={rowTex(row)}
               length={vectorLength}
-              columns={["1", "2", "3", "\\cdots", vectorLength]}
+              columns={columns}
               elementTex={(column) => elementTex(row, column)}
               selected={rowIndices !== undefined && row === "t"}
               tone={tone}
               compact
               columnSubgrid
+              uniformCells
             />
           ),
         )}
@@ -436,6 +467,7 @@ export function RowMatrix({
     <div
       data-expanded-tensor
       data-content-width={contentWidth || undefined}
+      data-uniform-matrix={columnSubgrid || undefined}
       style={{
         minWidth: 0,
         width: contentWidth ? "max-content" : undefined,
@@ -465,8 +497,13 @@ export function RowMatrix({
         style={{
           display: "grid",
           gap: 3,
+          width: columnSubgrid ? "max-content" : undefined,
+          justifySelf: columnSubgrid ? "center" : undefined,
           gridTemplateColumns: columnSubgrid
-            ? `52px ${columns.map((column) => (column === "\\cdots" ? "24px" : "max-content")).join(" ")}`
+            ? matrixColumnTracks(columns)
+            : undefined,
+          gridTemplateRows: columnSubgrid
+            ? `${columnLabels ? "max-content " : ""}${rows.map((row) => (row === "\\vdots" ? "min-content" : "1fr")).join(" ")}`
             : undefined,
         }}
       >
@@ -488,7 +525,9 @@ export function RowMatrix({
           </div>
         )}
         {rows.map((row, index) =>
-          row === "\\vdots" ? (
+          row === "\\vdots" && columnSubgrid ? (
+            <MatrixEllipsis key={index} columns={columns} />
+          ) : row === "\\vdots" ? (
             <div
               key={index}
               style={{
@@ -511,6 +550,7 @@ export function RowMatrix({
               compact
               contentWidth={contentWidth}
               columnSubgrid={columnSubgrid}
+              uniformCells={columnSubgrid}
             />
           ) : (
             <div

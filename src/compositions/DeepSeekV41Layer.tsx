@@ -18,6 +18,8 @@ import {
   VectorStrip,
   Matrix,
   RowMatrix,
+  MatrixEllipsis,
+  matrixColumnTracks,
   MergeArrows,
   SumNode,
   SumJunction,
@@ -3684,6 +3686,8 @@ function MatrixBracket({
   );
   return (
     <div
+      data-window-matrix
+      data-uniform-matrix
       style={{
         display: "grid",
         gridTemplateColumns: "8px minmax(0,1fr) 8px",
@@ -3700,13 +3704,28 @@ function MatrixBracket({
           borderBottom: `2px solid ${COLORS.ink}`,
         }}
       />
-      <div style={{ display: "grid", gap: compact ? 2 : 3, minWidth: 0 }}>
+      <div
+        style={{
+          display: "grid",
+          gap: compact ? 2 : 3,
+          minWidth: 0,
+          width: "max-content",
+          justifySelf: "center",
+          gridTemplateColumns: matrixColumnTracks(
+            ["1", "2", "\\cdots", "512"],
+            "max-content",
+          ),
+          gridTemplateRows: rows
+            .map((row) => (row.ellipsis ? "min-content" : "1fr"))
+            .join(" "),
+        }}
+      >
         {firstSelected >= 0 && (
           <div
             data-selection-window
             aria-hidden
             style={{
-              gridColumn: 1,
+              gridColumn: "1 / -1",
               gridRow: `${firstSelected + 1} / ${lastSelected + 2}`,
               border: `1px dashed ${COLORS.amber}`,
               borderRadius: 4,
@@ -3721,12 +3740,12 @@ function MatrixBracket({
             data-matrix-ellipsis={item.ellipsis || undefined}
             style={{
               minWidth: 0,
-              gridColumn: 1,
+              gridColumn: "1 / -1",
               gridRow: index + 1,
               minHeight: compact ? (item.ellipsis ? 14 : 20) : 22,
               display: "grid",
-              gridTemplateColumns: "1fr",
-              alignItems: "center",
+              gridTemplateColumns: "subgrid",
+              alignItems: "stretch",
               gap: 3,
               padding: compact ? 0 : item.ellipsis ? "1px 4px" : "2px 4px",
               borderRadius: 5,
@@ -3738,7 +3757,7 @@ function MatrixBracket({
             }}
           >
             {item.ellipsis ? (
-              <MathFormula tex="\vdots" />
+              <MatrixEllipsis columns={["1", "2", "\\cdots", "512"]} />
             ) : (
               <VectorStrip
                 name={`\\mathbf u_{${layer},${item.row}}`}
@@ -3748,6 +3767,8 @@ function MatrixBracket({
                 selected={item.selected}
                 outlineSelection={false}
                 compact
+                columnSubgrid
+                uniformCells
               />
             )}
           </div>
@@ -4722,9 +4743,7 @@ function SelectedGlobalRows({
               }}
             >
               {row.ellipsis ? (
-                <span style={{ gridColumn: "1 / -1", alignSelf: "center" }}>
-                  <MathFormula tex="\vdots" />
-                </span>
+                <MatrixEllipsis columns={["1", "2", "\\cdots", "512"]} />
               ) : (
                 <VectorStrip
                   name={`\\mathbf g_{${kvSource},${row.label}}`}

@@ -8,9 +8,29 @@ import {
   RowMatrix,
   MathFormula,
   VectorStrip,
+  MatrixEllipsis,
 } from "../src/components/diagram-primitives";
 import { Expert } from "../src/compositions/DeepSeekV41Layer";
 import { Tensor } from "../src/templates/structure-blocks";
+
+it.each([
+  [["1", "2", "\\cdots", "128"], 3],
+  [["1", "2", "3", "\\cdots", "512"], 4],
+] as const)("纵向省略号逐列对应 %s", (columns, count) => {
+  const root = document.createElement("div");
+  root.innerHTML = renderToStaticMarkup(
+    <MatrixEllipsis columns={[...columns]} />,
+  );
+  const dots = [...root.querySelectorAll("[data-matrix-ellipsis-column]")];
+  expect(dots).toHaveLength(count);
+  expect(
+    dots.map((dot) => dot.getAttribute("data-matrix-ellipsis-column")),
+  ).toEqual(columns.filter((c) => c !== "\\cdots"));
+  for (const dot of dots)
+    expect(dot.querySelector("[aria-label]")?.getAttribute("aria-label")).toBe(
+      "\\vdots",
+    );
+});
 
 it("白色画布上，展开张量外框透明且内部元素保留颜色", () => {
   const root = document.createElement("div");
