@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
@@ -14,6 +15,12 @@ import React, {
 import katex from "katex";
 import { MathMarkup } from "./MathMarkup";
 import { DATA_WIRE_WIDTH } from "./diagram-appearance";
+import {
+  labelRegistry,
+  layoutEdgeLabels,
+  labelBounds,
+  type LabelPlacement,
+} from "./edge-label-layout";
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -418,11 +425,11 @@ export function latexHtml(tex: string, display = false) {
 type Obstacle = { left: number; top: number; right: number; bottom: number };
 type ReservedSegment = { start: XYPosition; end: XYPosition };
 
-// [OM-FREEPLAY] 用户要求自动线不得贴框；24px 引出段与 28px 障碍外扩可在当前最窄并列间距内同时成立。
+// [OM-FREEPLAY] 24px 端口引出段；44px 框外净空容纳带上下标的变量标签。
 const EDGE_PORT_LEAD = 24;
-const EDGE_NODE_CLEARANCE = 28;
-// [OM-FREEPLAY] 相邻自动线路保留 16px 的中心线间距，兼顾开放箭头和短公式标签。
-const EDGE_LANE_GAP = 16;
+const EDGE_NODE_CLEARANCE = 44;
+// [OM-FREEPLAY] 44px 中心线间距兼顾横线的上下标高度与竖线的变量半宽，避免邻线穿字。
+const EDGE_LANE_GAP = 44;
 // 连线变量显著大于图内普通说明文字（13–16px）；主标签与箭头处复述共用字号。
 const EDGE_LABEL_FONT_SIZE = 20;
 
@@ -764,14 +771,36 @@ function defaultOrthogonalPoints(
   // 两端已有扇出通道时，出线高度和入线高度必须能独立选择。
   // 只枚举一个 y 会迫使一端与已有线重叠，即使另一条空闲通道就在旁边。
   if (bestScore >= 800) {
-    const nearest = (channels: number[], coordinate: number) =>
+    const nearest = (
+      channels: number[],
+      coordinate: number,
+      direction: number,
+    ) =>
       [...channels]
+        // 先排除会让端口倒车的候选，再取最近通道，避免扩大组合搜索。
+        .filter((value) => !direction || (value - coordinate) * direction >= 0)
         .sort((a, b) => Math.abs(a - coordinate) - Math.abs(b - coordinate))
         .slice(0, 4);
-    const exitYs = nearest(horizontalChannels, sourceY),
-      entryYs = nearest(horizontalChannels, targetY),
-      exitXs = nearest(verticalChannels, sourceX),
-      entryXs = nearest(verticalChannels, targetX);
+    const exitYs = nearest(
+        horizontalChannels,
+        sourceY,
+        ports ? Math.sign(sourceY - ports.source.y) : 0,
+      ),
+      entryYs = nearest(
+        horizontalChannels,
+        targetY,
+        ports ? Math.sign(targetY - ports.target.y) : 0,
+      ),
+      exitXs = nearest(
+        verticalChannels,
+        sourceX,
+        ports ? Math.sign(sourceX - ports.source.x) : 0,
+      ),
+      entryXs = nearest(
+        verticalChannels,
+        targetX,
+        ports ? Math.sign(targetX - ports.target.x) : 0,
+      );
     for (const x of nearX)
       for (const exitY of exitYs)
         for (const entryY of entryYs)
@@ -1012,51 +1041,6 @@ export function pathWithLabelGap(
   return pieces.join(" ");
 }
 
-// [OM-FREEPLAY] 超过 600 世界像素视为长线；在目标外侧保留 36px 净空复述变量。
-// 内部端口的引入段不放标签，避免标签盖住目标容器的内部结构。
-export function terminalLabelPoint(
-  points: XYPosition[],
-  target: Obstacle | undefined,
-  side: Position,
-  size: { width: number; height: number },
-  primary: XYPosition,
-) {
-  const end = points.at(-1);
-  if (!end || !target) return null;
-  const length = points
-    .slice(1)
-    .reduce(
-      (sum, p, i) => sum + Math.hypot(p.x - points[i].x, p.y - points[i].y),
-      0,
-    );
-  if (length < 600) return null;
-  const vertical = side === Position.Top || side === Position.Bottom;
-  const internal =
-    side === Position.Top
-      ? end.y - target.top
-      : side === Position.Bottom
-        ? target.bottom - end.y
-        : side === Position.Left
-          ? end.x - target.left
-          : target.right - end.x;
-  const distance =
-    Math.max(0, internal) + 36 + (vertical ? size.height : size.width) / 2;
-  const point = labelPointOnPath(points, Math.max(0, 1 - distance / length));
-  if (
-    Math.abs(point.x - primary.x) < size.width + 20 &&
-    Math.abs(point.y - primary.y) < size.height + 20
-  )
-    return null;
-  if (
-    point.x > target.left &&
-    point.x < target.right &&
-    point.y > target.top &&
-    point.y < target.bottom
-  )
-    return null;
-  return point;
-}
-
 function longestSegmentCenter(points: XYPosition[]) {
   let best = { x: points[0].x, y: points[0].y, length: -1 };
   for (let index = 0; index < points.length - 1; index += 1) {
@@ -1205,6 +1189,58 @@ type RoutingInput = {
   routes: Map<string, XYPosition[]>;
 };
 const routingInputs = new WeakMap<object, RoutingInput>();
+const labelPlans = new WeakMap<
+  object,
+  {
+    routes: Map<string, XYPosition[]>;
+    edges: EditableEdge[];
+    version: number;
+    placements: Map<string, LabelPlacement>;
+  }
+>();
+
+function labelsForRoutes(
+  owner: object,
+  routes: Map<string, XYPosition[]>,
+  edges: EditableEdge[],
+) {
+  const registry = labelRegistry(owner),
+    version = registry.getSnapshot();
+  const cached = labelPlans.get(owner);
+  if (
+    cached?.routes === routes &&
+    cached.edges === edges &&
+    cached.version === version
+  )
+    return cached.placements;
+  const entries = edges.flatMap((edge) => {
+    const points = routes.get(edge.id),
+      size = registry.sizes.get(edge.id);
+    if (
+      !edge.data?.labelTex ||
+      !points?.length ||
+      size?.tex !== edge.data.labelTex
+    )
+      return [];
+    return [
+      {
+        id: edge.id,
+        points,
+        size,
+        preferred:
+          edge.data.labelPosition === undefined
+            ? longestSegmentCenter(points)
+            : labelPointOnPath(points, edge.data.labelPosition),
+      },
+    ];
+  });
+  const boxes = [...(routingCache.get(owner)?.frames.values() ?? [])].map(
+    (frame) => frame.bounds,
+  );
+  const placements = layoutEdgeLabels(entries, boxes, routes);
+  labelPlans.set(owner, { routes, edges, version, placements });
+  return placements;
+}
 
 export function routesForStore(
   owner: object,
@@ -1454,10 +1490,7 @@ export function planArchitectureRoutes(
       targetFrames: Obstacle[] = [];
     const obstacles = [...frames].flatMap(([id, frame]) => {
       if (sourceAncestors.has(id) && targetAncestors.has(id)) return [];
-      const bounds = inflate(
-        frame.bounds,
-        id === edge.source || id === edge.target ? 8 : EDGE_NODE_CLEARANCE,
-      );
+      const bounds = inflate(frame.bounds, EDGE_NODE_CLEARANCE);
       if (id === edge.source || sourceAncestors.has(id))
         sourceFrames.push(bounds);
       if (id === edge.target || targetAncestors.has(id))
@@ -1505,7 +1538,7 @@ function EditableOrthogonalEdgeView({
   const { screenToFlowPosition, getZoom, setEdges, getInternalNode } =
     useReactFlow<Node, EditableEdge>();
   const store = useStoreApi();
-  const route = useStore((state) => {
+  const routes = useStore((state) => {
     let routes = routingSnapshots.get(state);
     if (!routes) {
       // 各 hook 的包装对象不同，getState 才是同一画布的共享身份。
@@ -1517,28 +1550,27 @@ function EditableOrthogonalEdgeView({
       );
       routingSnapshots.set(state, routes);
     }
-    return routes.get(id);
+    return routes;
   });
+  const route = routes.get(id);
+  const registry = labelRegistry(store.getState);
+  useSyncExternalStore(registry.subscribe, registry.getSnapshot);
   const [hoveredSegment, setHoveredSegment] = useState<number | null>(null);
   const labelRef = useRef<HTMLDivElement>(null);
-  const [labelSize, setLabelSize] = useState({ width: 0, height: 0 });
+  const labelSize = registry.sizes.get(id) ?? { width: 0, height: 0 };
   useEffect(() => {
     const label = labelRef.current;
     if (!label) return;
-    const observer = new ResizeObserver((entries) =>
-      setLabelSize((current) => {
-        const box = entries[0]?.borderBoxSize[0];
-        if (!box) return current;
-        const width = box.inlineSize,
-          height = box.blockSize;
-        return current.width === width && current.height === height
-          ? current
-          : { width, height };
-      }),
-    );
+    const observer = new ResizeObserver((entries) => {
+      const box = entries[0]?.borderBoxSize[0];
+      if (!box) return;
+      const width = box.inlineSize,
+        height = box.blockSize;
+      registry.measure(id, data?.labelTex ?? "", { width, height });
+    });
     observer.observe(label);
     return () => observer.disconnect();
-  }, [data?.labelTex]);
+  }, [data?.labelTex, id, registry]);
   const history = useContext(EditHistoryContext);
   const anchorPoint = (
     nodeId: string,
@@ -1605,38 +1637,22 @@ function EditableOrthogonalEdgeView({
       targetPosition,
       [],
     );
-  const labelCenter =
+  const preferredCenter =
     data?.labelPosition === undefined
       ? longestSegmentCenter(points)
       : labelPointOnPath(points, data.labelPosition);
-  const targetNode = getInternalNode(target),
-    targetAbsolute = targetNode?.internals.positionAbsolute;
-  const targetBounds =
-    targetAbsolute && targetNode?.measured.width && targetNode.measured.height
-      ? {
-          left: targetAbsolute.x,
-          top: targetAbsolute.y,
-          right: targetAbsolute.x + targetNode.measured.width,
-          bottom: targetAbsolute.y + targetNode.measured.height,
-        }
-      : undefined;
-  const terminalCenter = terminalLabelPoint(
-    points,
-    targetBounds,
-    targetPosition,
-    labelSize,
-    labelCenter,
-  );
+  const placement = labelsForRoutes(
+    store.getState,
+    routes,
+    store.getState().edges as EditableEdge[],
+  ).get(id);
+  const labelCenter = placement?.primary ?? preferredCenter;
+  const terminalCenter = placement?.terminal;
   const path = pathWithLabelGap(
     points,
     data?.labelTex && labelSize.width
       ? [labelCenter, ...(terminalCenter ? [terminalCenter] : [])].map(
-          (center) => ({
-            left: center.x - labelSize.width / 2,
-            right: center.x + labelSize.width / 2,
-            top: center.y - labelSize.height / 2,
-            bottom: center.y + labelSize.height / 2,
-          }),
+          (center) => labelBounds(center, labelSize, 3),
         )
       : undefined,
   );
@@ -1901,10 +1917,15 @@ function EditableOrthogonalEdgeView({
             ref={labelRef}
             className="nodrag nopan"
             data-edge-label={id}
+            data-edge-terminal-label={
+              placement?.primaryIsTerminal ? id : undefined
+            }
+            data-label-unresolved={placement?.unresolved || undefined}
             role="button"
             tabIndex={0}
             aria-label={data.labelTex}
             onPointerDown={startLabelDrag}
+            onClick={(event) => event.stopPropagation()}
             style={{
               position: "absolute",
               transform: `translate(-50%, -50%) translate(${labelCenter.x}px,${labelCenter.y}px)`,
@@ -1919,6 +1940,7 @@ function EditableOrthogonalEdgeView({
               pointerEvents: "all",
               cursor: "grab",
               userSelect: "none",
+              whiteSpace: "nowrap",
             }}
           >
             <MathMarkup html={labelHtml} tex={data.labelTex} />

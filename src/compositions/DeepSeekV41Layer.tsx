@@ -8406,7 +8406,7 @@ export function buildGraph(
       "residual-pre-a",
       hasEngram(layer) ? "engram-inject" : "input",
       "hc-pre-a",
-      undefined,
+      `\\mathcal H_{${layer}}^{${hasEngram(layer) ? "E" : "\\mathrm{in}"}}`,
       { sourceHandle: hasEngram(layer) ? "main-out" : "main" },
     ),
     makeEdge(
@@ -8450,7 +8450,12 @@ export function buildGraph(
       sourceHandle: "kv",
       targetHandle: "kv",
     }),
-    makeEdge("heads-concat", "heads", "concat"),
+    mathEdge(
+      "heads-concat",
+      "heads",
+      "concat",
+      `O_{${layer},h},\\;h=1,\\ldots,64`,
+    ),
     mathEdge("concat-add1", "concat", "add1", `O_{${layer}}`),
     mathEdge(
       "residual-post-a",
@@ -8476,7 +8481,7 @@ export function buildGraph(
       `\\mathbf p_{${layer},t}^{A}`,
       { sourceHandle: "pre", targetHandle: "weights" },
     ),
-    makeEdge("add1-state", "add1", "state1"),
+    mathEdge("add1-state", "add1", "state1", `\\mathcal H_{${layer}}^{A}`),
     makeEdge("state-pre-f", "state1", "hc-pre-f", undefined, {
       sourceHandle: "main",
     }),
@@ -8512,7 +8517,7 @@ export function buildGraph(
       sourceHandle: "router",
     }),
     mathEdge("router-scores", "router", "scores", `S_{${layer}}`),
-    makeEdge("moe-input-shared", "moe-input", "experts", undefined, {
+    makeEdge("moe-input-shared", "moe-input", "experts", `Y_{${layer}}`, {
       sourceHandle: "shared",
       targetHandle: "shared",
       style: { stroke: COLORS.blue, strokeWidth: 2.2 },
@@ -8530,7 +8535,12 @@ export function buildGraph(
       targetHandle: "skip",
       ...skipStyle,
     }),
-    makeEdge("add2-output", "add2", "output"),
+    mathEdge(
+      "add2-output",
+      "add2",
+      "output",
+      `\\mathcal H_{${layer}}^{\\mathrm{out}}`,
+    ),
     mathEdge(
       "output-next-state",
       "output",
@@ -8562,9 +8572,15 @@ export function buildGraph(
         "\\mathbf k_{1:4},\\mathbf v",
         { targetHandle: "memory" },
       ),
-      makeEdge("engram-state", "input", "engram-inject", undefined, {
-        sourceHandle: "main",
-      }),
+      makeEdge(
+        "engram-state",
+        "input",
+        "engram-inject",
+        `\\mathcal H_{${layer}}^{\\mathrm{in}}`,
+        {
+          sourceHandle: "main",
+        },
+      ),
     );
   if (layer > 1)
     edges.push(
@@ -8673,7 +8689,7 @@ export function buildGraph(
         `expert-sum-${branch.key}`,
         `expert-weighted-${branch.key}`,
         "moe-sum",
-        undefined,
+        `\\mathbf r_{${layer},${expert},t}`,
         { ...branchStyle, targetHandle: `term-${branch.key}` },
       ),
     );
@@ -8724,7 +8740,7 @@ export function buildGraph(
         "indexer-select",
         "indexer",
         "global-select",
-        `I_{${indexSource},t}\\in\\mathbb{N}^{K_{${indexSource},t}}`,
+        `I_{${indexSource},t}`,
         {
           sourceHandle: "indices",
           targetHandle: "indices",
@@ -8954,7 +8970,11 @@ function DiagramCanvas({
   const [edges, setEdges, onEdgesChange] = useEdgesState<EditableEdge>(
     initialGraph.edges,
   );
-  const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
+  // 选中态随连线进入同一历史快照；工具栏直接读取，避免撤销后与画布选中态脱节。
+  const selectedEdgeIds = useMemo(
+    () => edges.filter((edge) => edge.selected).map((edge) => edge.id),
+    [edges],
+  );
   const [inspector, dispatchInspector] = useReducer(inspectorReducer, {
     mode: "auto",
     nodeId: null,
@@ -9102,7 +9122,6 @@ function DiagramCanvas({
       );
       setNodes(cloned.nodes);
       setEdges(cloned.edges);
-      setSelectedEdgeIds([]);
       setSaveState("idle");
     },
     [layer, phase, setEdges, setNodes],
@@ -9168,7 +9187,6 @@ function DiagramCanvas({
     if (flow) {
       flow.fitView(FIT_VIEW_OPTIONS).catch(() => {});
     }
-    setSelectedEdgeIds([]);
     setSaveState("idle");
     pastRef.current = [];
     futureRef.current = [];
@@ -9325,7 +9343,6 @@ function DiagramCanvas({
     measuredLayoutRef.current = initialGraph;
     setNodes(initialGraph.nodes);
     setEdges(initialGraph.edges);
-    setSelectedEdgeIds([]);
     commitHistory();
   }, [
     beginHistory,
@@ -9341,7 +9358,6 @@ function DiagramCanvas({
     beginHistory();
     const selected = new Set(selectedEdgeIds);
     setEdges((current) => current.filter((item) => !selected.has(item.id)));
-    setSelectedEdgeIds([]);
     commitHistory();
   }, [beginHistory, commitHistory, selectedEdgeIds, setEdges]);
 
@@ -9379,13 +9395,6 @@ function DiagramCanvas({
       setSaveState("idle");
     },
     [beginHistory, commitHistory, onEdgesChange],
-  );
-
-  const handleSelectionChange = useCallback(
-    ({ edges: selectedEdges }: { edges: EditableEdge[] }) => {
-      setSelectedEdgeIds(selectedEdges.map((item) => item.id));
-    },
-    [],
   );
 
   const selectedEdge =
@@ -9781,7 +9790,6 @@ function DiagramCanvas({
               onNodeDragStop={commitHistory}
               onSelectionDragStart={beginHistory}
               onSelectionDragStop={commitHistory}
-              onSelectionChange={handleSelectionChange}
               fitView
               fitViewOptions={FIT_VIEW_OPTIONS}
               minZoom={0.18}

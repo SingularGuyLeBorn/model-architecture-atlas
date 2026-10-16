@@ -8,7 +8,6 @@ import {
   labelPointOnPath,
   projectLabelOntoPath,
   sharedRouteLength,
-  terminalLabelPoint,
   pathWithLabelGap,
 } from "../src/components/EditableArchitectureGraph";
 import { buildGraph } from "../src/compositions/DeepSeekV41Layer";
@@ -181,37 +180,17 @@ function addFrame(
 
 afterEach(() => document.body.replaceChildren());
 
-it("长线在目标框外重复变量，透明标签分别断开线条且不占箭头位置", () => {
+it("透明标签分别断开所属线条", () => {
   const points = [
     { x: 0, y: 0 },
     { x: 0, y: 1000 },
   ];
-  const point = terminalLabelPoint(
-    points,
-    { left: -100, right: 100, top: 900, bottom: 1100 },
-    Position.Top,
-    { width: 80, height: 20 },
-    { x: 0, y: 400 },
-  );
-  expect(point).toEqual({ x: 0, y: 854 });
   expect(
     pathWithLabelGap(points, [
       { left: -40, right: 40, top: 390, bottom: 410 },
       { left: -40, right: 40, top: 844, bottom: 864 },
     ]),
   ).toBe("M 0 0 L 0 390 M 0 410 L 0 844 M 0 864 L 0 1000");
-  expect(
-    terminalLabelPoint(
-      [
-        { x: 0, y: 0 },
-        { x: 0, y: 300 },
-      ],
-      { left: -100, right: 100, top: 300, bottom: 400 },
-      Position.Top,
-      { width: 80, height: 20 },
-      { x: 0, y: 150 },
-    ),
-  ).toBeNull();
 });
 
 describe("自动连线分配独立通道", () => {
