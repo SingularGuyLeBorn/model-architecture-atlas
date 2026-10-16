@@ -497,7 +497,7 @@ export function recipeFor(
         ),
         stage(
           "weighted",
-          "05 · 权重逐行乘缓存 → 圆形 Σ → Value 上投影",
+          "05 · 权重逐行乘缓存 → 方形 Σ → Value 上投影",
           <>
             <Add result={vec("s_{l,h,t}", 512, "cyan")}>
               {["1", "2", "t"].map((j) => (

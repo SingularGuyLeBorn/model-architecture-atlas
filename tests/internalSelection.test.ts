@@ -1,0 +1,43 @@
+import { describe, it, expect } from "vitest";
+import { inspectInternalTarget } from "../src/components/internal-selection";
+import { inspectorReducer } from "../src/components/ModuleInspector";
+
+describe("内部对象选择", () => {
+  it("命中元素时选择最内层框而非矩阵与父容器", () => {
+    const root = document.createElement("div");
+    root.innerHTML =
+      '<div style="border:1px solid"><div id="cell" style="border:1px solid"><span aria-label="h_{1,2}">h</span></div></div>';
+    const result = inspectInternalTarget(root.querySelector("span"), root)!;
+    expect(result.element.id).toBe("cell");
+    expect(result.detail.tex).toBe("h_{1,2}");
+  });
+  it("线命中区与可见线读取相同输入序号", () => {
+    const root = document.createElement("div");
+    root.innerHTML =
+      '<div data-stacked-sum><div data-sum-operand="1"><span aria-label="c_{22}"></span></div><svg><path data-wire-input="1" /></svg></div>';
+    expect(
+      inspectInternalTarget(root.querySelector("path"), root)?.detail,
+    ).toEqual({
+      kind: "wire",
+      tex: "c_{22}",
+      description:
+        "第 2 路输入沿箭头进入累加器，参与逐元素求和；结果从独立出口送往下方结果框。",
+    });
+  });
+  it("关闭后换选内部对象保留当前选择，主动打开后显示它", () => {
+    const detail = { kind: "wire" as const, description: "输入线" };
+    const selected = inspectorReducer(
+      { mode: "closed", nodeId: "q" },
+      { type: "select", nodeId: "add2", detail },
+    );
+    expect(selected.mode).toBe("closed");
+    expect(inspectorReducer(selected, { type: "open" }).detail).toEqual(detail);
+    expect(
+      inspectorReducer(selected, { type: "select", nodeId: "kv" }).detail,
+    ).toBeUndefined();
+    expect(inspectorReducer(selected, { type: "context-change" })).toEqual({
+      mode: "closed",
+      nodeId: "add2",
+    });
+  });
+});

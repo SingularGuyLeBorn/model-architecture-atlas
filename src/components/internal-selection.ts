@@ -1,0 +1,69 @@
+export type InternalSelection = {
+  kind: "box" | "wire";
+  tex?: string;
+  description: string;
+};
+
+/** 按点击位置选择最内层对象；父框只提供解释上下文。 */
+export function inspectInternalTarget(
+  target: EventTarget | null,
+  root: Element,
+): { element: Element; detail: InternalSelection } | undefined {
+  if (
+    !(target instanceof Element) ||
+    target.closest(".react-flow__handle, button, input")
+  )
+    return;
+  const wire = target.closest("path, line, polyline");
+  if (wire && root.contains(wire) && !wire.closest("defs")) {
+    const input =
+      wire.getAttribute("data-sum-input") ??
+      wire.getAttribute("data-wire-input");
+    const sum = wire.closest("[data-stacked-sum], [data-sum-junction]");
+    const operand =
+      input !== null
+        ? sum?.querySelector(`[data-sum-operand="${input}"]`)
+        : null;
+    const tex =
+      operand?.querySelector("[aria-label]")?.getAttribute("aria-label") ??
+      undefined;
+    return {
+      element: wire,
+      detail: {
+        kind: "wire",
+        tex,
+        description:
+          input !== null
+            ? `第 ${Number(input) + 1} 路输入沿箭头进入累加器，参与逐元素求和；结果从独立出口送往下方结果框。`
+            : "这条连线按箭头方向传递相邻数据框的值。输入端给出来源，箭头端给出接收该值的运算或结果框。",
+      },
+    };
+  }
+  let current: Element | null = target;
+  while (current && current !== root) {
+    // 顶层模块外框仍交给原有模块选择；此处只识别内部对象。
+    if (current.parentElement?.hasAttribute("data-boundary-connectable"))
+      return;
+    if (
+      current instanceof HTMLElement &&
+      (current.style.border || current.hasAttribute("data-sum-node"))
+    ) {
+      const tex =
+        current.querySelector("span[aria-label]")?.getAttribute("aria-label") ??
+        undefined;
+      return {
+        element: current,
+        detail: {
+          kind: "box",
+          tex,
+          description: current.hasAttribute("data-sum-node")
+            ? "此处将各入口传入的操作数逐元素相加，结果沿出口传给后续数据框。每条输入线对应一项操作数。"
+            : current.hasAttribute("data-expanded-tensor")
+              ? "这个数据框展示该对象的行列组成；角落标注整体形状，内部小格给出代表元素及其索引。它在所属模块中的来源与用途见下文。"
+              : "所选小框表示公式中的这一项。上下标对应图中的层、路、行或列索引；它参与的运算与所属模块的变量定义见下文。",
+        },
+      };
+    }
+    current = current.parentElement;
+  }
+}

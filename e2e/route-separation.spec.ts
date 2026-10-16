@@ -60,6 +60,38 @@ test("整页外部线段无共线重叠，求和输入落点彼此分开", async
             path.getPointAtLength(path.getTotalLength()),
           );
           count += paths.length;
+          // 全路径检查输入之间的交叉与共线重叠；端口分开不等于途中不相交。
+          const segments = paths.map((path) => {
+            let x = 0,
+              y = 0;
+            const result: { x1: number; y1: number; x2: number; y2: number }[] =
+              [];
+            for (const c of path
+              .getAttribute("d")!
+              .matchAll(/([MHV])\s*([-\d.]+)(?:\s+([-\d.]+))?/g)) {
+              const nx = c[1] === "V" ? x : Number(c[2]);
+              const ny = c[1] === "H" ? y : Number(c[c[1] === "M" ? 3 : 2]);
+              if (c[1] !== "M" && (nx !== x || ny !== y))
+                result.push({ x1: x, y1: y, x2: nx, y2: ny });
+              x = nx;
+              y = ny;
+            }
+            return result;
+          });
+          for (let i = 0; i < segments.length; i++)
+            for (let j = i + 1; j < segments.length; j++) {
+              for (const a of segments[i])
+                for (const b of segments[j]) {
+                  const overlapX =
+                    Math.min(Math.max(a.x1, a.x2), Math.max(b.x1, b.x2)) -
+                    Math.max(Math.min(a.x1, a.x2), Math.min(b.x1, b.x2));
+                  const overlapY =
+                    Math.min(Math.max(a.y1, a.y2), Math.max(b.y1, b.y2)) -
+                    Math.max(Math.min(a.y1, a.y2), Math.min(b.y1, b.y2));
+                  if (overlapX >= 0 && overlapY >= 0)
+                    failures.push(`输入交叉或重叠: ${i},${j}`);
+                }
+            }
           for (let i = 0; i < ends.length; i++)
             for (let j = i + 1; j < ends.length; j++)
               if (Math.hypot(ends[i].x - ends[j].x, ends[i].y - ends[j].y) < 8)

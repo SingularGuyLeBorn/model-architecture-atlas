@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("投影参数有来源，层间状态与权重分框，求和输入箭头贴合圆边", async ({
+test("投影参数有来源，层间状态与权重分框，求和输入箭头贴合方框边缘", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -57,7 +57,7 @@ test("投影参数有来源，层间状态与权重分框，求和输入箭头�
       const bounds = await node.boundingBox();
       expect(example!.width).toBeLessThan(bounds!.width / 2);
     }
-    // 以真实页面坐标核对每个输入线的终点在圆边；箭头不得被圆遮住。
+    // 输入线终点贴合方框边界，且位于边界范围内。
     await expect
       .poll(() =>
         node.evaluate((root) => {
@@ -66,7 +66,7 @@ test("投影参数有来源，层间状态与权重分框，求和输入箭头�
             "[data-sum-junction], [data-stacked-sum]",
           )) {
             const circle = sum
-              .querySelector("[data-sum-circle]")!
+              .querySelector("[data-sum-node]")!
               .getBoundingClientRect();
             for (const path of sum.querySelectorAll<SVGPathElement>(
               "[data-sum-input]",
@@ -76,11 +76,12 @@ test("投影参数有来源，层间状态与权重分框，求和输入箭头�
                 .matrixTransform(path.getScreenCTM()!);
               results.push(
                 Math.abs(
-                  Math.hypot(
-                    point.x - circle.x - circle.width / 2,
-                    point.y - circle.y - circle.height / 2,
-                  ) -
-                    circle.width / 2,
+                  Math.max(
+                    Math.abs(point.x - circle.x - circle.width / 2) -
+                      circle.width / 2,
+                    Math.abs(point.y - circle.y - circle.height / 2) -
+                      circle.height / 2,
+                  ),
                 ),
               );
             }

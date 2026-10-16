@@ -1,4 +1,5 @@
 import { frameColor } from "../components/diagram-appearance";
+import { inspectInternalTarget } from "../components/internal-selection";
 import {
   MathFormula,
   Box,
@@ -10,7 +11,7 @@ import {
   Matrix,
   RowMatrix,
   MergeArrows,
-  SumCircle,
+  SumNode,
   SumJunction,
   StackedSum,
   SerialFlow,
@@ -1006,9 +1007,9 @@ export function RmsNormProcess({
 
 // [OM-FREEPLAY] 用同一合流组件画重复分支；沿用 RMSNorm 的开放箭头样式。
 
-// 求和输入线与圆形算子分开布局，圆不会随 SVG 的宽高缩放变形。
+// 求和输入线与方形算子分开布局，方框不会随 SVG 的宽高缩放变形。
 
-// 四个乘积共用等高网格，连线起点跟随各行中心；右侧圆形 Σ 接收每一行。
+// 四个乘积共用等高网格，连线起点跟随各行中心；右侧方形 Σ 接收每一行。
 
 // 官方实现：四路残差、跨子层传递 pre 系数、20 轮 Sinkhorn。
 // https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/main/inference/model.py
@@ -1644,7 +1645,7 @@ export function MhcPost({
               data-mhc-parallel-branches
               style={{
                 display: "grid",
-                gridTemplateColumns: "minmax(0,1.08fr) minmax(0,1fr)",
+                gridTemplateColumns: "max-content minmax(0,1fr)",
                 gap: 14,
               }}
             >
@@ -7209,15 +7210,13 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         style={{
           width: "100%",
           height: "100%",
-          borderRadius: 24,
-          border: `3px solid ${frameColor(COLORS.green)}`,
           boxSizing: "border-box",
-          background: COLORS.greenSoft,
+          background: "transparent",
           display: "grid",
           placeContent: "center",
           textAlign: "center",
           gap: 3,
-          color: COLORS.green,
+          color: COLORS.ink,
         }}
       >
         {EXPERT_OUTPUT_BRANCHES.map((branch, index) => (
@@ -7226,19 +7225,20 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             id={`term-${branch.key}`}
             type="target"
             position={Position.Top}
-            style={{ ...handle, left: `${(index + 1) * 20}%` }}
+            style={{
+              ...handle,
+              top: "calc(50% - 32px)",
+              left: `calc(50% + ${-24 + index * 16}px)`,
+            }}
           />
         ))}
         <Handle
           id="main-out"
           type="source"
           position={Position.Bottom}
-          style={handle}
+          style={{ ...handle, top: "calc(50% + 32px)", bottom: "auto" }}
         />
-        <span style={{ fontSize: 23 }}>
-          <MathFormula tex="\sum" />
-        </span>
-        <strong style={{ fontSize: 12 }}>逐元素相加 · 1 路共享 + Top-6</strong>
+        <SumNode size={64} />
       </div>
     );
   }
@@ -7554,13 +7554,15 @@ function DiagramNodeView({ id, data, selected }: NodeProps<DiagramNode>) {
   const portColor = tonePalette(data.tone ?? "green").color;
   // [OM-FREEPLAY] 求和器保留 320px 最小宽度，让四个入口之间有独立走线净空。
   const minimumWidth =
-    data.kind === "moe-sum"
-      ? 320
-      : compact
-        ? 60
-        : data.kind === "structure-operator"
-          ? 36
-          : 100;
+    data.kind === "add1" || data.kind === "add2"
+      ? 2800
+      : data.kind === "moe-sum"
+        ? 320
+        : compact
+          ? 60
+          : data.kind === "structure-operator"
+            ? 36
+            : 100;
   const minimumHeight =
     data.kind === "moe-sum"
       ? 100
@@ -7633,6 +7635,7 @@ function node(
       ...(["norm1", "norm2", "query-norm"].includes(kind)
         ? { minWidth: 480 }
         : {}),
+      ...(["add1", "add2"].includes(kind) ? { minWidth: 2800 } : {}),
     },
     deletable: false,
   };
@@ -7871,8 +7874,8 @@ export function buildGraph(
     // [OM-FREEPLAY] 三个 Head 按内部代表矩阵的内容宽度预留 2400px。
     node("heads", "heads", layer, mode, 40, headsY, 2400, headsHeight),
     node("concat", "concat", layer, mode, 150, concatY, 1320, concatHeight),
-    // [OM-FREEPLAY] 四路各含两个并行过程与求和通道，2600px 保留长下标的可读宽度。
-    node("add1", "add1", layer, mode, 300, add1Y, 2600, add1Height),
+    // [OM-FREEPLAY] 四路各含两个并行过程；2800px 容纳分侧输入、独立输出通道和完整长下标。
+    node("add1", "add1", layer, mode, 300, add1Y, 2800, add1Height),
     node("state1", "state1", layer, mode, 300, state1Y, 1200, state1Height),
     {
       ...node("hc-pre-f", "hc-pre", layer, mode, 300, preFY, 900, 420),
@@ -7934,7 +7937,7 @@ export function buildGraph(
       640,
       100,
     ),
-    node("add2", "add2", layer, mode, 300, add2Y, 2600, add2Height),
+    node("add2", "add2", layer, mode, 300, add2Y, 2800, add2Height),
     node("output", "output", layer, mode, 300, outputY, 1600, tensorHeight),
     node(
       "next-inputs",
@@ -8979,6 +8982,12 @@ function DiagramCanvas({
     mode: "auto",
     nodeId: null,
   } satisfies InspectorState);
+  const selectedInternalRef = useRef<Element | null>(null);
+  useEffect(
+    () => () =>
+      selectedInternalRef.current?.removeAttribute("data-internal-selected"),
+    [],
+  );
   const closeInspector = useCallback(
     () => dispatchInspector({ type: "close" }),
     [],
@@ -9155,6 +9164,9 @@ function DiagramCanvas({
 
   useEffect(() => {
     let graph = initialGraph;
+    dispatchInspector({ type: "context-change" });
+    selectedInternalRef.current?.removeAttribute("data-internal-selected");
+    selectedInternalRef.current = null;
     measuredLayoutRef.current = initialGraph;
     // [OM-FREEPLAY] 用户要求能自行微调；显式保存到浏览器本机，避免刷新后丢失，同时不改文章事实源。
     try {
@@ -9469,6 +9481,34 @@ function DiagramCanvas({
       const width = canvas.clientWidth,
         height = canvas.clientHeight;
       if (!width || !height) return;
+      // [OM-FREEPLAY] 内部选择保留阅读缩放，仅把当前对象移入可视区，避免为父框整体缩小画布。
+      const selectedObject = selectedInternalRef.current;
+      if (inspector.detail && selectedObject?.isConnected) {
+        const rect = selectedObject.getBoundingClientRect();
+        const bounds = canvas.getBoundingClientRect();
+        const dx =
+          rect.right > bounds.right - 24
+            ? bounds.right - 24 - rect.right
+            : rect.left < bounds.left + 24
+              ? bounds.left + 24 - rect.left
+              : 0;
+        const dy =
+          rect.bottom > bounds.bottom - 24
+            ? bounds.bottom - 24 - rect.bottom
+            : rect.top < bounds.top + 85
+              ? bounds.top + 85 - rect.top
+              : 0;
+        if (dx || dy) {
+          const viewport = flow.getViewport();
+          flow
+            .setViewport(
+              { ...viewport, x: viewport.x + dx, y: viewport.y + dy },
+              { duration: 0 },
+            )
+            .catch(() => {});
+        }
+        return;
+      }
       const zoom = Math.max(
         0.18,
         Math.min(
@@ -9494,7 +9534,7 @@ function DiagramCanvas({
     const observer = new ResizeObserver(reveal);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [inspector.mode, inspector.nodeId]);
+  }, [inspector.mode, inspector.nodeId, inspector.detail]);
 
   return (
     <div
@@ -9784,9 +9824,27 @@ function DiagramCanvas({
                 setClickConnectionPreview(null);
               }}
               onNodeDragStart={beginHistory}
-              onNodeClick={(_, node) =>
-                dispatchInspector({ type: "select", nodeId: node.id })
-              }
+              onNodeClick={(event, node) => {
+                const root = (event.target as Element).closest(
+                  ".react-flow__node",
+                );
+                const selection = root
+                  ? inspectInternalTarget(event.target, root)
+                  : undefined;
+                selectedInternalRef.current?.removeAttribute(
+                  "data-internal-selected",
+                );
+                selectedInternalRef.current = selection?.element ?? null;
+                selection?.element.setAttribute(
+                  "data-internal-selected",
+                  "true",
+                );
+                dispatchInspector({
+                  type: "select",
+                  nodeId: node.id,
+                  detail: selection?.detail,
+                });
+              }}
               onNodeDragStop={commitHistory}
               onSelectionDragStart={beginHistory}
               onSelectionDragStop={commitHistory}
@@ -9866,6 +9924,7 @@ function DiagramCanvas({
       {inspector.mode === "open" && (
         <ModuleInspector
           data={inspectedData}
+          detail={inspector.detail}
           connections={moduleConnections}
           onClose={closeInspector}
         />

@@ -1,14 +1,17 @@
 import { memo } from "react";
 import { BookOpen, X, ExternalLink } from "lucide-react";
 import { MathFormula } from "./diagram-primitives";
+import type { InternalSelection } from "./internal-selection";
 
 export type InspectorState = {
   mode: "auto" | "open" | "closed";
   nodeId: string | null;
+  detail?: InternalSelection;
 };
 export type InspectorAction =
-  | { type: "select"; nodeId: string }
+  | { type: "select"; nodeId: string; detail?: InternalSelection }
   | { type: "open" }
+  | { type: "context-change" }
   | { type: "close" };
 export function inspectorReducer(
   state: InspectorState,
@@ -16,8 +19,11 @@ export function inspectorReducer(
 ): InspectorState {
   if (action.type === "close") return { ...state, mode: "closed" };
   if (action.type === "open") return { ...state, mode: "open" };
+  if (action.type === "context-change")
+    return { mode: state.mode, nodeId: state.nodeId };
   return {
     nodeId: action.nodeId,
+    ...(action.detail ? { detail: action.detail } : {}),
     mode: state.mode === "closed" ? "closed" : "open",
   };
 }
@@ -223,10 +229,12 @@ export type ModuleConnection = {
 
 export const ModuleInspector = memo(function ModuleInspector({
   data,
+  detail,
   connections,
   onClose,
 }: {
   data?: ExplainedModule;
+  detail?: InternalSelection;
   connections: ModuleConnection[];
   onClose: () => void;
 }) {
@@ -279,6 +287,18 @@ export const ModuleInspector = memo(function ModuleInspector({
                 : "Prefill / N 行并行"}
             </div>
             <article className="inspector-prose" aria-label="模块讲解正文">
+              {detail && (
+                <p data-internal-explanation>
+                  当前选中{detail.kind === "wire" ? "内部连线" : "内部对象"}
+                  {detail.tex && (
+                    <>
+                      {" "}
+                      <MathFormula tex={detail.tex} />
+                    </>
+                  )}
+                  。{detail.description}
+                </p>
+              )}
               {explanation!.paragraphs.map((text, index) => (
                 <ExplanationParagraph key={index} text={text} />
               ))}

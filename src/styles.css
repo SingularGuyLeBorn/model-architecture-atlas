@@ -922,6 +922,24 @@ h1 {
   font-size: 12px;
   color: #667c96;
 }
+/* 内部对象沿用父模块的点击解释；只给命中的对象轮廓，不改语义底色。 */
+.full-layer :is([data-vector-cell], [data-expanded-tensor], [data-sum-node]) {
+  cursor: pointer;
+}
+.full-layer [data-internal-selected] {
+  outline: 2px dashed #252b33;
+  outline-offset: 3px;
+}
+.full-layer svg [data-internal-selected] {
+  outline: none;
+  stroke: #252b33;
+  stroke-width: 3px;
+  stroke-dasharray: 5 3;
+}
+.full-layer .react-flow__node svg :is(path, line, polyline) {
+  pointer-events: stroke;
+  cursor: pointer;
+}
 .down-projection {
   display: grid;
   grid-template-columns: 110px 22px minmax(0, 1fr);

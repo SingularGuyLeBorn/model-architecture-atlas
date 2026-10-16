@@ -37,8 +37,16 @@ test("所有纵向求和线贴合真实输入，乘积行与省略行保持紧�
                 const straight = path
                   .getAttribute("d")!
                   .match(/^M0 ([\d.-]+) H([\d.-]+)$/);
+                const oneBend = path
+                  .getAttribute("d")!
+                  .match(/^M0 ([\d.-]+) H([\d.-]+) V([\d.-]+)$/);
                 if (
                   !straight &&
+                  !(
+                    oneBend &&
+                    Number(oneBend[2]) >= 12 &&
+                    Math.abs(Number(oneBend[3]) - Number(oneBend[1])) >= 10
+                  ) &&
                   (!segments ||
                     Number(segments[2]) < 12 ||
                     Number(segments[4]) - Number(segments[2]) < 10)

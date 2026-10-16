@@ -54,7 +54,7 @@ describe("mHC 与 Engram 的真实主路径", () => {
         root.querySelector("[data-handoff-products]")?.children,
       ).toHaveLength(4);
       expect(root.querySelectorAll("[data-sum-input-arrow]")).toHaveLength(4);
-      expect(root.querySelectorAll("[data-sum-circle]")).toHaveLength(1);
+      expect(root.querySelectorAll("[data-sum-node]")).toHaveLength(1);
       if (layer === 1 || layer === 14)
         expect(root.textContent).toContain(
           `Layer ${layer + 1} Engram 门控注入`,
@@ -320,7 +320,7 @@ describe("mHC 与 Engram 的真实主路径", () => {
           "[data-mhc-parallel-branches]",
         )!;
         expect(branches.style.gridTemplateColumns).toBe(
-          "minmax(0,1.08fr) minmax(0,1fr)",
+          "max-content minmax(0,1fr)",
         );
         expect(branches.children[0].hasAttribute("data-mhc-residual-mix")).toBe(
           true,
@@ -373,7 +373,7 @@ describe("mHC 与 Engram 的真实主路径", () => {
   );
 
   it.each(["A", "F"] as const)(
-    "%s 的各项实际接入圆形求和器，短支路展开逐元素广播而非长空箭头",
+    "%s 的各项实际接入方形求和器，短支路展开逐元素广播而非长空箭头",
     (sublayer) => {
       const { root } = render(createElement(MhcPost, { layer: 15, sublayer }));
       for (const route of root.querySelectorAll("[data-mhc-output-copy]")) {
@@ -382,7 +382,7 @@ describe("mHC 与 Engram 的真实主路径", () => {
         expect(mixed.querySelectorAll("[data-sum-input-arrow]")).toHaveLength(
           4,
         );
-        expect(mixed.querySelectorAll("[data-sum-circle]")).toHaveLength(1);
+        expect(mixed.querySelectorAll("[data-sum-node]")).toHaveLength(1);
         expect(mixed.querySelector("[data-sum-output]")).not.toBeNull();
         const final = route.querySelector("[data-mhc-final-sum]")!;
         expect(final.querySelectorAll("[data-sum-input]")).toHaveLength(2);
@@ -398,10 +398,11 @@ describe("mHC 与 Engram 的真实主路径", () => {
         expect(route.querySelector("[data-mhc-broadcast-arrow]")).toBeNull();
       }
       for (const circle of root.querySelectorAll<HTMLElement>(
-        "[data-sum-circle]",
+        "[data-sum-node]",
       )) {
         expect(circle.style.width).toBe(circle.style.height);
-        expect(circle.style.borderRadius).toBe("50%");
+        expect(circle.style.borderRadius).toBe("0");
+        expect(circle.style.background).toBe("transparent");
         expect(
           circle.querySelector("[aria-label]")?.getAttribute("aria-label"),
         ).toBe("\\Sigma");

@@ -9,13 +9,13 @@ import {
 } from "../src/compositions/DeepSeekV41Layer";
 
 describe("RMSNorm 的逐行结构与来源", () => {
-  it("Indexer 展示的三个 Head 分别接入圆形累加器", () => {
+  it("Indexer 展示的三个 Head 分别接入方形累加器", () => {
     const root = document.createElement("div");
     root.innerHTML = renderToStaticMarkup(
       createElement(IndexScoreProcess, { layer: 15, kvSource: 15 }),
     );
     expect(root.querySelectorAll("[data-sum-input]")).toHaveLength(3);
-    expect(root.querySelector("[data-sum-circle]")).not.toBeNull();
+    expect(root.querySelector("[data-sum-node]")).not.toBeNull();
     expect(root.querySelector("[data-sum-output]")).not.toBeNull();
   });
   it("横向紧凑排布仍保留平方、归约、缩放和输出矩阵", () => {
@@ -44,7 +44,7 @@ describe("RMSNorm 的逐行结构与来源", () => {
     expect(root.querySelector("[data-rmsnorm-root-result]")).not.toBeNull();
     expect(root.querySelector("[data-rmsnorm-broadcast]")).not.toBeNull();
     expect(root.querySelectorAll("[data-sum-input]")).toHaveLength(3);
-    expect(root.querySelector("[data-sum-circle]")).not.toBeNull();
+    expect(root.querySelector("[data-sum-node]")).not.toBeNull();
     expect(root.querySelector(".katex-error")).toBeNull();
   });
   it.each([128, 512, 1280, 5120])(

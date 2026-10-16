@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
   type ReactNode,
+  type SVGProps,
 } from "react";
 import { latexHtml } from "./EditableArchitectureGraph";
 import { MathMarkup } from "./MathMarkup";
@@ -504,24 +505,18 @@ export function MergeArrows({
   );
 }
 
-export function SumCircle({
-  tone = "cyan",
-  size = 36,
-}: {
-  tone?: DiagramTone;
-  size?: number;
-}) {
-  const palette = tonePalette(tone);
+export function SumNode({ size = 36 }: { size?: number }) {
   return (
     <div
-      data-sum-circle
+      data-sum-node
       style={{
         width: size,
         height: size,
         boxSizing: "border-box",
-        border: `2px solid ${palette.color}`,
-        borderRadius: "50%",
-        background: palette.background,
+        border: `2px solid ${COLORS.ink}`,
+        borderRadius: 0,
+        background: "transparent",
+        color: COLORS.ink,
         display: "grid",
         placeItems: "center",
         fontSize: 20,
@@ -533,7 +528,7 @@ export function SumCircle({
   );
 }
 
-// 汇入箭头按真实像素指向圆边，避免 SVG 非等比拉伸后箭头变形或藏进圆内。
+// 汇入箭头按真实像素指向框边，避免 SVG 非等比拉伸后箭头变形。
 function useDiagramSize() {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 400, height: 100 });
@@ -560,6 +555,25 @@ function arrowTip(x: number, y: number, angle: number) {
   const backX = x - 7 * Math.cos(angle),
     backY = y - 7 * Math.sin(angle);
   return `M${backX + 4 * Math.sin(angle)} ${backY - 4 * Math.cos(angle)} L${x} ${y} L${backX - 4 * Math.sin(angle)} ${backY + 4 * Math.cos(angle)}`;
+}
+
+// [OM-FREEPLAY] 命中带取 12px；细线保持原有外观，透明命中带用于选中内部连接。
+function WirePath(
+  props: SVGProps<SVGPathElement> & { "data-sum-input"?: number },
+) {
+  return (
+    <g>
+      <path {...props} />
+      <path
+        d={props.d}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={12}
+        data-wire-input={props["data-sum-input"]}
+        style={{ pointerEvents: "stroke", cursor: "pointer" }}
+      />
+    </g>
+  );
 }
 
 /** 串行步骤可横排并折行；箭头依赖实际框边，不把换行误画成并行。 */
@@ -689,7 +703,7 @@ export function SerialFlow({
       >
         {paths.map((path, i) => (
           <g key={i}>
-            <path
+            <WirePath
               data-serial-link={i}
               d={path.line}
               fill="none"
@@ -745,21 +759,23 @@ export function SumJunction({ count }: { count: number }) {
           </marker>
         </defs>
         {Array.from({ length: count }, (_, i) => {
-          const angle =
-            count === 1
-              ? 0
-              : -Math.PI / 3 + (i * 2 * Math.PI) / (3 * (count - 1));
           const sourceX = ((i + 0.5) * width) / count;
           const sourceOffset = sourceX - width / 2;
-          // 圆周允许按来源选择入口：能垂直直达就不折弯，否则一次折弯从侧面接入。
-          // 外侧输入的横段低于内侧输入，保持独立落点并避免交叉。
-          const straight = Math.abs(sourceOffset) < radius;
-          const x = straight ? sourceX : width / 2 + radius * Math.sin(angle);
+          // 中间输入直达上边；两侧来源分别接左右边，外侧横段低于内侧，互不交叉。
+          const straight = Math.abs(sourceOffset) < radius - 8;
+          const x = straight
+            ? sourceX
+            : width / 2 + Math.sign(sourceOffset) * radius;
+          const sideCount = Math.floor(count / 2);
+          const rank = Math.min(i, count - 1 - i);
           const y = straight
-            ? centerY - Math.sqrt(radius * radius - sourceOffset * sourceOffset)
-            : centerY - radius * Math.cos(angle);
+            ? centerY - radius
+            : centerY +
+              radius -
+              12 -
+              rank * ((2 * radius - 24) / Math.max(1, sideCount - 1));
           return (
-            <path
+            <WirePath
               key={i}
               data-sum-input={i}
               data-sum-input-arrow={i}
@@ -791,7 +807,7 @@ export function SumJunction({ count }: { count: number }) {
           top: 24,
         }}
       >
-        <SumCircle size={radius * 2} />
+        <SumNode size={radius * 2} />
       </div>
     </div>
   );
@@ -805,10 +821,12 @@ export function StackedSum({
   omittedBefore?: number;
 }) {
   const { ref, height } = useDiagramSize();
+  const { ref: resultRef, width: resultWidth } = useDiagramSize();
   // [OM-FREEPLAY] 在原有通道内为右侧出线预留 12px 起步段与至少 10px 箭头引入段。
-  const wireWidth = 64;
-  const circleX = 44;
-  const outputInset = wireWidth - circleX;
+  const wireWidth = 88;
+  const centerX = 44;
+  const outputX = 80;
+  const outputInset = wireWidth - outputX;
   const omittedHeight = omittedBefore === undefined ? 0 : 18;
   const tracks = children.flatMap((_, i) =>
     i === omittedBefore ? ["18px", "minmax(0,1fr)"] : ["minmax(0,1fr)"],
@@ -871,25 +889,32 @@ export function StackedSum({
               (omittedBefore !== undefined && i >= omittedBefore
                 ? omittedHeight
                 : 0);
-            const offset =
-              children.length === 1
-                ? 0
-                : -15 + (i * 30) / (children.length - 1);
-            const x = circleX - Math.sqrt(18 * 18 - offset * offset),
-              y = height / 2 + offset;
-            // 末段至少留 10px，容纳开放箭头，箭翼不会越过折点形成反向短尾。
-            const laneX = Math.min(
-              12 + 4 * Math.min(i, children.length - 1 - i),
-              x - 10,
-            );
+            const top = children.length > 2 && i === 0;
+            const bottom = children.length > 2 && i === children.length - 1;
+            const middleCount =
+              children.length > 2 ? children.length - 2 : children.length;
+            const rank = children.length > 2 ? i - 1 : i;
+            const x = top || bottom ? centerX : centerX - 18;
+            const y =
+              height / 2 +
+              (top
+                ? -18
+                : bottom
+                  ? 18
+                  : middleCount === 1
+                    ? 0
+                    : -8 + (rank * 16) / (middleCount - 1));
+            const laneX = 12;
             return (
               <g key={i}>
-                <path
+                <WirePath
                   data-sum-input={i}
                   d={
-                    Math.abs(startY - y) < 0.01
-                      ? `M0 ${startY} H${x}`
-                      : `M0 ${startY} H${laneX} V${y} H${x}`
+                    top || bottom
+                      ? `M0 ${startY} H${x} V${y}`
+                      : Math.abs(startY - y) < 0.01
+                        ? `M0 ${startY} H${x}`
+                        : `M0 ${startY} H${laneX} V${y} H${x}`
                   }
                   fill="none"
                   stroke={COLORS.cyan}
@@ -898,7 +923,11 @@ export function StackedSum({
                 />
                 <path
                   data-sum-input-arrow={i}
-                  d={arrowTip(x, y, 0)}
+                  d={arrowTip(
+                    x,
+                    y,
+                    top ? Math.PI / 2 : bottom ? -Math.PI / 2 : 0,
+                  )}
                   fill="none"
                   stroke={COLORS.cyan}
                   strokeWidth={1.5}
@@ -908,7 +937,7 @@ export function StackedSum({
           })}
           <path
             data-sum-output
-            d={`M${circleX} ${height / 2 + 18} V${height}`}
+            d={`M${centerX + 18} ${height / 2} H${outputX} V${height}`}
             fill="none"
             stroke={COLORS.cyan}
             strokeWidth="1.5"
@@ -918,44 +947,37 @@ export function StackedSum({
         <div
           style={{
             position: "absolute",
-            left: circleX - 18,
+            left: centerX - 18,
             top: "calc(50% - 18px)",
           }}
         >
-          <SumCircle />
+          <SumNode />
         </div>
       </div>
       <div
+        ref={resultRef}
         data-sum-result-line
-        style={{ gridColumn: "1 / -1", position: "relative", height: 22 }}
+        style={{
+          gridColumn: "1 / -1",
+          position: "relative",
+          height: 22,
+          minWidth: 0,
+        }}
       >
-        <span
-          style={{
-            position: "absolute",
-            right: outputInset,
-            top: 0,
-            height: 9,
-            borderLeft: `1.5px solid ${COLORS.cyan}`,
-          }}
-        />
-        <span
-          style={{
-            position: "absolute",
-            left: "50%",
-            right: outputInset,
-            top: 9,
-            borderTop: `1.5px solid ${COLORS.cyan}`,
-          }}
-        />
         <svg
           aria-hidden
-          width="20"
-          height="13"
-          viewBox="0 0 20 13"
-          style={{ position: "absolute", left: "calc(50% - 10px)", top: 9 }}
+          width="100%"
+          height="22"
+          style={{ position: "absolute", inset: 0, display: "block" }}
         >
+          <WirePath
+            d={`M${resultWidth - outputInset} 0 V9 H${resultWidth / 2} V21`}
+            fill="none"
+            stroke={COLORS.cyan}
+            strokeWidth="1.5"
+          />
           <path
-            d="M10 0 V12 M5 7 L10 12 L15 7"
+            d={arrowTip(resultWidth / 2, 21, Math.PI / 2)}
             fill="none"
             stroke={COLORS.cyan}
             strokeWidth="1.5"
