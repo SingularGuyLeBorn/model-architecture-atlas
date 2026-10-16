@@ -2,6 +2,10 @@ import { frameColor } from "../components/diagram-appearance";
 import { CompressorProjections } from "../components/CompressorProjections";
 import { KvRowConcat } from "../components/KvRowConcat";
 import {
+  CacheModeLedger,
+  GlobalCacheHistory,
+} from "../components/CacheSemantics";
+import {
   DiagramExportButton,
   useDiagramExporting,
 } from "../components/DiagramExport";
@@ -3520,6 +3524,22 @@ function LocalKvProjection({ layer }: { layer: number }) {
       />
       <Title>Layer {layer} · 本层独立 KV</Title>
       <div data-local-kv-flow style={{ padding: 12 }}>
+        <div
+          data-local-cache-meaning
+          style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 10 }}
+        >
+          <strong>
+            U · 本层局部窗口 KV；Full、Reindex、Reuse 都计算当前新行。
+          </strong>
+          <div>
+            <MathFormula tex={`X_{${layer}}`} /> 来自本层 mHC
+            汇合及输入归一化，乘下方本层独立参数；不读取其他层的 U。
+          </div>
+          <div>
+            完整 U 表示逐 token 的 KV；Decode 仅缓存最近最多 128
+            行。保留窗口内旧行，追加当前行，满窗覆盖最旧行。
+          </div>
+        </div>
         <SerialFlow returnColumn>
           {[
             <React.Fragment key="projection">
@@ -6021,6 +6041,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             minWidth: 0,
           }}
         >
+          <CacheModeLedger layer={layer} />
           {writesKv ? (
             <>
               <CompressorProjections layer={layer} ratio={ratio} />
@@ -6304,8 +6325,18 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             </div>
           ) : (
             <Box tone="blue">
-              <strong>读取源层输出矩阵</strong>
+              <strong>直接读同一份历史及已更新的 G，不复制生成新 G</strong>
+              <MathFormula tex={`G_{${kvSource}}`} />
             </Box>
+          )}
+          {writesKv && phase === "decode" && (
+            <GlobalCacheHistory layer={layer} ratio={ratio} />
+          )}
+          {writesKv && phase === "prefill" && (
+            <div style={{ fontSize: 13 }}>
+              Prefill：由输入序列建立 G，各 Query 仅选因果可见行。Decode：旧 G
+              保留，只生成并追加当前完成的新行。
+            </div>
           )}
           <div
             style={{
@@ -6317,7 +6348,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           >
             <Matrix
               tex={`G_{${kvSource}}`}
-              shape={`M\\times512,\\;M=\\lfloor ${phase === "prefill" ? "N" : "t"}/${ratio}\\rfloor`}
+              shape={`M\\times512,\\;M=\\left\\lfloor\\frac{${phase === "prefill" ? "N" : "t"}}{${ratio}}\\right\\rfloor`}
               rowTex={(row) => `\\mathbf g_{${kvSource},${row}}`}
               elementTex={(row, column) => `g_{${kvSource},${row},${column}}`}
               vectorLength="512"

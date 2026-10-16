@@ -7,6 +7,7 @@ import {
   tonePalette,
 } from "./diagram-primitives";
 import { Data, Down, Sequence } from "../templates/structure-blocks";
+import { CacheModeLedger } from "./CacheSemantics";
 
 // 固定官方 V4.1 配置：界面层号从 1 开始；3 是 Full，4 是 Reuse。
 export const CACHE_101 = {
@@ -269,6 +270,7 @@ export function cacheDecodeRecipe(references: Recipe["references"]): Recipe {
             "缓存保留供 Attention 读取的表示。压缩会合并信息；Q、历史注意力权重、FFN 中间结果不在这两类 KV 缓存里。",
           ]}
         >
+          <CacheModeLedger layer={3} />
           <div className="cache-inline cache-top">
             <Rows
               name="U_3^{\mathrm{SWA},\le100}"
@@ -336,6 +338,7 @@ export function cacheDecodeRecipe(references: Recipe["references"]): Recipe {
       body: (
         <Frame
           notes={[
+            "Full 不跨层复用其他层的 G，但保留并读取自己的历史 G。前 100 个 token 的 G 原样保留，只有 token 101 的候选内容和分数是新算的。",
             "每两个 token 完成一组。第 101 个 token 只填入第 51 组的第一个槽位；此刻 G₃ 仍是 50 行，索引 Key 缓存也不追加新行。",
             "vᶜ 是待压缩的候选内容，aᵍᵃᵗᵉ 是原始分数。组满后，两行分数逐列 Softmax 得到权重 α，再对同列候选内容加权。",
             "到 token 102 时才合成第 51 行，归一化后分支生成索引 Key，主分支做 RoPE、量化并追加到 G₃。旧 50 行不用重算。",

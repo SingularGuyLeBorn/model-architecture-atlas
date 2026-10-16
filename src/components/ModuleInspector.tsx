@@ -2,6 +2,7 @@ import { memo } from "react";
 import { BookOpen, X, ExternalLink } from "lucide-react";
 import { MathFormula } from "./diagram-primitives";
 import type { InternalSelection } from "./internal-selection";
+import { cacheExplanation, cachePolicy } from "./CacheSemantics";
 
 export type InspectorState = {
   mode: "auto" | "open" | "closed";
@@ -234,8 +235,15 @@ export function explainModule(data: ExplainedModule): ModuleExplanation {
         ]
       : [];
   return {
-    title: TITLES[data.kind] ?? data.title ?? "模块内的矩阵与运算",
-    paragraphs: [...cacheExample, ...paragraphs].map((paragraph, index) =>
+    title:
+      data.kind === "compressor"
+        ? `全局 KV · ${cachePolicy(data.layer).mode} · G 来源第 ${cachePolicy(data.layer).kv} 层`
+        : (TITLES[data.kind] ?? data.title ?? "模块内的矩阵与运算"),
+    paragraphs: [
+      ...(group === "kv" ? cacheExplanation(data.layer) : []),
+      ...cacheExample,
+      ...paragraphs,
+    ].map((paragraph, index) =>
       (index === 0 ? phase + paragraph : paragraph)
         .replaceAll("@L", String(data.layer))
         .replaceAll("@N", data.phase === "decode" ? "1" : "N")
