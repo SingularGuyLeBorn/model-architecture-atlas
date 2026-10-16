@@ -1,5 +1,52 @@
 import { test, expect } from "@playwright/test";
 
+test("MoE 结果框公式与说明增大两号且保持在框内", async ({ page }) => {
+  await page.setViewportSize({ width: 2000, height: 1400 });
+  await page.goto("/#model=v41&chapter=layer");
+  await page.getByRole("button", { name: "收起左栏", exact: true }).click();
+  for (const phase of ["Prefill · 整段矩阵", "Decode · 单步一行"]) {
+    await page.getByRole("button", { name: phase, exact: true }).click();
+    await page
+      .getByRole("combobox", { name: "定位模块" })
+      .selectOption("concat");
+    await page
+      .getByRole("combobox", { name: "定位模块" })
+      .selectOption("moe-sum");
+    const result = page.locator('.react-flow__node[data-id="moe-output"]');
+    const formula = result.locator("span[aria-label]").first();
+    const description = result.locator("span[aria-label]").nth(1).locator("..");
+    await expect(formula).toHaveCSS("font-size", "16px");
+    await expect(description).toHaveCSS("font-size", "13px");
+    const overflow = await result.evaluate((node) => {
+      const box = node.getBoundingClientRect();
+      return [...node.querySelectorAll("span[aria-label]")].some((element) => {
+        const text = element.parentElement!.getBoundingClientRect();
+        return (
+          text.left < box.left - 1 ||
+          text.right > box.right + 1 ||
+          text.top < box.top - 1 ||
+          text.bottom > box.bottom + 1
+        );
+      });
+    });
+    expect(overflow).toBe(false);
+    const bounds = (await result.boundingBox())!;
+    await page.mouse.move(1000, 700);
+    await page.mouse.down({ button: "middle" });
+    await page.mouse.move(
+      2000 - bounds.x - bounds.width / 2,
+      1400 - bounds.y - bounds.height / 2,
+      { steps: 5 },
+    );
+    await page.mouse.up({ button: "middle" });
+    await expect(result).toBeInViewport({ ratio: 1 });
+    await page.screenshot({
+      clip: (await result.boundingBox())!,
+      path: `artifacts/moe-output-${phase.startsWith("Prefill") ? "prefill" : "decode"}-larger.png`,
+    });
+  }
+});
+
 test("K/V 来源、特征省略、拼接代表块保留来源元素且无溢出", async ({ page }) => {
   await page.setViewportSize({ width: 2400, height: 1600 });
   await page.goto("/#model=v41&chapter=layer");

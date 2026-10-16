@@ -7596,7 +7596,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           gap: 7,
           borderColor: frameColor(COLORS.green),
           background: COLORS.greenSoft,
-          fontSize: 14,
+          fontSize: 16,
         }}
       >
         <Handle
@@ -7614,7 +7614,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         <MathFormula
           tex={`\\mathbf o_{${layer},t}^{\\mathrm{FFN}}=\\mathbf r_{${layer},\\mathrm{shared},t}+\\sum_{i\\in I_{${layer},t}}\\mathbf r_{${layer},i,t}`}
         />
-        <span style={{ fontSize: 11 }}>
+        <span style={{ fontSize: 13 }}>
           {phase === "prefill"
             ? "各 token 的结果按行组成 "
             : "当前一步的输出矩阵 "}{" "}
