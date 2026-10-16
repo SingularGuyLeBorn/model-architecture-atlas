@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cacheDecodeRecipe } from "../components/CacheDecodeExample";
 import {
   MathFormula as M,
   SplitArrows,
@@ -204,6 +205,7 @@ export function recipeFor(
       .map(([source, target, tex]) => ({ source, target, tex }));
     return { introduction, stages, links, references };
   };
+  if (chapter === "cache") return cacheDecodeRecipe(references);
   if (chapter === "overview")
     return result(
       phase === "prefill"

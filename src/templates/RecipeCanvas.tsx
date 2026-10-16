@@ -23,6 +23,10 @@ import {
 } from "../components/EditableArchitectureGraph";
 import { MathFormula as M } from "../components/diagram-primitives";
 import { type Recipe, type Stage } from "./recipes";
+import {
+  DiagramExportButton,
+  useDiagramExporting,
+} from "../components/DiagramExport";
 
 type StageNode = Node<
   Stage & {
@@ -108,6 +112,7 @@ export function RecipeCanvas({
   recipe: Recipe;
   storageKey: string;
 }) {
+  const exporting = useDiagramExporting();
   const initial = useMemo<Snapshot>(() => {
     const levels = new Map<string, number>();
     recipe.stages.forEach((stage) =>
@@ -137,8 +142,9 @@ export function RecipeCanvas({
         ),
       },
       style: {
-        width:
-          stage.id === "experts"
+        width: stage.id.endsWith("101")
+          ? 1500
+          : stage.id === "experts"
             ? 3200
             : stage.id === "post" && stage.title.includes("并行")
               ? 3000
@@ -352,6 +358,10 @@ export function RecipeCanvas({
       </nav>
       <div className="recipe-canvas" ref={canvasRef}>
         <div className="canvas-toolbar">
+          <DiagramExportButton
+            getRoot={() => canvasRef.current}
+            name={storageKey}
+          />
           <button onClick={save}>保存布局</button>
           <button onClick={undo}>撤销</button>
           <button onClick={redo}>重做</button>
@@ -412,7 +422,7 @@ export function RecipeCanvas({
             minZoom={0.02}
             maxZoom={8}
             deleteKeyCode={null}
-            onlyRenderVisibleElements={loaded.current}
+            onlyRenderVisibleElements={loaded.current && !exporting}
             proOptions={{ hideAttribution: true }}
           >
             <Background gap={24} color="#d8d6ce" size={1} />

@@ -224,9 +224,18 @@ export function explainModule(data: ExplainedModule): ModuleExplanation {
             "$ 标记这个对象，形状由框角的维度说明。阅读时先确认它来自哪一个输入或参数，再对照相邻的乘法、逐元素运算或累加器，区分原值与计算结果。"
           : "阅读时先确认相邻输入框，再看运算如何把这些输入变成输出；嵌套框只说明组成关系，只有连线表示数据流向。",
       ];
+  const cacheExample =
+    group === "kv" && data.phase === "decode" && [3, 4].includes(data.layer)
+      ? [
+          data.layer === 3
+            ? "固定例子 t=101：前 100 个 token 已处理，U₃ 的历史 100 行直接保留；本层新算 u₃,₁₀₁ 并追加，逻辑窗口共 101 行，尚未达到 128 行容量。全局 G₃ 已有 50 行；第 101 个 token 的候选 KV 与 gate 分数写入压缩器暂存，等第 102 个 token 到达才合成第 51 行。本步 G 和索引 Key 都不追加。"
+            : "固定例子 t=101：第 4 层用自己的输入和独立本地参数生成 u₄,₁₀₁，追加到自己的 U₄。全局直接读取第 3 层的 G₃ 和当前 token 的 I₃,₁₀₁，不生成 G₄、不重跑 Indexer；但仍计算第 4 层自己的 Query、注意力权重、输出与 FFN。",
+          "本例全局只有 50 个可见行，小于 Top-512 上限，因此全部选中。与 101 行本地窗口沿行拼接后，共 151 行供 Attention 读取。时间复用是保留历史 token 的计算结果，跨层复用是不同层读取同一份 G；两者不等于复用注意力输出。工具栏“101 号 token 缓存示例”提供读、算、写的完整对照图。",
+        ]
+      : [];
   return {
     title: TITLES[data.kind] ?? data.title ?? "模块内的矩阵与运算",
-    paragraphs: paragraphs.map((paragraph, index) =>
+    paragraphs: [...cacheExample, ...paragraphs].map((paragraph, index) =>
       (index === 0 ? phase + paragraph : paragraph)
         .replaceAll("@L", String(data.layer))
         .replaceAll("@N", data.phase === "decode" ? "1" : "N")

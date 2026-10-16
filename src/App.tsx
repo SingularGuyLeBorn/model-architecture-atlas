@@ -20,6 +20,7 @@ import { recipeFor, type Phase } from "./templates/recipes";
 import { RecipeCanvas } from "./templates/RecipeCanvas";
 import { MathFormula } from "./components/diagram-primitives";
 import { useRailIntent } from "./components/useRailIntent";
+import { DiagramExportProvider } from "./components/DiagramExport";
 
 const DetailedLayer = lazy(() =>
   import("./compositions/DeepSeekV41Layer").then((module) => ({
@@ -215,7 +216,7 @@ export function App() {
             配置固定到 {model.provenance.revision.slice(0, 7)}
           </span>
         </div>
-        {route.chapter !== "layer" && (
+        {route.chapter !== "layer" && route.chapter !== "cache" && (
           <div className="chapter-tools">
             <div className="segmented">
               {(["prefill", "decode"] as Phase[]).map((value) => (
@@ -267,18 +268,20 @@ export function App() {
           <ReactFlowProvider
             key={`${model.id}-${route.chapter}-${phase}-${layer}`}
           >
-            {recipe ? (
-              <RecipeCanvas
-                recipe={recipe}
-                storageKey={`model-atlas:v1:${model.id}:${route.chapter}:${phase}:${layer}`}
-              />
-            ) : (
-              <Suspense
-                fallback={<div className="loading">正在载入完整逐层图…</div>}
-              >
-                <DetailedLayer initialLayer={layer} />
-              </Suspense>
-            )}
+            <DiagramExportProvider>
+              {recipe ? (
+                <RecipeCanvas
+                  recipe={recipe}
+                  storageKey={`model-atlas:v1:${model.id}:${route.chapter}:${phase}:${layer}`}
+                />
+              ) : (
+                <Suspense
+                  fallback={<div className="loading">正在载入完整逐层图…</div>}
+                >
+                  <DetailedLayer initialLayer={layer} />
+                </Suspense>
+              )}
+            </DiagramExportProvider>
           </ReactFlowProvider>
         </section>
       </main>

@@ -2,6 +2,10 @@ import { frameColor } from "../components/diagram-appearance";
 import { CompressorProjections } from "../components/CompressorProjections";
 import { KvRowConcat } from "../components/KvRowConcat";
 import {
+  DiagramExportButton,
+  useDiagramExporting,
+} from "../components/DiagramExport";
+import {
   IndexScoreColumns,
   IndexScoreMatrix,
 } from "../components/IndexScoreColumns";
@@ -8013,6 +8017,7 @@ export function isArchitectureDetailVisible(
 }
 
 function DiagramNodeView({ id, data, selected }: NodeProps<DiagramNode>) {
+  const exporting = useDiagramExporting();
   const clip = useContext(CanvasClipContext);
   const geometryCache = useContext(GeometryCacheContext);
   const { getInternalNode } = useReactFlow<DiagramNode>();
@@ -8020,6 +8025,7 @@ function DiagramNodeView({ id, data, selected }: NodeProps<DiagramNode>) {
     (state) => state.nodeLookup.get(id)?.internals.handleBounds,
   );
   const detailVisibility = useStore((state) => {
+    if (exporting) return 2;
     const node = state.nodeLookup.get(id);
     // 首次必须完整测量，不用猜测高度替代真实布局；选择中的节点也保持交互内容。
     if (
@@ -10248,6 +10254,14 @@ function DiagramCanvas({
             <BookOpen size={14} />
             {inspector.mode === "open" ? "解释已显示" : "显示解释"}
           </button>
+          <DiagramExportButton
+            getRoot={() => canvasRef.current}
+            name={`V41-layer-${layer}-${phase}`}
+            style={editorButton}
+          />
+          <a href="#model=v41&chapter=cache" style={editorButton}>
+            101 号 token 缓存示例
+          </a>
           <select
             aria-label="定位模块"
             defaultValue=""
