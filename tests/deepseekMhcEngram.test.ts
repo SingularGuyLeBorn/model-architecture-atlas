@@ -320,7 +320,7 @@ describe("mHC 与 Engram 的真实主路径", () => {
           "[data-mhc-parallel-branches]",
         )!;
         expect(branches.style.gridTemplateColumns).toBe(
-          "repeat(2,minmax(0,1fr))",
+          "minmax(0,1.08fr) minmax(0,1fr)",
         );
         expect(branches.children[0].hasAttribute("data-mhc-residual-mix")).toBe(
           true,

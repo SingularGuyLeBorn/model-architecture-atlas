@@ -19,6 +19,7 @@ export type DiagramTone =
   | "violet"
   | "rose"
   | "plum"
+  | "indigo"
   | "cyan";
 export const COLORS = {
   paper: "#ffffff",
@@ -27,20 +28,23 @@ export const COLORS = {
   muted: "#716d63",
   faint: "#a39e92",
   line: "#d9d4c8",
-  green: "#37685a",
-  greenSoft: "#e6efeb",
-  amber: "#a87335",
-  amberSoft: "#f4ecdf",
-  blue: "#667c96",
-  blueSoft: "#e9edf2",
-  rose: "#9a625d",
-  roseSoft: "#f4e7e5",
-  plum: "#975381",
-  plumSoft: "#f2e5ef",
-  violet: "#795a97",
-  violetSoft: "#eee7f5",
-  cyan: "#287e87",
-  cyanSoft: "#e1f0f2",
+  green: "#327463",
+  greenSoft: "#eaf4ef",
+  amber: "#ad792a",
+  amberSoft: "#faf0df",
+  blue: "#547999",
+  blueSoft: "#edf3f8",
+  rose: "#ac6575",
+  roseSoft: "#f9edf0",
+  plum: "#995b8b",
+  plumSoft: "#f6ebf3",
+  violet: "#795ca5",
+  violetSoft: "#f1ebf9",
+  cyan: "#2c8490",
+  cyanSoft: "#e8f5f6",
+  // [OM-FREEPLAY] 靛蓝用于学习到的投影参数，与琥珀色缩放系数区分。
+  indigo: "#5266a2",
+  indigoSoft: "#edf0fa",
 };
 
 export const MathFormula = memo(function MathFormula({
@@ -76,6 +80,9 @@ export function Box({
       data-expanded-tensor={expanded || undefined}
       style={{
         minWidth: 0,
+        width: "fit-content",
+        maxWidth: "100%",
+        justifySelf: "center",
         border: `1.5px solid ${tone === "neutral" ? color : frameColor(color)}`,
         borderRadius: 8,
         padding: "7px 8px",
@@ -149,8 +156,9 @@ export function VectorStrip({
   nameWidth,
   nameLineHeight,
   outlineSelection = true,
-  contentWidth = false,
+  contentWidth = true,
   columnSubgrid = false,
+  cellPadding = 8,
 }: {
   name: string;
   length: string;
@@ -164,6 +172,7 @@ export function VectorStrip({
   outlineSelection?: boolean;
   contentWidth?: boolean;
   columnSubgrid?: boolean;
+  cellPadding?: number;
 }) {
   const palette = tonePalette(selected ? "amber" : tone);
   const columns = displayedColumns ?? ["1", "2", "\\cdots", length];
@@ -174,6 +183,7 @@ export function VectorStrip({
       data-vector-selected={selected || undefined}
       style={{
         minWidth: 0,
+        justifySelf: "center",
         width: contentWidth && !columnSubgrid ? "max-content" : undefined,
         maxWidth: contentWidth ? "100%" : undefined,
         display: "grid",
@@ -247,8 +257,8 @@ export function VectorStrip({
                 minWidth: 0,
                 padding: contentWidth
                   ? compact
-                    ? "2px 8px"
-                    : "4px 8px"
+                    ? `2px ${cellPadding}px`
+                    : `4px ${cellPadding}px`
                   : compact
                     ? "2px 3px"
                     : "4px 3px",
@@ -294,6 +304,9 @@ export function Matrix({
     <div
       data-expanded-tensor
       style={{
+        width: "fit-content",
+        maxWidth: "100%",
+        justifySelf: "center",
         border: `1.5px solid ${frameColor(palette.color)}`,
         borderRadius: 9,
         overflow: "hidden",
@@ -315,6 +328,7 @@ export function Matrix({
         style={{
           padding: 6,
           display: "grid",
+          gridTemplateColumns: "52px repeat(3,max-content) 24px max-content",
           gap: 3,
           borderTop: `1px solid ${COLORS.line}`,
           fontSize: 9.5,
@@ -324,7 +338,12 @@ export function Matrix({
           row === "\\vdots" ? (
             <div
               key={`${row}-${index}`}
-              style={{ minHeight: 22, display: "grid", placeItems: "center" }}
+              style={{
+                gridColumn: "1 / -1",
+                minHeight: 22,
+                display: "grid",
+                placeItems: "center",
+              }}
             >
               <MathFormula tex="\vdots" />
             </div>
@@ -338,6 +357,7 @@ export function Matrix({
               selected={rowIndices !== undefined && row === "t"}
               tone={tone}
               compact
+              columnSubgrid
             />
           ),
         )}
@@ -356,7 +376,7 @@ export function RowMatrix({
   elementTex,
   elementColumns,
   headerLineHeight,
-  contentWidth = false,
+  contentWidth = true,
 }: {
   tex: string;
   shape: string;
@@ -379,6 +399,7 @@ export function RowMatrix({
       style={{
         minWidth: 0,
         width: contentWidth ? "max-content" : undefined,
+        justifySelf: "center",
         maxWidth: contentWidth ? "100%" : undefined,
         padding: 6,
         border: `1.3px solid ${frameColor(palette.color)}`,
@@ -542,7 +563,7 @@ function arrowTip(x: number, y: number, angle: number) {
 }
 
 /** 串行步骤可横排并折行；箭头依赖实际框边，不把换行误画成并行。 */
-// [OM-FREEPLAY] 每段最小 680px、净空 48px 是排版取值；折回线占半个净空，窄框自动退回单列。
+// [OM-FREEPLAY] 按收紧后的矩阵内容为每段保留 640px、净空 48px；折回线占半个净空，窄框自动退回单列。
 export function SerialFlow({
   children,
   returnColumn = false,
@@ -565,7 +586,7 @@ export function SerialFlow({
     const measure = () => {
       const bounds = root.getBoundingClientRect();
       if (!bounds.width || !root.offsetWidth) return;
-      setWide(root.offsetWidth >= 680 * 2 + 48);
+      setWide(root.offsetWidth >= 640 * 2 + 48);
       const scale = bounds.width / root.offsetWidth;
       const rects = steps.map((step) => {
         const r = step.getBoundingClientRect();
@@ -630,7 +651,7 @@ export function SerialFlow({
       style={{
         position: "relative",
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,680px),1fr))",
+        gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,640px),1fr))",
         gap: 48,
         alignItems: "start",
       }}
@@ -808,7 +829,8 @@ export function StackedSum({
             <div
               style={{
                 padding: "4px 0",
-                display: "grid",
+                display: "flex",
+                justifyContent: "flex-end",
                 alignItems: "center",
               }}
             >
@@ -921,6 +943,10 @@ export function FeatureVector({
       data-feature-vector={name}
       data-expanded-tensor
       style={{
+        width: "max-content",
+        maxWidth: "100%",
+        justifySelf: "center",
+        marginInline: "auto",
         border: `1px solid ${frameColor(palette.color)}`,
         background: "transparent",
         borderRadius: 7,
@@ -948,6 +974,7 @@ export function FeatureVector({
         elementTex={scalar}
         tone={tone}
         compact
+        cellPadding={4}
       />
     </div>
   );

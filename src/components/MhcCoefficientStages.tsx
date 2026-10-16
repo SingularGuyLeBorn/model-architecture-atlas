@@ -25,6 +25,12 @@ const grid4 = {
   gridTemplateColumns: "repeat(4,minmax(0,1fr))",
   gap: 8,
 };
+const compact4 = {
+  display: "grid",
+  gridTemplateColumns: "repeat(4,max-content)",
+  gap: 8,
+  justifyContent: "center",
+};
 const group = {
   border: `1px solid ${COLORS.line}`,
   borderRadius: 12,
@@ -37,9 +43,20 @@ const row = { display: "flex", alignItems: "center", gap: 8, minWidth: 0 };
 
 export function MhcFlatten({ layer, stage }: { layer: number; stage: string }) {
   return (
-    <section data-mhc-flatten style={group}>
+    <section
+      data-mhc-flatten
+      style={{
+        ...group,
+        width: "fit-content",
+        maxWidth: "100%",
+        justifySelf: "center",
+      }}
+    >
       <strong>① 输入：同一 token t 的四路残差，每路 5120 个数</strong>
-      <div data-four-stream-row style={grid4}>
+      <div
+        data-four-stream-row
+        style={{ ...compact4, gridTemplateColumns: "repeat(4,240px)" }}
+      >
         {copies.map((c) => (
           <div key={c} style={{ display: "grid", gap: 6 }}>
             <FeatureVector
@@ -55,7 +72,8 @@ export function MhcFlatten({ layer, stage }: { layer: number; stage: string }) {
         data-mhc-concat-segments
         data-expanded-tensor
         style={{
-          ...grid4,
+          ...compact4,
+          gridTemplateColumns: "repeat(4,240px)",
           border: `1px solid ${COLORS.blue}`,
           borderRadius: 8,
           padding: 8,
@@ -248,7 +266,7 @@ export function MhcProjection({
           tone="blue"
         />
         <Operator tex="\times" />
-        <Box tone="amber" expanded>
+        <Box tone="indigo" expanded>
           <TensorHeading
             name={`W_{${layer}}^{HC,${sub}}`}
             shape="20480\times24"
@@ -261,8 +279,8 @@ export function MhcProjection({
                 <div
                   key={j}
                   style={{
-                    border: `1px solid ${COLORS.amber}`,
-                    background: COLORS.amberSoft,
+                    border: `1px solid ${COLORS.indigo}`,
+                    background: COLORS.indigoSoft,
                     padding: "16px 6px",
                     borderRadius: 6,
                   }}
@@ -284,7 +302,11 @@ export function MhcProjection({
       </div>
       <div
         data-mhc-u-segments
-        style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 16 }}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3,minmax(0,1fr))",
+          gap: 12,
+        }}
       >
         {[
           [1, 4, "下一子层汇合 p"],
@@ -368,7 +390,9 @@ export function MhcGate({
             data-mhc-affine-row
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 18px 1fr 18px 1fr 18px 1fr",
+              gridTemplateColumns:
+                "max-content 18px max-content 18px max-content 18px max-content",
+              justifyContent: "center",
               gap: 4,
               alignItems: "center",
             }}
@@ -427,6 +451,8 @@ export function SigmoidDefinition() {
       style={{
         ...group,
         gap: 8,
+        width: "fit-content",
+        justifySelf: "center",
       }}
     >
       <strong>Sigmoid · 对每个 a 单独计算</strong>
@@ -453,7 +479,7 @@ function Grid4({
   return (
     <Box tone={tone} expanded>
       <TensorHeading name={name} shape="4\times4" />
-      <div data-mhc-four-matrix style={{ ...grid4, gap: 4 }}>
+      <div data-mhc-four-matrix style={{ ...compact4, gap: 4 }}>
         {copies.flatMap((k) =>
           copies.map((j) => (
             <Box key={`${k}-${j}`} tone={tone}>

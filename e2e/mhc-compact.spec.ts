@@ -59,7 +59,7 @@ test("mHC 标量不撑满宽栏，归一化与投影横向接续", async ({ page
           .map((item) => item.textContent?.slice(0, 70)),
       };
     });
-    expect(measurements.width).toBe(2240);
+    expect(measurements.width).toBe(2040);
     expect(measurements.columnCells).toHaveLength(4);
     expect(measurements.columnCells.every((width) => width <= 110)).toBe(true);
     for (const cells of [

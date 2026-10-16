@@ -6,6 +6,8 @@ import {
   FeatureVector,
   Matrix,
   RowMatrix,
+  MathFormula,
+  VectorStrip,
 } from "../src/components/diagram-primitives";
 import { Expert } from "../src/compositions/DeepSeekV41Layer";
 import { Tensor } from "../src/templates/structure-blocks";
@@ -51,4 +53,44 @@ it("白色画布上，展开张量外框透明且内部元素保留颜色", () =
     ).toBe(true);
   }
   expect(root.querySelector(".katex-error")).toBeNull();
+});
+
+it("标量与向量默认采用内容宽度，矩阵行共享内容列宽", () => {
+  const root = document.createElement("div");
+  root.innerHTML = renderToStaticMarkup(
+    <>
+      <Box>
+        <MathFormula tex="a" />
+      </Box>
+      <VectorStrip
+        name=""
+        nameWidth={0}
+        length="4"
+        elementTex={(c) => `p_${c}`}
+      />
+      <RowMatrix
+        tex="P"
+        shape="N\times4"
+        rows={["p_1", "p_N"]}
+        rowLength="4"
+        elementTex={(r, c) => `p_{${r},${c}}`}
+      />
+    </>,
+  );
+  // jsdom 的 CSS 解析器不保留 intrinsic width；浏览器尺寸由 E2E 验证。
+  expect(root.firstElementChild!.getAttribute("style")).toContain(
+    "width:fit-content",
+  );
+  const vector = root.querySelector<HTMLElement>("[data-vector-elements]")!;
+  expect(vector.dataset.contentWidth).toBe("true");
+  expect(vector.getAttribute("style")).toContain("width:max-content");
+  const matrix = root.querySelector<HTMLElement>("[data-expanded-tensor]")!;
+  expect(matrix.getAttribute("style")).toContain("width:max-content");
+  expect(
+    (matrix.children[1] as HTMLElement).style.gridTemplateColumns,
+  ).toContain("max-content");
+  for (const row of matrix.querySelectorAll<HTMLElement>(
+    "[data-vector-elements]",
+  ))
+    expect(row.style.gridTemplateColumns).toBe("subgrid");
 });

@@ -181,14 +181,14 @@ const EXPERT_ELLIPSIS_WIDTH = 56;
 const EXPERT_GRID_COLUMNS = `minmax(0,1fr) minmax(0,1fr) ${EXPERT_ELLIPSIS_WIDTH}px minmax(0,1fr)`;
 
 // [OM-FREEPLAY] 为专家内两列展开矩阵预留组宽；端口与得分列由同一组参数推导。
-const EXPERTS_WIDTH = 2800;
+const EXPERTS_WIDTH = 2200;
 // [OM-FREEPLAY] 系数支路放在最宽主流程右侧，180px 留给长距离传递的转折通道。
 const COMPRESSOR_X = 2620;
 const COMPRESSOR_WIDTH = 800;
 const HC_COEFFICIENT_X =
   Math.max(70 + EXPERTS_WIDTH, COMPRESSOR_X + COMPRESSOR_WIDTH) + 180;
 const EXPERTS_PADDING = 12;
-const SHARED_GROUP_WIDTH = 600;
+const SHARED_GROUP_WIDTH = 510;
 const EXPERT_GROUP_GAP = 18;
 const EXPERT_GROUP_INSET = 11;
 const EXPERT_CARD_GAP = 8;
@@ -475,6 +475,9 @@ function AttentionTensor({
       data-attention-tensor={tex}
       data-expanded-tensor
       style={{
+        width: "max-content",
+        maxWidth: "100%",
+        justifySelf: "center",
         minWidth: 0,
         padding: 8,
         border: `1.5px solid ${frameColor(palette.color)}`,
@@ -498,46 +501,59 @@ function AttentionTensor({
           <MathFormula tex={`${rows}\\times ${columns}`} />
         </span>
       </div>
-      {rowLabels.map((row) => (
-        <div
-          key={row}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr .35fr 1fr",
-            gap: 4,
-            textAlign: "center",
-            alignItems: "center",
-            fontSize: 12,
-          }}
-        >
-          {["1", "2", "3", "\\cdots", columns].map((column, index) => (
-            <span
-              key={index}
-              style={{
-                minWidth: 0,
-                padding: "4px 1px",
-                border:
-                  row === "\\vdots" || column === "\\cdots"
-                    ? undefined
-                    : `1px solid ${palette.color}`,
-                borderRadius: 4,
-              }}
-            >
-              <MathFormula
-                tex={
-                  row === "\\vdots"
-                    ? index === 2
-                      ? row
-                      : ""
-                    : column === "\\cdots"
-                      ? column
-                      : scalar(row, column)
-                }
-              />
-            </span>
-          ))}
-        </div>
-      ))}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3,max-content) 24px max-content",
+          gap: 4,
+        }}
+      >
+        {rowLabels.map((row) => (
+          <div
+            key={row}
+            style={{
+              display: "grid",
+              gridColumn: "1 / -1",
+              gridTemplateColumns: "subgrid",
+              gap: 4,
+              textAlign: "center",
+              alignItems: "center",
+              fontSize: 12,
+            }}
+          >
+            {["1", "2", "3", "\\cdots", columns].map((column, index) => (
+              <span
+                key={index}
+                style={{
+                  minWidth: 0,
+                  padding: "4px 8px",
+                  background:
+                    row === "\\vdots" || column === "\\cdots"
+                      ? "transparent"
+                      : palette.background,
+                  border:
+                    row === "\\vdots" || column === "\\cdots"
+                      ? undefined
+                      : `1px solid ${palette.color}`,
+                  borderRadius: 4,
+                }}
+              >
+                <MathFormula
+                  tex={
+                    row === "\\vdots"
+                      ? index === 2
+                        ? row
+                        : ""
+                      : column === "\\cdots"
+                        ? column
+                        : scalar(row, column)
+                  }
+                />
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -795,7 +811,11 @@ export function RmsNormProcess({
               ② 用①的结果归一化{gamma ? "与缩放" : ""}
             </strong>
           )}
-          <div ref={broadcastRef} data-rmsnorm-broadcast>
+          <div
+            ref={broadcastRef}
+            data-rmsnorm-broadcast
+            style={{ width: "fit-content", justifySelf: "center" }}
+          >
             {horizontal ? (
               <Box tone="green">
                 <MathFormula tex={`r_{${row}}`} /> · 同一分母用于本行各元素
@@ -810,7 +830,8 @@ export function RmsNormProcess({
             data-rmsnorm-scale
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3,minmax(0,1fr))",
+              gridTemplateColumns: "repeat(3,max-content)",
+              justifyContent: "center",
               position: "relative",
               gap: 3,
               textAlign: "center",
@@ -824,7 +845,10 @@ export function RmsNormProcess({
                     data-rmsnorm-operands
                     style={{
                       display: "grid",
-                      gridTemplateColumns: gamma ? "1fr 1fr" : "1fr",
+                      gridTemplateColumns: gamma
+                        ? "max-content max-content"
+                        : "max-content",
+                      justifyContent: "center",
                       gap: 4,
                     }}
                   >
@@ -1046,6 +1070,9 @@ export function MhcMix({
         data-expanded-tensor
         style={{
           position: "relative",
+          width: "fit-content",
+          maxWidth: 260,
+          justifySelf: "center",
           border: `1px solid ${frameColor(COLORS[tone])}`,
           borderRadius: 9,
           padding: 10,
@@ -1089,7 +1116,7 @@ export function MhcMix({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4,minmax(0,1fr))",
+              gridTemplateColumns: "repeat(4,max-content)",
               gap: 4,
             }}
           >
@@ -1207,7 +1234,7 @@ export function MhcPre({
         style={{
           position: "relative",
           maxWidth: 560,
-          width: "100%",
+          width: "fit-content",
           justifySelf: "end",
         }}
       >
@@ -1599,7 +1626,7 @@ export function MhcPost({
               data-mhc-parallel-branches
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(2,minmax(0,1fr))",
+                gridTemplateColumns: "minmax(0,1.08fr) minmax(0,1fr)",
                 gap: 14,
               }}
             >
@@ -2228,6 +2255,9 @@ export function EngramLookup({
       <FlowStep>3 种长度 × 8 个哈希头 = 24 个地址；每个地址查一行</FlowStep>
       <div
         style={{
+          width: "max-content",
+          maxWidth: "100%",
+          justifySelf: "center",
           border: `1px solid ${frameColor(COLORS.blue)}`,
           borderRadius: 8,
           padding: 9,
@@ -2289,7 +2319,8 @@ export function EngramLookup({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 24px 1fr 24px 1fr",
+          gridTemplateColumns: "max-content 24px max-content 24px max-content",
+          justifyContent: "center",
           alignItems: "center",
           gap: 5,
         }}
@@ -2306,7 +2337,7 @@ export function EngramLookup({
           />
         </Box>
         <Operator tex="\times" />
-        <Box tone="amber" expanded>
+        <Box tone="indigo" expanded>
           <TensorHeading name={`W_{${layer}}^{E,KV}`} shape="6144\times25600" />
           <div
             style={{
@@ -2323,8 +2354,8 @@ export function EngramLookup({
                 <span
                   key={j}
                   style={{
-                    border: `1px solid ${frameColor(COLORS.amber)}`,
-                    background: COLORS.amberSoft,
+                    border: `1px solid ${frameColor(COLORS.indigo)}`,
+                    background: COLORS.indigoSoft,
                     padding: "9px 3px",
                     borderRadius: 4,
                   }}
@@ -2734,7 +2765,9 @@ function RotaryProcess({
           data-rotation-matrix
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 22px 1.6fr 22px 1fr",
+            gridTemplateColumns:
+              "max-content 22px max-content 22px max-content",
+            justifyContent: "center",
             alignItems: "center",
             gap: 4,
             textAlign: "center",
@@ -2752,7 +2785,7 @@ function RotaryProcess({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              gridTemplateColumns: "repeat(2,max-content)",
               gap: 3,
               padding: 4,
               borderLeft: `2px solid ${COLORS.amber}`,
@@ -2861,7 +2894,7 @@ function IndexProjection({
           data-expanded-tensor
           style={{
             padding: 6,
-            border: `1px solid ${frameColor(COLORS.amber)}`,
+            border: `1px solid ${frameColor(COLORS.indigo)}`,
             background: "transparent",
             borderRadius: 7,
             display: "grid",
@@ -2886,10 +2919,10 @@ function IndexProjection({
                 <div
                   key={j}
                   style={{
-                    border: `1px solid ${frameColor(COLORS.amber)}`,
+                    border: `1px solid ${frameColor(COLORS.indigo)}`,
                     borderRadius: 4,
                     padding: "8px 3px",
-                    background: COLORS.amberSoft,
+                    background: COLORS.indigoSoft,
                   }}
                 >
                   <MathFormula tex={`\\mathbf w_{${j}}`} />
@@ -3215,7 +3248,9 @@ function LocalKvProjection({ layer }: { layer: number }) {
                   data-expanded-tensor
                   style={{
                     padding: 5,
-                    border: `1.3px solid ${frameColor(COLORS.amber)}`,
+                    width: "max-content",
+                    justifySelf: "center",
+                    border: `1.3px solid ${frameColor(COLORS.indigo)}`,
                     borderRadius: 7,
                     background: "transparent",
                     display: "grid",
@@ -3225,12 +3260,15 @@ function LocalKvProjection({ layer }: { layer: number }) {
                     textAlign: "center",
                   }}
                 >
-                  <MathFormula tex={`W_{${layer}}^{KV,\\mathrm{SWA}}`} />
-                  <MathFormula tex="5120\times512" />
+                  <TensorHeading
+                    name={`W_{${layer}}^{KV,\\mathrm{SWA}}`}
+                    shape="5120\times512"
+                  />
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "1fr 1fr .4fr 1fr",
+                      gridTemplateColumns:
+                        "max-content max-content 24px max-content",
                       gap: 3,
                       alignItems: "center",
                     }}
@@ -3242,10 +3280,10 @@ function LocalKvProjection({ layer }: { layer: number }) {
                         <div
                           key={column}
                           style={{
-                            border: `1px solid ${frameColor(COLORS.amber)}`,
+                            border: `1px solid ${frameColor(COLORS.indigo)}`,
                             borderRadius: 4,
-                            padding: "20px 0",
-                            background: COLORS.amberSoft,
+                            padding: "20px 8px",
+                            background: COLORS.indigoSoft,
                           }}
                         >
                           <MathFormula
@@ -4012,9 +4050,12 @@ export function Expert({
       data-expert-matrix={tex}
       data-expanded-tensor
       style={{
+        width: "max-content",
+        maxWidth: "100%",
+        justifySelf: "center",
         minWidth: 0,
         padding: 5,
-        border: `1px solid ${frameColor(color)}`,
+        border: `1px solid ${frameColor(weight ? COLORS.indigo : scalar === "y" ? COLORS.blue : COLORS.green)}`,
         borderRadius: 6,
         background: "transparent",
       }}
@@ -4036,7 +4077,7 @@ export function Expert({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr .35fr 1fr",
+          gridTemplateColumns: "max-content max-content 24px max-content",
           gap: 1,
           alignItems: "center",
           fontSize: 10,
@@ -4052,20 +4093,23 @@ export function Expert({
               style={{
                 minWidth: 0,
                 height: 24,
+                padding: "2px 6px",
                 boxSizing: "border-box",
                 display: "grid",
                 placeItems: "center",
                 border:
                   row === "\\vdots" || column === "\\cdots"
                     ? undefined
-                    : `1px solid ${color}`,
+                    : `1px solid ${frameColor(weight ? COLORS.indigo : scalar === "y" ? COLORS.blue : COLORS.green)}`,
                 borderRadius: 2,
                 background:
                   row === "\\vdots" || column === "\\cdots"
                     ? "transparent"
                     : weight
-                      ? COLORS.amberSoft
-                      : COLORS.greenSoft,
+                      ? COLORS.indigoSoft
+                      : scalar === "y"
+                        ? COLORS.blueSoft
+                        : COLORS.greenSoft,
               }}
             >
               <MathFormula
@@ -4210,9 +4254,11 @@ export function Expert({
                     key={tex}
                     data-silu-operand
                     style={{
+                      width: "fit-content",
+                      justifySelf: "center",
                       border: `1px solid ${frameColor(color)}`,
                       borderRadius: 4,
-                      padding: "7px 2px",
+                      padding: "7px 6px",
                       display: "grid",
                       placeItems: "center",
                       minWidth: 0,
@@ -4363,7 +4409,8 @@ export function Expert({
           data-expert-down-result
           style={{
             display: "grid",
-            gridTemplateColumns: "24px minmax(0,1fr)",
+            gridTemplateColumns: "24px max-content",
+            justifyContent: "center",
             gap: 6,
             marginTop: 8,
             alignItems: "center",
@@ -4936,7 +4983,14 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           }}
         >
           {data.matrixRows?.length ? (
-            <div style={{ width: "100%", display: "grid", gap: 5 }}>
+            <div
+              style={{
+                width: "fit-content",
+                maxWidth: "100%",
+                display: "grid",
+                gap: 5,
+              }}
+            >
               {data.tex && (
                 <div style={{ color, fontWeight: 800 }}>
                   <MathFormula tex={data.tex} />
@@ -4945,7 +4999,8 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "7px minmax(0,1fr) 7px",
+                  gridTemplateColumns: "7px max-content 7px",
+                  justifySelf: "center",
                   gap: 4,
                 }}
               >
@@ -4964,19 +5019,26 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                       key={index}
                       style={{
                         minHeight: 18,
-                        border: `1px solid ${data.matrixSelectedRow === index ? COLORS.amber : color}`,
+                        border:
+                          row === "\\vdots"
+                            ? undefined
+                            : `1px solid ${data.matrixSelectedRow === index ? COLORS.amber : color}`,
                         borderRadius: 5,
                         background:
-                          data.matrixSelectedRow === index
-                            ? COLORS.amberSoft
-                            : background,
+                          row === "\\vdots"
+                            ? "transparent"
+                            : data.matrixRowCells?.[index]
+                              ? "transparent"
+                              : data.matrixSelectedRow === index
+                                ? COLORS.amberSoft
+                                : background,
                         display: "grid",
                         gridTemplateColumns: data.matrixRowCells?.[index]
                           ? "70px minmax(0,1fr)"
                           : "1fr",
                         alignItems: "center",
                         gap: 3,
-                        padding: 2,
+                        padding: "2px 8px",
                         fontSize: 9.5,
                       }}
                     >
@@ -6310,7 +6372,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                       rows="4096"
                       columns="1024"
                       scalar={(row, column) => `w^A_{${row},${column}}`}
-                      tone="blue"
+                      tone="indigo"
                     />
                     <Operator tex="=" />
                     <AttentionTensor
@@ -6346,7 +6408,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 rows="8192"
                 columns="5120"
                 scalar={(row, column) => `w^B_{${row},${column}}`}
-                tone="blue"
+                tone="indigo"
               />
               <Operator tex="=" />
               <AttentionTensor
@@ -6522,7 +6584,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             data-expanded-tensor
             style={{
               minWidth: 0,
-              border: `1.3px solid ${frameColor(COLORS.amber)}`,
+              border: `1.3px solid ${frameColor(COLORS.indigo)}`,
               background: "transparent",
               borderRadius: 7,
               padding: 7,
@@ -6547,7 +6609,8 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 1fr .45fr 1fr",
+                gridTemplateColumns: "max-content max-content 24px max-content",
+                justifyContent: "center",
                 gap: 5,
                 fontSize: 10,
                 alignItems: "center",
@@ -6560,10 +6623,10 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   <div
                     key={expert}
                     style={{
-                      border: `1px solid ${frameColor(COLORS.amber)}`,
+                      border: `1px solid ${frameColor(COLORS.indigo)}`,
                       borderRadius: 4,
-                      background: COLORS.amberSoft,
-                      padding: "22px 2px",
+                      background: COLORS.indigoSoft,
+                      padding: "22px 8px",
                     }}
                   >
                     <MathFormula tex={`\\mathbf w_{${layer},${expert}}^R`} />
@@ -6905,7 +6968,8 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 paddingTop: 8,
                 display: "grid",
                 gridTemplateColumns:
-                  "260px repeat(3,minmax(0,1fr)) 50px minmax(0,1fr)",
+                  "160px repeat(3,max-content) 24px max-content",
+                justifyContent: "center",
                 gap: 10,
                 alignItems: "center",
               }}
@@ -7085,7 +7149,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 elementTex={(column) =>
                   `e_{${layer},${expert},${row},${column}}`
                 }
-                tone={shared ? "blue" : "green"}
+                tone="green"
                 selected={row === "t"}
                 compact
               />
@@ -7699,9 +7763,9 @@ export function buildGraph(
       embeddingHeight,
     ),
     node("hc-expand", "hc-expand", layer, mode, 400, expandY, 800, 240),
-    node("input", "tensor", layer, mode, 300, inputY, 1600, tensorHeight),
+    node("input", "tensor", layer, mode, 300, inputY, 1200, tensorHeight),
     {
-      ...node("hc-pre-a", "hc-pre", layer, mode, 300, preAY, 1000, 420),
+      ...node("hc-pre-a", "hc-pre", layer, mode, 300, preAY, 900, 420),
       data: { kind: "hc-pre", layer, mode, sublayer: "A" },
     },
     {
@@ -7712,12 +7776,12 @@ export function buildGraph(
         mode,
         HC_COEFFICIENT_X,
         preAY,
-        2240,
+        2040,
         mixAHeight,
       ),
       data: { kind: "hc-mix", layer, mode, sublayer: "A" },
     },
-    node("norm1", "norm1", layer, mode, 400, norm1Y, 800, norm1Height),
+    node("norm1", "norm1", layer, mode, 400, norm1Y, 740, norm1Height),
     {
       ...node(
         "q",
@@ -7739,7 +7803,7 @@ export function buildGraph(
       mode,
       920,
       projectionY,
-      1600,
+      1400,
       localKvProjectionHeight,
     ),
     node(
@@ -7762,14 +7826,14 @@ export function buildGraph(
       hasGlobal ? 1000 : 640,
       mergeHeight,
     ),
-    // [OM-FREEPLAY] 三个 Head 展开后采用与专家区一致的 2800px 画布宽度。
-    node("heads", "heads", layer, mode, 40, headsY, 2800, headsHeight),
-    node("concat", "concat", layer, mode, 150, concatY, 1470, concatHeight),
+    // [OM-FREEPLAY] 三个 Head 按内部代表矩阵的内容宽度预留 2400px。
+    node("heads", "heads", layer, mode, 40, headsY, 2400, headsHeight),
+    node("concat", "concat", layer, mode, 150, concatY, 1320, concatHeight),
     // [OM-FREEPLAY] 四路各含两个并行过程与求和通道，2600px 保留长下标的可读宽度。
     node("add1", "add1", layer, mode, 300, add1Y, 2600, add1Height),
-    node("state1", "state1", layer, mode, 300, state1Y, 1600, state1Height),
+    node("state1", "state1", layer, mode, 300, state1Y, 1200, state1Height),
     {
-      ...node("hc-pre-f", "hc-pre", layer, mode, 300, preFY, 1000, 420),
+      ...node("hc-pre-f", "hc-pre", layer, mode, 300, preFY, 900, 420),
       data: { kind: "hc-pre", layer, mode, sublayer: "F" },
     },
     {
@@ -7780,12 +7844,12 @@ export function buildGraph(
         mode,
         HC_COEFFICIENT_X,
         preFY,
-        2240,
+        2040,
         mixFHeight,
       ),
       data: { kind: "hc-mix", layer, mode, sublayer: "F" },
     },
-    node("norm2", "norm2", layer, mode, 400, norm2Y, 800, norm2Height),
+    node("norm2", "norm2", layer, mode, 400, norm2Y, 740, norm2Height),
     node("moe-input", "moe-input", layer, mode, 715, moeInputY, 170, 80),
     node("router", "router", layer, mode, 320, routerY, 960, routerHeight),
     node(
@@ -7850,7 +7914,7 @@ export function buildGraph(
         mode,
         300,
         firstInputY,
-        1600,
+        1200,
         tensorHeight,
       ),
     );
@@ -7888,7 +7952,7 @@ export function buildGraph(
         mode,
         300,
         engramY,
-        2000,
+        1400,
         2000,
       ),
     );
@@ -8015,7 +8079,7 @@ export function buildGraph(
         "\\cdots",
         `\\mathbf w_{${layer},1280}^{Q\\downarrow}`,
       ],
-      tone: "amber",
+      tone: "indigo",
     }),
     structureNode({
       id: "q-equals-down",
@@ -8105,7 +8169,7 @@ export function buildGraph(
         "\\cdots",
         `\\mathbf w_{${layer},64\\cdot512}^{Q\\uparrow}`,
       ],
-      tone: "amber",
+      tone: "indigo",
     }),
     structureNode({
       id: "q-equals-up",
@@ -8222,7 +8286,7 @@ export function buildGraph(
         mode,
         1160,
         swaY,
-        mode === "reuse" ? 820 : 1600,
+        mode === "reuse" ? 820 : 1400,
         indexerHeight,
       ),
     );
@@ -8234,7 +8298,7 @@ export function buildGraph(
         mode,
         1160,
         globalSelectY,
-        820,
+        900,
         globalSelectHeight,
       ),
     );

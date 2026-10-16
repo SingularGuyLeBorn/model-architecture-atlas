@@ -14,6 +14,7 @@ describe("边框与数据导线的视觉层级", () => {
     "rose",
     "plum",
     "cyan",
+    "indigo",
   ] as const)("%s 框线只提高亮度，不改变语义色的通道次序", (tone) => {
     const source = COLORS[tone];
     const result = frameColor(source);
