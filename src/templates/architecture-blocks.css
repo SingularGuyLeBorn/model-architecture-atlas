@@ -79,11 +79,38 @@
   display: grid;
   gap: 10px;
   justify-items: center;
+  width: max-content;
+  margin-inline: auto;
 }
-.architecture-rms-compact > .architecture-flow {
-  flex-direction: column;
+.architecture-rms-statistics {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 36px;
 }
-.architecture-rms-compact > .architecture-flow > .architecture-arrow {
+.architecture-rms-reduction {
+  display: flex;
+  align-items: center;
+  width: max-content;
+}
+.architecture-rms-root {
+  display: grid;
+  justify-items: center;
+}
+.architecture-rms-compact .architecture-rms-statistics {
+  display: grid;
+  grid-template-columns: max-content 24px max-content;
+}
+.architecture-rms-compact .architecture-rms-statistics > :first-child {
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+.architecture-rms-compact
+  .architecture-rms-statistics
+  > .architecture-arrow:first-of-type {
+  grid-column: 1 / -1;
+  justify-self: center;
   transform: rotate(90deg);
 }
 .architecture-swiglu > .architecture-columns {

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import {
   MathFormula as M,
   SumJunction,
+  StackedSum,
   type DiagramTone,
 } from "../components/diagram-primitives";
 import { Tensor, Data, Down, elementIndex } from "./structure-blocks";
@@ -326,53 +327,81 @@ export function Rms({
           : "architecture-rms"
       }
     >
-      <Flow>
-        {[
-          <Row
-            key="input"
-            name={input}
-            trace={inputTrace}
-            size={size}
-            direction={inputPort ? "in" : inputSource ? "out" : undefined}
-            tone={inputTone}
-          />,
-          <Operation
-            key="r"
-            label="同一行归约 · 共用分母"
-            tex={`r=\\sqrt{\\frac{\\sum_{d=1}^{${size}}(${input})_d^2}{${size}}+${eps}}`}
-          />,
+      <ObjectConnections
+        links={[
+          { from: "rms-root", to: "rms-denominator", direction: "down-left" },
         ]}
-      </Flow>
-      <div className="architecture-equation">
-        <div className="architecture-fraction">
-          <Row name={input} size={size} tone={inputTone} />
-          <M tex="r" />
+      >
+        <div className="architecture-rms-statistics">
+          <div>
+            <Row
+              name={input}
+              trace={inputTrace}
+              size={size}
+              direction={inputPort ? "in" : inputSource ? "out" : undefined}
+              tone={inputTone}
+            />
+            <p className="architecture-note">
+              <M tex={`z_d:=(${input})_d,\\quad d=1,\\ldots,${size}`} />
+            </p>
+          </div>
+          <span className="architecture-arrow" aria-hidden>
+            →
+          </span>
+          <div className="architecture-rms-reduction">
+            <StackedSum omittedBefore={2} outputDirection="right">
+              {["1", "2", String(size)].map((d) => (
+                <Scalar key={d} tex={`z_{${d}}^2`} tone={inputTone} />
+              ))}
+            </StackedSum>
+            <div data-rms-square-sum>
+              <Scalar tex="s" tone="slate" />
+            </div>
+          </div>
+          <span className="architecture-arrow" aria-hidden>
+            →
+          </span>
+          <div className="architecture-rms-root">
+            <Operation tex={`m=\\frac{s}{${size}}`} label="本行均方" />
+            <Down />
+            <div data-trace-object="rms-root">
+              <Scalar tex={`r=\\sqrt{m+${eps}}`} tone="slate" />
+            </div>
+          </div>
         </div>
-        <span className="architecture-operator">⊙</span>
-        <Row name={gamma} size={size} tone="crimson" title={gammaTitle} />
-        {!compact && <span className="architecture-operator">=</span>}
-        {!compact && (
-          <Row
-            name={output}
-            trace={outputTrace}
-            size={size}
-            direction={outputPort ? "out" : undefined}
-            tone={outputTone}
-          />
+        <div className="architecture-equation">
+          <div className="architecture-fraction">
+            <Row name={input} size={size} tone={inputTone} />
+            <div data-trace-object="rms-denominator">
+              <Scalar tex="r" tone="slate" />
+            </div>
+          </div>
+          <span className="architecture-operator">⊙</span>
+          <Row name={gamma} size={size} tone="crimson" title={gammaTitle} />
+          {!compact && <span className="architecture-operator">=</span>}
+          {!compact && (
+            <Row
+              name={output}
+              trace={outputTrace}
+              size={size}
+              direction={outputPort ? "out" : undefined}
+              tone={outputTone}
+            />
+          )}
+        </div>
+        {compact && (
+          <>
+            <Down />
+            <Row
+              name={output}
+              trace={outputTrace}
+              size={size}
+              direction={outputPort ? "out" : undefined}
+              tone={outputTone}
+            />
+          </>
         )}
-      </div>
-      {compact && (
-        <>
-          <Down />
-          <Row
-            name={output}
-            trace={outputTrace}
-            size={size}
-            direction={outputPort ? "out" : undefined}
-            tone={outputTone}
-          />
-        </>
-      )}
+      </ObjectConnections>
     </div>
   );
 }
