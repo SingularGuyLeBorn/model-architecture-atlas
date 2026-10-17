@@ -120,8 +120,15 @@ it("模式表突出当前模式，旁注给出当前来源，Decode 图保留历
     expect(html).toContain(`G_{${layer}}^{&lt;t}`);
     expect(html).toContain("M_{old}");
     expect(html).not.toContain("katex-error");
-    expect(html).toContain(
-      ratio === 2 ? "仅暂存，不追加" : "每个新 token 生成一行",
-    );
+    expect(html).toContain(ratio === 2 ? "组满后追加" : "每步追加");
+    const root = document.createElement("div");
+    root.innerHTML = html;
+    expect(root.querySelector("[data-global-append-result] small")).toBeNull();
+    for (const input of root.querySelectorAll<HTMLElement>(
+      "[data-global-history-input], [data-global-new-input]",
+    )) {
+      expect(input.style.border).toBe("");
+      expect(input.querySelector("[data-expanded-tensor] small")).toBeNull();
+    }
   }
 });

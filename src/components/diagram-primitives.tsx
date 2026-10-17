@@ -227,7 +227,7 @@ export function StructureEllipsis({
   );
 }
 
-/** 可复用的向量容器：标题、维度与代表元素放在同一个透明框内。 */
+/** 说明在框外；数据框只包含变量、维度与代表元素。 */
 export function ExpandedVector({
   name,
   length,
@@ -242,18 +242,29 @@ export function ExpandedVector({
   title?: string;
 }) {
   return (
-    <Box tone={tone} expanded>
-      {title && <strong>{title}</strong>}
-      <TensorHeading name={name} shape={`1\\times${length}`} />
-      <VectorStrip
-        name=""
-        nameWidth={0}
-        length={length}
-        elementTex={elementTex}
-        tone={tone}
-        uniformCells
-      />
-    </Box>
+    <div
+      data-labelled-vector
+      style={{
+        display: "grid",
+        gap: 4,
+        justifyItems: "center",
+        width: "fit-content",
+        justifySelf: "center",
+      }}
+    >
+      {title && <strong data-tensor-caption>{title}</strong>}
+      <Box tone={tone} expanded>
+        <TensorHeading name={name} shape={`1\\times${length}`} />
+        <VectorStrip
+          name=""
+          nameWidth={0}
+          length={length}
+          elementTex={elementTex}
+          tone={tone}
+          uniformCells
+        />
+      </Box>
+    </div>
   );
 }
 
@@ -278,6 +289,7 @@ export function VectorStrip({
   columnSubgrid = false,
   uniformCells = false,
   cellPadding = 8,
+  preserveToneOnSelection = false,
 }: {
   name: string;
   length: string;
@@ -293,8 +305,11 @@ export function VectorStrip({
   columnSubgrid?: boolean;
   uniformCells?: boolean;
   cellPadding?: number;
+  preserveToneOnSelection?: boolean;
 }) {
-  const palette = tonePalette(selected ? "amber" : tone);
+  const palette = tonePalette(
+    selected && !preserveToneOnSelection ? "amber" : tone,
+  );
   const columns = displayedColumns ?? ["1", "2", "\\cdots", length];
   return (
     <div
@@ -318,7 +333,7 @@ export function VectorStrip({
         lineHeight: 1.2,
         outline:
           selected && outlineSelection
-            ? `1px dashed ${palette.color}`
+            ? `1px dashed ${COLORS.amber}`
             : undefined,
         borderRadius: 4,
       }}

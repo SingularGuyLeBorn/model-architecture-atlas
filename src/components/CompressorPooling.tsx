@@ -1,5 +1,6 @@
 import {
   Box,
+  COLORS,
   BranchFrame,
   ExpandedVector,
   MathFormula,
@@ -10,10 +11,79 @@ import {
   VectorStrip,
 } from "./diagram-primitives";
 import { normalizedExponentialTex } from "./exponential-notation";
+import { frameColor } from "./diagram-appearance";
+
+export function CompressorPending({ layer }: { layer: number }) {
+  return (
+    <div
+      data-compressor-pending
+      style={{
+        justifySelf: "center",
+        display: "grid",
+        gap: 7,
+        padding: 8,
+        border: `1px solid ${frameColor(COLORS.amber)}`,
+        borderRadius: 7,
+        fontSize: 12,
+      }}
+    >
+      <strong>全局压缩组 · 两步凑齐，区别于每步更新的 U</strong>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "max-content 24px max-content",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 5,
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gap: 4,
+            justifyItems: "center",
+          }}
+        >
+          <MathFormula tex="t=2i-1" />
+          <small>暂存；G / Key 不追加</small>
+          <div style={{ display: "flex", gap: 4 }}>
+            <Box tone="green">
+              <MathFormula tex={`\\mathbf v^c_{${layer},2i-1}`} />
+            </Box>
+            <Box tone="plum">
+              <MathFormula
+                tex={`\\mathbf a^{\\mathrm{gate}}_{${layer},2i-1}`}
+              />
+            </Box>
+          </div>
+        </div>
+        <Operator tex="\to" />
+        <div
+          style={{
+            display: "grid",
+            gap: 4,
+            justifyItems: "center",
+          }}
+        >
+          <MathFormula tex="t=2i" />
+          <small>读暂存 + 本步新算</small>
+          <div style={{ display: "flex", gap: 4 }}>
+            <Box tone="green">
+              <MathFormula tex={`\\mathbf v^c_{${layer},2i}`} />
+            </Box>
+            <Box tone="plum">
+              <MathFormula tex={`\\mathbf a^{\\mathrm{gate}}_{${layer},2i}`} />
+            </Box>
+          </div>
+        </div>
+      </div>
+      <span>t=2i 时压缩并追加；未满组只读旧 G。</span>
+    </div>
+  );
+}
 
 /** 两行逐列归一化、逐元素加权与汇合；各 Full 层共用同一结构。 */
-export function CompressorPooling({ layer }: { layer: number }) {
-  const token = (row: number) => (row === 1 ? "2i-1" : "2i");
+export function CompressorWeights({ layer }: { layer: number }) {
   return (
     <>
       <ModuleHeading>压缩权重 α · 同列两个分数归一化</ModuleHeading>
@@ -42,9 +112,9 @@ export function CompressorPooling({ layer }: { layer: number }) {
                       key={row}
                       data-compressor-normalized-weight={row}
                       style={{
-                        display: "grid",
-                        justifyItems: "center",
-                        gap: 5,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
                       }}
                     >
                       <div
@@ -78,6 +148,14 @@ export function CompressorPooling({ layer }: { layer: number }) {
           ),
         )}
       </div>
+    </>
+  );
+}
+
+export function CompressorPooling({ layer }: { layer: number }) {
+  const token = (row: number) => (row === 1 ? "2i-1" : "2i");
+  return (
+    <>
       <ModuleHeading>权重 ⊙ 候选内容 · 同列相乘，两行相加</ModuleHeading>
       <div
         style={{

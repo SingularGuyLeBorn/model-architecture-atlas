@@ -1,8 +1,12 @@
 import { frameColor } from "../components/diagram-appearance";
 import { CompressorProjections } from "../components/CompressorProjections";
-import { CompressorPooling } from "../components/CompressorPooling";
+import {
+  CompressorPooling,
+  CompressorWeights,
+  CompressorPending,
+} from "../components/CompressorPooling";
 import { exponentialTex } from "../components/exponential-notation";
-import { CompressorStageConnector } from "../components/CompressorStageConnector";
+import { HorizontalTransfer } from "../components/HorizontalTransfer";
 import { KvRowConcat } from "../components/KvRowConcat";
 import { CacheReference } from "../components/CacheReference";
 import { SlidingWindowRows } from "../components/SlidingWindowRows";
@@ -633,6 +637,7 @@ export function RmsNormProcess({
   horizontal = false,
   horizontalReduction = false,
   outputHandle,
+  inputTone = "blue",
 }: {
   input: string;
   output: string;
@@ -644,6 +649,7 @@ export function RmsNormProcess({
   horizontal?: boolean;
   horizontalReduction?: boolean;
   outputHandle?: string;
+  inputTone?: "blue" | "green";
 }) {
   const { phase } = useExecutionAxis();
   const row =
@@ -784,7 +790,7 @@ export function RmsNormProcess({
               }}
             >
               <div data-rmsnorm-input style={{ display: "grid", gap: 6 }}>
-                {matrix(input, "z", "blue")}
+                {matrix(input, "z", inputTone)}
                 <span style={{ textAlign: "center" }}>
                   <MathFormula tex={`\\mathbf z_{${row}}`} /> · 本行各元素平方
                 </span>
@@ -824,7 +830,7 @@ export function RmsNormProcess({
             </div>
           ) : (
             <>
-              {matrix(input, "z", "blue")}
+              {matrix(input, "z", inputTone)}
               <FlowStep>
                 <MathFormula tex={`\\mathbf z_{${row}}`} /> · 展开这一行的第
                 1、2、…、{dimension} 个平方项
@@ -2421,9 +2427,10 @@ export function EngramLookup({
         Engram · Layer {layer} · Token ID → N-gram → 哈希查表
       </ModuleHeading>
       <EngramPurpose layer={layer} />
+      <span style={{ textAlign: "center" }}>
+        Tokenizer ID · 等价文本共享压缩 ID
+      </span>
       <Box tone="blue">
-        沿用 Tokenizer 的真实 ID；同一张压缩映射表将等价文本归到同一 ID
-        <br />
         <MathFormula tex="v_t\;\longrightarrow\;c_t,\qquad129280\;\longrightarrow\;99092" />
       </Box>
       <span>
@@ -2491,63 +2498,117 @@ export function EngramLookup({
         是固定地址规则；不由当前隐藏状态预测，也不是注意力权重。
       </div>
       <div
+        data-engram-read-layout
         style={{
-          width: "max-content",
-          maxWidth: "100%",
-          justifySelf: "center",
-          border: `1px solid ${frameColor(COLORS.indigo)}`,
-          borderRadius: 8,
-          padding: 9,
+          position: "relative",
           display: "grid",
-          gap: 5,
+          gridTemplateColumns: "max-content 72px max-content",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 14,
         }}
       >
-        <div
-          style={{ display: "flex", justifyContent: "space-between", gap: 8 }}
-        >
-          <MathFormula tex={`E_{${layer}}^{\\mathrm{Engram}}`} />
-          <MathFormula tex={`${rows}\\times256`} />
-        </div>
-        {[
-          "0",
-          "b_{2,1}",
-          "b_{2,2}",
-          "\\vdots",
-          "b_{4,8}",
-          String(rows - 1),
-        ].map((index, i) =>
-          index === "\\vdots" ? (
-            <div key={index} style={{ textAlign: "center" }}>
-              <MathFormula tex={index} />
+        <div style={{ display: "grid", gap: 4 }}>
+          <strong style={{ textAlign: "center" }}>本层独立参数表</strong>
+          <div
+            data-engram-table
+            style={{
+              width: "max-content",
+              maxWidth: "100%",
+              justifySelf: "center",
+              border: `1px solid ${frameColor(COLORS.indigo)}`,
+              borderRadius: 8,
+              padding: 9,
+              display: "grid",
+              gap: 5,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 8,
+              }}
+            >
+              <MathFormula tex={`E_{${layer}}^{\\mathrm{Engram}}`} />
+              <MathFormula tex={`${rows}\\times256`} />
             </div>
-          ) : (
-            <VectorStrip
-              key={index}
-              name={index}
-              nameWidth={88}
-              length="256"
-              elementTex={(j) => `e_{${index},${j}}`}
-              selected={i === 1 || i === 2 || i === 4}
-              tone="blue"
-              compact
-            />
-          ),
-        )}
-        <span style={{ fontSize: 11 }}>
-          E 是本层独立参数表，推理期间固定；桶地址从 0 开始，每行 256
-          个特征。取出的行不是原文片段。
-        </span>
+            <div
+              data-uniform-matrix
+              style={{
+                display: "grid",
+                gridTemplateColumns: matrixColumnTracks(
+                  ["1", "2", "\\cdots", "256"],
+                  "88px",
+                ),
+                gap: 4,
+              }}
+            >
+              {[
+                "0",
+                "b_{2,1}",
+                "b_{2,2}",
+                "\\vdots",
+                "b_{4,8}",
+                String(rows - 1),
+              ].map((index, i) =>
+                index === "\\vdots" ? (
+                  <MatrixEllipsis
+                    key={index}
+                    columns={["1", "2", "\\cdots", "256"]}
+                  />
+                ) : (
+                  <VectorStrip
+                    key={index}
+                    name={index}
+                    nameWidth={88}
+                    length="256"
+                    elementTex={(j) => `e_{${index},${j}}`}
+                    selected={i === 1 || i === 2 || i === 4}
+                    tone="indigo"
+                    preserveToneOnSelection
+                    uniformCells
+                    columnSubgrid
+                    compact
+                  />
+                ),
+              )}
+            </div>
+          </div>
+          <small style={{ textAlign: "center" }}>
+            推理固定 · 桶地址从 0 开始
+          </small>
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gap: 4,
+            textAlign: "center",
+            transform: "translateY(-30px)",
+          }}
+        >
+          <small>
+            取 24 行<br />
+            反量化
+          </small>
+        </div>
+        <div data-engram-read-result style={{ display: "grid", gap: 4 }}>
+          <strong style={{ textAlign: "center" }}>本次查表结果</strong>
+          <RowMatrix
+            tex={`\\mathcal E_{${layer},t}`}
+            shape="3\times8\times256"
+            rows={["2\\text{-gram}", "3\\text{-gram}", "4\\text{-gram}"]}
+            rowLength="8"
+            elementTex={(i, h) => `\\mathbf e_{${i + 2},${h}}^{(256)}`}
+            elementColumns={["1", "2", "\\cdots", "8"]}
+            headerLineHeight={2.4}
+          />
+        </div>
+        <HorizontalTransfer
+          sourceSelector="[data-engram-table]"
+          targetSelector="[data-engram-read-result] [data-expanded-tensor]"
+        />
       </div>
-      <FlowStep>所选 24 行反量化，再沿特征轴拼接</FlowStep>
-      <RowMatrix
-        tex={`\\mathcal E_{${layer},t}`}
-        shape="3\times8\times256"
-        rows={["2\\text{-gram}", "3\\text{-gram}", "4\\text{-gram}"]}
-        rowLength="8"
-        elementTex={(i, h) => `\\mathbf e_{${i + 2},${h}}^{(256)}`}
-        elementColumns={["1", "2", "\\cdots", "8"]}
-        headerLineHeight={2.4}
-      />
       <FlowStep>
         <MathFormula
           tex={`\\mathbf e_{${layer},t}\\in\\mathbb R^{1\\times6144}`}
@@ -2563,14 +2624,14 @@ export function EngramLookup({
           gap: 5,
         }}
       >
-        <Box tone="blue" expanded>
+        <Box tone="green" expanded>
           <MathFormula tex={`\\mathbf e_{${layer},t}`} />
           <VectorStrip
             name=""
             nameWidth={0}
             length="6144"
             elementTex={(j) => `e_${j}`}
-            tone="blue"
+            tone="green"
             compact
           />
         </Box>
@@ -2633,12 +2694,12 @@ export function EngramLookup({
         />
       </div>
       {/* [OM-FREEPLAY] 缩小桶大小的算例展示 XOR 与取模；不是模型的真实地址。 */}
-      <Box tone="amber">
+      <div style={{ textAlign: "center", fontSize: 12 }}>
         小桶算例：压缩 ID (3,5)，乘数 (1,3)，模数 7，偏移 0<br />
         <MathFormula tex="(3\cdot1)\mathbin{\mathrm{XOR}}(5\cdot3)=12,\quad12\bmod7=5" />
         <br />
         读取第 5 行 · 不做相似度搜索
-      </Box>
+      </div>
     </div>
   );
 }
@@ -2681,6 +2742,7 @@ export function EngramInject({
           rowIndex="t"
           gamma={`\\boldsymbol\\gamma_{${layer},c}^{E,K}`}
           label="Engram 检索 Key"
+          inputTone="green"
           horizontal
         />
       </div>
@@ -2854,6 +2916,7 @@ function RotaryProcess({
   inverse = false,
   dimension = 512,
   compact = false,
+  inputTone = "blue",
 }: {
   input: string;
   output: string;
@@ -2862,6 +2925,7 @@ function RotaryProcess({
   inverse?: boolean;
   dimension?: 128 | 512;
   compact?: boolean;
+  inputTone?: "blue" | "green";
 }) {
   const compressed = modeForLayer(layer) !== "swa";
   const unchanged = dimension - 64;
@@ -2905,7 +2969,7 @@ function RotaryProcess({
           gap: 6,
         }}
       >
-        <Box tone="blue">
+        <Box tone={inputTone}>
           <MathFormula tex={input} />
         </Box>
         <Operator tex="\to" />
@@ -2958,7 +3022,7 @@ function RotaryProcess({
                 }}
               >
                 {["a", "b"].map((name) => (
-                  <Box key={name} tone="blue">
+                  <Box key={name} tone={inputTone}>
                     <MathFormula tex={`${name}_{${pair}}`} />
                   </Box>
                 ))}
@@ -3039,10 +3103,10 @@ function RotaryProcess({
           </div>
           <Operator tex="\times" />
           <div style={{ display: "grid", gap: 3 }}>
-            <Box tone="blue">
+            <Box tone={inputTone}>
               <MathFormula tex="a_j" />
             </Box>
-            <Box tone="blue">
+            <Box tone={inputTone}>
               <MathFormula tex="b_j" />
             </Box>
           </div>
@@ -3583,6 +3647,7 @@ function LocalKvProjection({ layer }: { layer: number }) {
                 gamma={`\\boldsymbol\\gamma_{${layer}}^{KV}`}
                 rowIndex={phase === "decode" ? token : undefined}
                 label="本地 KV"
+                inputTone="green"
                 horizontal
               />
             </React.Fragment>,
@@ -3590,6 +3655,7 @@ function LocalKvProjection({ layer }: { layer: number }) {
               <strong>③ 位置旋转 · 读取②的归一化结果</strong>
               <RotaryProcess
                 input={`\\bar{\\mathbf u}_{${layer},${phase === "prefill" ? "s" : token}}`}
+                inputTone="green"
                 output={`\\mathbf u_{${layer},${phase === "prefill" ? "s" : token}}`}
                 position={phase === "prefill" ? "s-1" : `${token}-1`}
                 layer={layer}
@@ -5933,7 +5999,27 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           {writesKv ? (
             <>
               <CompressorProjections layer={layer} ratio={ratio} />
-              <Arrow vertical />
+              {ratio === 2 && (
+                <div
+                  data-compressor-group-normalization
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      phase === "decode"
+                        ? "max-content max-content"
+                        : "max-content",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    gap: 24,
+                    fontSize: 14,
+                  }}
+                >
+                  {phase === "decode" && <CompressorPending layer={layer} />}
+                  <div style={{ display: "grid", gap: 8 }}>
+                    <CompressorWeights layer={layer} />
+                  </div>
+                </div>
+              )}
               <div
                 data-compressor-stages
                 style={{
@@ -5952,68 +6038,34 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     data-compressor-pooling
                     style={{ display: "grid", gap: 10, fontSize: 14 }}
                   >
-                    {phase === "decode" && ratio === 2 && (
-                      <div
-                        data-compressor-pending
-                        style={{
-                          justifySelf: "center",
-                          display: "grid",
-                          gap: 7,
-                          padding: 8,
-                          border: `1px solid ${frameColor(COLORS.amber)}`,
-                          borderRadius: 7,
-                          fontSize: 12,
-                        }}
-                      >
-                        <strong>
-                          全局压缩组 · 两步凑齐，区别于每步更新的 U
-                        </strong>
-                        <div
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "max-content 24px max-content",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            gap: 5,
-                          }}
-                        >
-                          <Box tone="blue">
-                            <MathFormula tex="t=2i-1" />
-                            <br />
-                            本步新算并暂存
-                            <div>
-                              <MathFormula
-                                tex={`\\mathbf v^c_{${layer},2i-1},\\;\\mathbf a^{\\mathrm{gate}}_{${layer},2i-1}`}
-                              />
-                            </div>
-                            <small>不新增 G 行或索引 Key</small>
-                          </Box>
-                          <Operator tex="\to" />
-                          <Box tone="amber">
-                            <MathFormula tex="t=2i" />
-                            <br />
-                            读取上步暂存 + 本步新算
-                            <div>
-                              <MathFormula
-                                tex={`\\mathbf v^c_{${layer},2i},\\;\\mathbf a^{\\mathrm{gate}}_{${layer},2i}`}
-                              />
-                            </div>
-                            <small>两行齐：执行下方压缩，新增第 i 行</small>
-                          </Box>
-                        </div>
-                        <span>
-                          下方池化、归一化及旋转仅在 t=2i 时执行；旧 G
-                          始终直接读。
-                        </span>
-                      </div>
-                    )}
                     <CompressorPooling layer={layer} />
+                    {phase === "decode" && (
+                      <GlobalCacheHistory
+                        layer={layer}
+                        ratio={ratio}
+                        outputPort={
+                          <Handle
+                            id="global-kv-out"
+                            type="source"
+                            position={Position.Bottom}
+                            style={handle}
+                          />
+                        }
+                      />
+                    )}
                   </div>
                 ) : (
-                  <Box tone="amber">
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                    }}
+                  >
                     <strong>压缩比 1 · 每个投影行直接进入归一化</strong>
                     <MathFormula tex="i=t" />
-                  </Box>
+                  </div>
                 )}
                 <div
                   data-compressor-normalize-cache
@@ -6045,6 +6097,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     rowIndex="i"
                     gamma={`\\boldsymbol\\gamma_{${layer}}^c`}
                     label="压缩 KV"
+                    inputTone="green"
                     horizontal
                     horizontalReduction
                     outputHandle="to-indexer"
@@ -6062,13 +6115,14 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   >
                     <RotaryProcess
                       input={`\\bar{\\mathbf g}_{${layer},i}`}
+                      inputTone="green"
                       output={`\\mathbf g_{${layer},i}`}
                       position={`(i-1)\\cdot ${ratio}`}
                       layer={layer}
                       compact
                     />
                   </div>
-                  {writesKv && phase === "decode" && (
+                  {writesKv && phase === "decode" && ratio === 1 && (
                     <GlobalCacheHistory
                       layer={layer}
                       ratio={ratio}
@@ -6083,7 +6137,14 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     />
                   )}
                 </div>
-                {ratio === 2 && <CompressorStageConnector />}
+                {ratio === 2 && (
+                  <HorizontalTransfer
+                    sourceSelector="[data-compressor-pool-result] [data-expanded-tensor]"
+                    targetSelector="[data-rmsnorm-input] [data-expanded-tensor]"
+                    leftSelector="[data-compressor-pooling]"
+                    rightSelector="[data-compressor-normalize-cache]"
+                  />
+                )}
               </div>
             </>
           ) : mode === "reindex" ? (

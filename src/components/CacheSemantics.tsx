@@ -389,6 +389,11 @@ export function GlobalCacheHistory({
       style={{ display: "grid", gap: 10, fontSize: 13, justifySelf: "center" }}
     >
       <strong>全局 G 更新 · 历史不淘汰，与本层 SWA 分开</strong>
+      <div data-global-row-counts style={{ textAlign: "center" }}>
+        <M
+          tex={`M_{old}=\\left\\lfloor\\frac{t-1}{${ratio}}\\right\\rfloor,\\quad M=\\left\\lfloor\\frac{t}{${ratio}}\\right\\rfloor`}
+        />
+      </div>
       <div
         style={{
           display: "grid",
@@ -397,7 +402,16 @@ export function GlobalCacheHistory({
           alignItems: "center",
         }}
       >
-        <div style={{ ...frame, gridColumn: 1, gridRow: 1 }}>
+        <div
+          data-global-history-input
+          style={{
+            display: "grid",
+            gap: 4,
+            justifyItems: "center",
+            gridColumn: 1,
+            gridRow: 1,
+          }}
+        >
           <RowMatrix
             tex={"G_{" + layer + "}^{<t}"}
             shape="M_{old}\times512"
@@ -443,42 +457,32 @@ export function GlobalCacheHistory({
             <div
               style={{
                 ...rowStyle,
-                background: "#f9e7c6",
+                background: "#dceee3",
                 borderColor: "#b57d2b",
               }}
             >
               <M tex={"\\mathbf g_{" + layer + ",i}\\quad1\\times512"} />
             </div>
-            <small>
-              {ratio === 2 ? "仅 t=2i 时存在这一新增行" : "本步新增 · i=t"}
-            </small>
           </div>
           {outputPort}
         </div>
-        <div style={{ ...frame, gridColumn: 1, gridRow: 2 }}>
-          <Box tone="amber">
+        <div
+          data-global-new-input
+          style={{
+            display: "grid",
+            gap: 4,
+            justifyItems: "center",
+            gridColumn: 1,
+            gridRow: 2,
+          }}
+        >
+          <Box tone="green">
             <M tex={"\\mathbf g_{" + layer + ",i}\\quad1\\times512"} />
           </Box>
-          <small>来自上方全局生成与 RoPE</small>
-          <small>
-            {ratio === 2
-              ? "t=2i−1：仅暂存，不追加"
-              : "比例 1：每个新 token 生成一行"}
-          </small>
+          <small>来自本层 RoPE</small>
+          <small>{ratio === 2 ? "t=2i：组满后追加" : "每步追加 · i=t"}</small>
         </div>
         {transfer(ratio === 2 ? "组满才追加" : "追加")}
-      </div>
-      <div style={{ textAlign: "center", display: "grid", gap: 5 }}>
-        <M
-          tex={
-            "M_{old}=\\left\\lfloor\\frac{t-1}{" +
-            ratio +
-            "}\\right\\rfloor,\\quad M=\\left\\lfloor\\frac{t}{" +
-            ratio +
-            "}\\right\\rfloor"
-          }
-        />
-        <small>旧行原样保留；写后 G 供本步选行与后续指定层读取。</small>
       </div>
     </section>
   );

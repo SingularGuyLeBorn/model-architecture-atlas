@@ -301,11 +301,11 @@ test("Full、Reindex、Reuse 都在本层连接历史窗口、全局读取和 At
       if (id === "compressor") {
         if (layer === 3)
           await expect(node.locator("[data-compressor-pending]")).toContainText(
-            "不新增 G 行或索引 Key",
+            "G / Key 不追加",
           );
         if (layer === 21)
           await expect(node.locator("[data-global-history]")).toContainText(
-            "每个新 token 生成一行",
+            "每步追加",
           );
         if ([4, 25, 26].includes(layer))
           await expect(

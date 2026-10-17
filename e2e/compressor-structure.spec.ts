@@ -1,5 +1,92 @@
 import { test, expect } from "@playwright/test";
 
+test("Engram 参数表与本次读出横排，选中状态保留参数底色", async ({ page }) => {
+  await page.goto("/?revision=inspector-prose#model=v41&chapter=layer");
+  await page.getByRole("button", { name: "收起左栏", exact: true }).click();
+  for (const [layer, phase, width] of [
+    [2, "Decode", 2200],
+    [15, "Prefill", 900],
+  ] as const) {
+    await page.setViewportSize({ width, height: 1800 });
+    await page
+      .getByRole("button", { name: String(layer), exact: true })
+      .click();
+    await page
+      .getByRole("button", {
+        name: phase === "Decode" ? "Decode · 单步一行" : "Prefill · 整段矩阵",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("combobox", { name: "定位模块" })
+      .selectOption("engram-lookup");
+    const layout = page.locator("[data-engram-read-layout]");
+    await expect(layout.locator("[data-stage-transfer] path")).toHaveAttribute(
+      "d",
+      /^M /,
+    );
+    const metrics = await layout.evaluate((root) => {
+      const table = root.querySelector("[data-engram-table]")!;
+      const result = root.querySelector("[data-engram-read-result]")!;
+      const a = table.getBoundingClientRect(),
+        b = result.getBoundingClientRect();
+      const cells = [...table.querySelectorAll("[data-vector-cell]")];
+      const path = root.querySelector<SVGPathElement>(
+        "[data-stage-transfer] path",
+      )!;
+      const start = path
+        .getPointAtLength(0)
+        .matrixTransform(path.getScreenCTM()!);
+      const target = result
+        .querySelector("[data-expanded-tensor]")!
+        .getBoundingClientRect();
+      // 最后一段为开放箭翼；路径中间的第一个 M 后是连续数据线。
+      const segments = path.getAttribute("d")!.split(" M ");
+      const line = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "path",
+      );
+      line.setAttribute("d", segments[0]);
+      const end = line
+        .getPointAtLength(line.getTotalLength())
+        .matrixTransform(path.getScreenCTM()!);
+      return {
+        sourceGap: Math.hypot(
+          start.x - a.right,
+          start.y - a.top - a.height / 2,
+        ),
+        targetGap: Math.hypot(
+          end.x - target.left,
+          end.y - target.top - target.height / 2,
+        ),
+        sideBySide: b.left > a.right && b.top < a.bottom,
+        colors: [
+          ...new Set(cells.map((c) => getComputedStyle(c).backgroundColor)),
+        ],
+        widthRange:
+          Math.max(...cells.map((c) => c.getBoundingClientRect().width)) -
+          Math.min(...cells.map((c) => c.getBoundingClientRect().width)),
+        overflow: [...root.querySelectorAll<HTMLElement>("div")].filter(
+          (el) => el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 2,
+        ).length,
+      };
+    });
+    expect(metrics.sideBySide).toBe(true);
+    expect(metrics.sourceGap).toBeLessThan(2);
+    expect(metrics.targetGap).toBeLessThan(2);
+    expect(metrics.colors).toEqual(["rgb(223, 228, 247)"]);
+    expect(metrics.widthRange).toBeLessThan(1);
+    expect(metrics.overflow).toBe(0);
+    await expect(layout.locator("[data-matrix-ellipsis-column]")).toHaveCount(
+      3,
+    );
+    await expect(layout.locator(".katex-error")).toHaveCount(0);
+    await layout.screenshot({
+      path: `artifacts/engram-horizontal-${layer}-${phase}.png`,
+    });
+  }
+});
+
 test("各 Full 层分支独立、指数只框变量、展开向量不溢出且导线贴合", async ({
   page,
 }) => {
@@ -47,6 +134,21 @@ test("各 Full 层分支独立、指数只框变量、展开向量不溢出且�
       )
       .toEqual([]);
     await expect(node.locator(".katex-error")).toHaveCount(0);
+    const captions = await node.evaluate((root) => {
+      const labels = [
+        ...root.querySelectorAll(
+          "[data-tensor-origin], [data-compressor-output-role], [data-tensor-caption]",
+        ),
+      ];
+      return labels.map((label) => !!label.closest("[data-expanded-tensor]"));
+    });
+    expect(captions.every((inside) => !inside)).toBe(true);
+    await expect(node.locator("[data-projection-scalar-examples]")).toHaveCount(
+      0,
+    );
+    await expect(node.locator("[data-global-append-result] small")).toHaveCount(
+      0,
+    );
     if (layer !== 21) {
       const measures = await node.evaluate((root) => {
         const dot = root
@@ -86,6 +188,18 @@ test("各 Full 层分支独立、指数只框变量、展开向量不溢出且�
           return Math.hypot(start.x - r.left - r.width / 2, start.y - r.bottom);
         });
         return {
+          equationsAligned: [
+            ...root.querySelectorAll("[data-compressor-normalized-weight]"),
+          ].every((row) => {
+            const left = row.firstElementChild!.getBoundingClientRect();
+            const right = row.lastElementChild!.getBoundingClientRect();
+            return (
+              right.left > left.right &&
+              Math.abs(
+                left.top + left.height / 2 - right.top - right.height / 2,
+              ) < 1
+            );
+          }),
           dotGap: Math.abs(
             dot.top + dot.height / 2 - first.top - first.height / 2,
           ),
@@ -95,6 +209,7 @@ test("各 Full 层分支独立、指数只框变量、展开向量不溢出且�
         };
       });
       expect(measures.dotGap).toBeLessThan(1);
+      expect(measures.equationsAligned).toBe(true);
       expect(measures.boxes.length).toBe(18);
       expect(measures.boxes.every((w) => parseFloat(w) > 0)).toBe(true);
       expect(measures.widths.every((w) => w < 1)).toBe(true);

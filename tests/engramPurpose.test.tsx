@@ -28,6 +28,22 @@ it("主图与独立章节说明 Engram 收益、成本、参数身份，不引�
       ).toBeGreaterThan(15);
       expect(purpose.querySelector("[data-engram-comparison]")).not.toBeNull();
       expect(root.querySelector(".katex-error")).toBeNull();
+      const table = root.querySelector("[data-engram-table]")!;
+      expect(
+        table.querySelectorAll("[data-matrix-ellipsis-column]"),
+      ).toHaveLength(3);
+      const cells = [
+        ...table.querySelectorAll<HTMLElement>("[data-vector-cell]"),
+      ];
+      expect(new Set(cells.map((el) => el.style.background))).toEqual(
+        new Set(["rgb(223, 228, 247)"]),
+      );
+      expect(table.querySelector("small, strong")).toBeNull();
+      expect(
+        root.querySelector(
+          "[data-engram-read-layout] [data-engram-read-result]",
+        ),
+      ).not.toBeNull();
       const notes = explainModule({
         kind: "engram-lookup",
         layer,

@@ -1,21 +1,27 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { COLORS } from "./diagram-primitives";
 
-/** 压缩加权行从左列送入右列归一化；连线只走两阶段之间的留白。 */
-export function CompressorStageConnector() {
+/** 两个实际数据框之间的横向传递；按边界测量并在中间通道折转。 */
+export function HorizontalTransfer({
+  sourceSelector,
+  targetSelector,
+  leftSelector,
+  rightSelector,
+}: {
+  sourceSelector: string;
+  targetSelector: string;
+  leftSelector?: string;
+  rightSelector?: string;
+}) {
   const ref = useRef<SVGSVGElement>(null);
   const [path, setPath] = useState("");
   useLayoutEffect(() => {
     const svg = ref.current;
     const layout = svg?.parentElement;
-    const source = layout?.querySelector(
-      "[data-compressor-pool-result] [data-expanded-tensor]",
-    );
-    const target = layout?.querySelector(
-      "[data-rmsnorm-input] [data-expanded-tensor]",
-    );
-    const left = layout?.querySelector("[data-compressor-pooling]");
-    const right = layout?.querySelector("[data-compressor-normalize-cache]");
+    const source = layout?.querySelector(sourceSelector);
+    const target = layout?.querySelector(targetSelector);
+    const left = leftSelector ? layout?.querySelector(leftSelector) : source;
+    const right = rightSelector ? layout?.querySelector(rightSelector) : target;
     if (!svg || !layout || !source || !target || !left || !right) return;
     const measure = () => {
       const root = svg.getBoundingClientRect(),
@@ -39,11 +45,11 @@ export function CompressorStageConnector() {
     const observer = new ResizeObserver(measure);
     [layout, source, target, left, right].forEach((el) => observer.observe(el));
     return () => observer.disconnect();
-  }, []);
+  }, [sourceSelector, targetSelector, leftSelector, rightSelector]);
   return (
     <svg
       ref={ref}
-      data-compressor-stage-connector
+      data-stage-transfer
       aria-hidden
       style={{
         position: "absolute",

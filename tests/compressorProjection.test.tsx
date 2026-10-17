@@ -9,9 +9,6 @@ describe("压缩器的整行投影与单列点积", () => {
       <CompressorProjections layer={layer} ratio={layer === 21 ? 1 : 2} />,
     );
     expect(root.querySelector(".katex-error")).toBeNull();
-    expect(
-      root.querySelector("[data-compressor-parameter-origin]")?.textContent,
-    ).toContain("独立参数");
     expect(root.textContent).not.toContain("训练得到");
     expect(root.querySelectorAll("[data-compressor-projection]")).toHaveLength(
       layer === 21 ? 1 : 2,
@@ -37,12 +34,12 @@ describe("压缩器的整行投影与单列点积", () => {
         branch.querySelector("[data-compressor-output-role]")?.textContent,
       ).toContain(gate ? "Gate 原始分数" : "候选 KV 内容");
       expect(
-        branch.querySelector("[data-compressor-role-destination]")?.textContent,
-      ).toContain(gate ? "同组两行的同一列" : "512 维内容");
-      expect(
-        branch.querySelector("[data-projection-column-definition]")
-          ?.textContent,
-      ).toContain("原参数的切片");
+        branch.querySelector("[data-projection-scalar-examples]"),
+      ).toBeNull();
+      for (const label of branch.querySelectorAll(
+        "[data-tensor-origin], [data-compressor-output-role]",
+      ))
+        expect(label.closest("[data-expanded-tensor]")).toBeNull();
       const formulas = (selector: string) =>
         [...branch.querySelectorAll(`${selector} [aria-label]`)].map((el) =>
           el.getAttribute("aria-label"),
@@ -66,13 +63,10 @@ describe("压缩器的整行投影与单列点积", () => {
         expect(formulas("[data-projection-weight]")).toContain(
           `\\mathbf w_{${layer},${j}}^{${sup}}`,
         );
-        expect(formulas("[data-projection-scalar-examples]")).toContain(
-          `\\mathbf x_{${layer},t}\\times\\mathbf w_{${layer},${j}}^{${sup}}=${scalar}_{${layer},t,${j}}^{${resultSup}}\\in\\mathbb R`,
+        expect(formulas("[data-projection-output]")).toContain(
+          `${scalar}_{${layer},t,${j}}^{${resultSup}}`,
         );
       }
-      expect(formulas("[data-projection-column-definition]")).toContain(
-        `(\\mathbf w_{${layer},j}^{${sup}})_d:=(W_{${layer}}^{${sup}})_{d,j}`,
-      );
     }
   });
 });

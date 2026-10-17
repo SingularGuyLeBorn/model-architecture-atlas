@@ -1,6 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
-import { CompressorPooling } from "../src/components/CompressorPooling";
+import {
+  CompressorPooling,
+  CompressorWeights,
+} from "../src/components/CompressorPooling";
 import {
   exponentialTex,
   normalizedExponentialTex,
@@ -9,7 +12,12 @@ import { Tensor } from "../src/templates/structure-blocks";
 
 it.each([3, 9, 15])("第 %s 层复用池化结构，权重和内容逐列展开", (layer) => {
   const root = document.createElement("div");
-  root.innerHTML = renderToStaticMarkup(<CompressorPooling layer={layer} />);
+  root.innerHTML = renderToStaticMarkup(
+    <>
+      <CompressorWeights layer={layer} />
+      <CompressorPooling layer={layer} />
+    </>,
+  );
   expect(root.querySelector(".katex-error")).toBeNull();
   const columns = root.querySelectorAll("[data-compressor-gate-column]");
   expect(columns).toHaveLength(3);
@@ -38,8 +46,15 @@ it.each([3, 9, 15])("第 %s 层复用池化结构，权重和内容逐列展开"
   for (const role of ["weight", "content"]) {
     const vectors = root.querySelectorAll(`[data-compressor-${role}-role]`);
     expect(vectors).toHaveLength(2);
-    for (const vector of vectors)
+    for (const vector of vectors) {
       expect(vector.querySelectorAll("[data-vector-cell]")).toHaveLength(3);
+      expect(
+        vector
+          .querySelector("[data-tensor-caption]")
+          ?.closest("[data-expanded-tensor]"),
+      ).toBeNull();
+      expect(vector.querySelector("[data-expanded-tensor] strong")).toBeNull();
+    }
   }
   expect(
     root.querySelectorAll("[data-compressor-weighted-row] [data-branch-frame]"),
