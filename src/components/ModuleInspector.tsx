@@ -161,7 +161,7 @@ const PARAGRAPHS = {
   ],
   norm: [
     "RMSNorm 对每个 token 行向量独立调整数值尺度。设当前行是 $\\mathbf z_i$，含 $d$ 个元素；这里的 $i$ 是行号，$d$ 是图中标出的实际宽度。先计算这一行各元素的平方平均值，再加稳定项 $\\varepsilon$ 并开平方，得到 $r_i=\\sqrt{\\frac1d\\sum_jz_{i,j}^2+\\varepsilon}$。平方避免正负数抵消，除以 $d$ 取平均，而稳定项避免零分母。",
-    "接下来，每个原元素 $z_{i,j}$ 都除以同一个 $r_i$，再乘自己的可学习缩放参数 $\\gamma_j$，因此输出是 $y_{i,j}=\\gamma_jz_{i,j}/r_i$。同一行共用分母，各元素分别使用对应的 $\\gamma_j$；$\\boldsymbol\\gamma$ 是长度为 $d$ 的参数向量，在不同 token 之间共享。所有 $y_{i,j}$ 按原顺序组成输出行 $\\mathbf y_i$，各行再组成输出矩阵，行数和宽度均不改变。",
+    "整条输入行直接除以标量 $r_i$，得到同样长度的向量；有独立缩放参数时再做 $\\mathbf y_i=\\frac{\\mathbf z_i}{r_i}\\odot\\boldsymbol\\gamma$。⊙ 表示对应元素相乘，γ 在不同 token 之间共享。图按一次向量运算表示，不需要先拆成标量再拼回；其逐元素含义仍是 $y_{i,j}=\\gamma_jz_{i,j}/r_i$。批量输入时，各行独立计算并按原顺序组成输出矩阵。",
     "mHC 的联合归一化将同一 token 的四路残差拼接后计算均方根，各原元素除以这个均方根即得到归一化结果。",
   ],
   query: [
@@ -231,31 +231,30 @@ export function explainModule(data: ExplainedModule): ModuleExplanation {
             "$ 标记这个对象，形状由框角的维度说明。阅读时先确认它来自哪一个输入或参数，再对照相邻的乘法、逐元素运算或累加器，区分原值与计算结果。"
           : "阅读时先确认相邻输入框，再看运算如何把这些输入变成输出；嵌套框只说明组成关系，只有连线表示数据流向。",
       ];
-  const cacheExample =
-    group === "kv" && data.phase === "decode" && [3, 4].includes(data.layer)
-      ? [
-          data.layer === 3
-            ? "固定例子 t=1201、1202：第 3 层窗口先淘汰 token 1073、再淘汰 token 1074，写后分别保留 token 1074–1201、1075–1202，共 128 行。token 1201 的候选内容与 gate 分数进入第 601 组暂存，G 与索引 Key 仍为 600 行；等第 1202 个 token 到齐才合并两槽，分别追加第 601 行。旧行和上一步暂存直接读取。"
-            : "固定例子 t=1201、1202：第 4 层独立计算当前 Query 和局部 KV，自己的窗口同样先淘汰 token 1073、再淘汰 token 1074。每步直接读取第 3 层当时的 G₃ 和同一 token 的 I₃,t，不生成独立 G₄；本层别名 G₄ 指向 G₃，不重跑 Indexer。第 4 层没有全局 Compressor 和 Indexer 的对应参数；自己的 Attention、输出与 FFN 仍计算。",
-          "Indexer 的查询来自当前 token 的低秩 Query，匹配对象是与 G 各行一一对应的索引 Key。32 个 Head 加权后得到 1×M 分数行，列 i 对应 G 第 i 行。1201 时 M=600、1202 时 M=601，均选最高分的 512 个 ID，再按原行号排序，分别有 88、89 行本步未选；这些行仍保留在 G 中。图中分数明确标为教学赋值，非模型实测。Reuse 读取同一步的 512 个 ID，下一 token 在 Full 层重新选。",
-          "每步拼接本层 128 行窗口与选中的 512 行 G，共 640 个 KV 表示。第 j 个选中项保存原 G 行号 iⱼ，拼接后是第 128+j 行；原行号和结果位置分别标注。第 4 层沿用相同 ID 与 G 向量，但用自己的 Query 计算新的主 Attention 权重。逐层图展示本层实际路径；“独立缓存全景”保留 token 1201、1202 的两层同屏教学例。",
-        ]
-      : [];
   return {
     title:
       data.kind === "compressor"
         ? `全局 KV · ${cachePolicy(data.layer).mode} · G 来源第 ${cachePolicy(data.layer).kv} 层`
         : (TITLES[data.kind] ?? data.title ?? "模块内的矩阵与运算"),
     paragraphs: [
-      ...(data.layer === 2 && ["kv", "attention", "query"].includes(group ?? "")
+      ...(["kv", "attention", "query"].includes(group ?? "")
         ? [
-            "第 2 层 Decode 图固定 $t=129$。token129 的第 1 层输出进入第 2 层，经本层残差汇合与归一化成为输入 $\\mathbf x_{2,129}$；它乘本层独立参数 $W_2^{KV,\\mathrm{SWA}}$，再经 KV 的 RMSNorm 和 RoPE，生成一条 512 维新行 $\\mathbf u_{2,129}$。第 1 层的本地 KV 不拼进第 2 层缓存。",
-            "W 上的 SWA 只是本地 KV 分支的参数标记，不是取窗口的运算。进入本步前 $U_{2,128}$ 保存 token1–128 在第 2 层各自生成的 KV。更新时 token1 退出，token2–128 原样保留，追加 $\\mathbf u_{2,129}$ 后得到 $U_{2,129}$：128 行、每行 512 维。历史行不再乘 W，不重新归一化或旋转。图按 token 时间顺序排列，不表示物理存储槽位。",
-            "当前 token129 的 Query 由同一份第 2 层输入经独立 Query 参数生成。每个 Head 的 Query 与窗口 token2–129 的 K 行打分，经含 sink 项的 softmax 得到权重，再用这些权重加权同一窗口的 V 行，输出 token129 的本层 Attention 结果。窗口位置 i=1、2、128 分别对应 token2、3、129。第 2 层没有 G、Indexer 或跨层 KV 拼接；SWA 指 Attention 只读取这个局部范围。",
+            "小写粗体 u 表示一个 token 在本层生成的单条 KV 行，形状为 1×512；大写 U 表示多个这样的行组成的窗口矩阵，形状为 min(128,t)×512。U 的每一行保留该行的 u 名称与元素下标，因此新行追加是增加一行数据，没有把单个向量改名成整个矩阵。",
+            "当前 token t 的上一层输出成为本层输入，经过本层汇合与归一化得到 $\\mathbf x_{@L,t}$。它乘本层独立参数 $W_{@L}^{KV,\\mathrm{SWA}}$，经 KV 的 RMSNorm 与 RoPE 得到新行 $\\mathbf u_{@L,t}$。上一层的本地 KV 不拼进本层；W 的 SWA 上标只标识参数所属分支。",
+            "窗口已满时，更新前 $U_{@L,t-1}$ 保存 t−128 到 t−1 的 128 条本层 KV。淘汰 t−128，原样保留 t−127 到 t−1，再追加当前新行，得到 $U_{@L,t}$。当前窗口是 127 条历史加当前行，总共 128 行；历史行不重新投影、归一化或旋转。序列不足 128 个位置时只读取已有行。",
+            data.layer <= 2
+              ? "第 1、2 层没有 G 和 Indexer。当前 Query 只给本层更新后窗口的 K 行打分，经含 sink 的 softmax，再加权同一窗口的 V 行。图按 token 时间顺序排列，窗口位置 j 对应 token r+j−1，其中 r=max(1,t−127)。"
+              : "当前 Query 与局部 KV 均由本层新算。Indexer 只筛选 G 行；U 的当前窗口整段保留：当前 token 生成索引 Query 与 Head 系数，对与 G 一一对应的索引 Key 打分，得到 1×M 的分数行。Top-K 保留最多 512 个因果可见 G 行号并按原行号排序；没选中的历史 G 行不会被删除。Reuse 直接读来源层为同一 token 选出的行号。",
           ]
         : []),
-      ...(group === "kv" ? cacheExplanation(data.layer) : []),
-      ...cacheExample,
+      ...(["kv", "attention", "query"].includes(group ?? "")
+        ? cacheExplanation(data.layer)
+        : []),
+      ...(data.kind === "concat"
+        ? [
+            "每组先把 8 个 Head 的 O 沿特征列拼接。中间结构保留原来的 O 标题和 o 行向量，第 1、2、8 个块分别对应列 1–512、513–1024、3585–4096。token 行位置不变，也没有乘法或相加。随后才将同一拼接结果命名为 C：c 的列号只是把 Head 号与 Head 内的特征号合成一个列号，数值不变。",
+          ]
+        : []),
       ...paragraphs,
     ].map((paragraph, index) =>
       (index === 0 ? phase + paragraph : paragraph)

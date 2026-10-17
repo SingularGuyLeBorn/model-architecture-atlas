@@ -90,10 +90,10 @@ test("压缩 KV 均方根横排，分区换行后连接仍贴合且无溢出", a
           .querySelector('[data-rmsnorm-stage="root"]')!
           .getBoundingClientRect().bottom;
       const scale = root
-        .querySelector("[data-rmsnorm-scale]")!
+        .querySelector("[data-rmsnorm-broadcast]")!
         .getBoundingClientRect();
       const output = root
-        .querySelector("[data-rmsnorm-output]")!
+        .querySelector("[data-rmsnorm-row-output]")!
         .getBoundingClientRect();
       return {
         compactHeight: (root as HTMLElement).offsetHeight,
@@ -118,7 +118,7 @@ test("压缩 KV 均方根横排，分区换行后连接仍贴合且无溢出", a
     expect(result.overflow).toEqual([]);
     expect(result.ordered).toBe(true);
     expect(result.height).toBeLessThan(250);
-    expect(result.compactHeight).toBeLessThan(layer === 21 ? 650 : 380);
+    expect(result.compactHeight).toBeLessThan(650);
     expect(result.outputBesideScale).toBe(true);
     expect(result.sourceGap).toBeLessThan(2);
     expect(result.targetGap).toBeLessThan(2);

@@ -137,15 +137,15 @@ describe("第 1201、1202 个 token 的缓存契约", () => {
       }
     }
   });
-  it("第三、四层 Decode 旁注同步两步例子，其他层不套用", () => {
+  it("逐层旁注解释当前 t；固定编号例子只留在独立教学章节", () => {
     const explain = (layer: number) =>
       explainModule({
         kind: "projection-kv",
         layer,
         phase: "decode",
       }).paragraphs.join("");
-    expect(explain(3)).toContain("等第 1202 个 token");
-    expect(explain(4)).toContain("不生成独立 G₄");
+    expect(explain(3)).toContain("组完成才追加新行");
+    expect(explain(4)).toContain("G_{4\\leftarrow3}:=G_{3}");
     expect(explain(4)).toContain("同一 token");
     expect(explain(5)).not.toContain("固定例子 t=1201");
   });

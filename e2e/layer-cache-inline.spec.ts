@@ -83,20 +83,13 @@ test("逐层实际入口定义别名，窗口淘汰、取行与 Attention 连续
       const node = page.locator('.react-flow__node[data-id="' + id + '"]');
       await expect(node).toBeVisible();
       if (id === "swa-window") {
-        if (layer === 2) {
-          await expect(node.locator('[data-previous-token="1"]')).toContainText(
-            "淘汰",
-          );
-          await expect(
-            node.locator('[data-selection-window] [data-window-token="1"]'),
-          ).toHaveCount(0);
-        } else {
-          await expect(node.locator('[data-window-token="1"]')).toHaveAttribute(
-            "data-window-state",
-            "old",
-          );
-        }
-        await expect(node.locator('[data-window-token="129"]')).toHaveAttribute(
+        await expect(
+          node.locator('[data-previous-token="t-128"]'),
+        ).toHaveAttribute("aria-label", "淘汰");
+        await expect(
+          node.locator('[data-selection-window] [data-window-token="t-128"]'),
+        ).toHaveCount(0);
+        await expect(node.locator('[data-window-token="t"]')).toHaveAttribute(
           "data-window-state",
           "new",
         );

@@ -30,9 +30,9 @@ describe("Token 来源与 Prefill / Decode 粒度", () => {
       rows: ["t"],
     });
     expect(executionAxis("decode", 2)).toEqual({
-      token: "129",
+      token: "t",
       count: "1",
-      rows: ["129"],
+      rows: ["t"],
     });
     expect(executionAxis("prefill", 2)).toEqual(executionAxis("prefill"));
     for (const phase of ["prefill", "decode"] as const) {

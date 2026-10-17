@@ -1,5 +1,6 @@
 import { frameColor } from "../components/diagram-appearance";
 import { CompressorProjections } from "../components/CompressorProjections";
+import { CompressorStageConnector } from "../components/CompressorStageConnector";
 import { KvRowConcat } from "../components/KvRowConcat";
 import { CacheReference } from "../components/CacheReference";
 import { SlidingWindowRows } from "../components/SlidingWindowRows";
@@ -112,12 +113,14 @@ import {
   type EditableEdgeData,
 } from "../components/EditableArchitectureGraph";
 
+import { HeadGroupConcat } from "../components/HeadGroupConcat";
+
 type LayerMode = "swa" | "full" | "reindex" | "reuse";
 type ExecutionPhase = "prefill" | "decode";
 const ExecutionContext = createContext<ExecutionPhase>("prefill");
 // 当前计算的 token 轴与缓存的历史轴分别建模，Decode 的一行仍使用全局位置 t。
-export function executionAxis(phase: ExecutionPhase, layer?: number) {
-  const token = phase === "decode" && layer === 2 ? "129" : "t";
+export function executionAxis(phase: ExecutionPhase, _layer?: number) {
+  const token = "t";
   return {
     token,
     count: phase === "prefill" ? "N" : "1",
@@ -609,7 +612,7 @@ function FlowStep({ children }: { children?: ReactNode }) {
         padding: "2px 0",
       }}
     >
-      <Operator tex="\downarrow" />
+      {!children && <Operator tex="\downarrow" />}
       <span>{children}</span>
     </div>
   );
@@ -754,7 +757,7 @@ export function RmsNormProcess({
           gridTemplateColumns: horizontal
             ? "minmax(0,1fr) 38px minmax(0,1fr)"
             : "minmax(0,1fr)",
-          gap: horizontalReduction ? 38 : 8,
+          gap: horizontalReduction ? 24 : 8,
           alignItems: horizontalReduction ? "center" : "start",
         }}
       >
@@ -888,16 +891,15 @@ export function RmsNormProcess({
                       <MathFormula tex={`m_{${row}}`} />
                     </Box>
                   </div>
-                  <FlowStep>
-                    <MathFormula tex="+\varepsilon\;\longrightarrow\;\sqrt{\phantom{x}}" />
-                  </FlowStep>
                   <div
                     ref={rootResultRef}
                     data-rmsnorm-root-result
                     style={{ width: "fit-content", justifySelf: "center" }}
                   >
                     <Box tone="green">
-                      <MathFormula tex={`r_{${row}}`} />
+                      <MathFormula
+                        tex={`r_{${row}}=\\sqrt{m_{${row}}+\\varepsilon}`}
+                      />
                     </Box>
                   </div>
                 </div>
@@ -910,175 +912,113 @@ export function RmsNormProcess({
           data-rmsnorm-stage="scale"
           style={{
             display: "grid",
-            gridTemplateColumns: horizontalReduction
-              ? "max-content max-content max-content"
-              : "minmax(0,1fr)",
-            paddingRight: horizontalReduction && outputHandle ? 6 : undefined,
-            gap: 5,
+            gap: 8,
+            justifyItems: "center",
             minWidth: 0,
           }}
         >
-          {horizontal && (
-            <strong
-              style={{
-                fontSize: 11,
-                gridColumn: horizontalReduction ? "1 / -1" : undefined,
-              }}
-            >
-              ② 用①的结果归一化{gamma ? "与缩放" : ""}
-            </strong>
-          )}
-          <div
-            ref={broadcastRef}
-            data-rmsnorm-broadcast
-            style={{
-              width: "fit-content",
-              justifySelf: "center",
-              gridColumn: horizontalReduction ? 1 : undefined,
-            }}
-          >
-            {horizontal ? (
-              <Box tone="green">
-                <MathFormula tex={`r_{${row}}`} /> · 同一分母用于本行各元素
-              </Box>
-            ) : (
-              <FlowStep>
-                <MathFormula tex={`r_{${row}}`} /> · 同一分母用于本行各元素
-              </FlowStep>
-            )}
-          </div>
+          <strong style={{ fontSize: 11 }}>
+            ② 整行归一化{gamma ? "与缩放" : ""}
+          </strong>
           <div
             data-rmsnorm-scale
             style={{
-              gridColumn: horizontalReduction ? 1 : undefined,
-              gridRow: horizontalReduction ? 3 : undefined,
-              display: "grid",
-              gridTemplateColumns: "repeat(3,max-content)",
-              justifyContent: "center",
-              position: "relative",
-              gap: 3,
-              textAlign: "center",
+              display: "flex",
+              paddingRight: outputHandle && rowCount === "1" ? 6 : undefined,
+              gap: 10,
               alignItems: "center",
+              flexWrap: "wrap",
+              justifyContent: "center",
             }}
           >
-            {columns.map((column) => (
-              <React.Fragment key={column}>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div
-                    data-rmsnorm-operands
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: gamma
-                        ? "max-content max-content"
-                        : "max-content",
-                      justifyContent: "center",
-                      gap: 4,
-                    }}
-                  >
-                    <Box tone="blue">
-                      <MathFormula
-                        tex={`\\frac{z_{${row},${column}}}{r_{${row}}}`}
-                      />
-                    </Box>
-                    {gamma && (
-                      <Box tone="amber">
-                        <MathFormula tex={`\\gamma_{${column}}`} />
-                      </Box>
-                    )}
-                  </div>
-                  {gamma && (
-                    <>
-                      <svg
-                        data-rmsnorm-product-arrows
-                        aria-hidden
-                        viewBox="0 0 100 30"
-                        preserveAspectRatio="none"
-                        style={{ width: "100%", height: 25 }}
-                      >
-                        <path
-                          d="M25 0 V10 H50 V28 M75 0 V10 H50 M46 23 L50 28 L54 23"
-                          fill="none"
-                          stroke={COLORS.green}
-                          strokeWidth="1.5"
-                          vectorEffect="non-scaling-stroke"
-                        />
-                      </svg>
-                      <Operator tex="\times" />
-                    </>
-                  )}
-                  <Operator tex="\downarrow" />
-                  <Box tone="green">
-                    <MathFormula tex={`y_{${row},${column}}`} />
+            <div ref={broadcastRef} data-rmsnorm-broadcast>
+              <Box tone="blue">
+                <MathFormula
+                  tex={"\\frac{\\mathbf z_{" + row + "}}{r_{" + row + "}}"}
+                />
+              </Box>
+            </div>
+            {gamma && (
+              <>
+                <Operator tex="\odot" />
+                <div data-rmsnorm-gamma>
+                  <Box tone="amber" expanded>
+                    <TensorHeading
+                      name="\boldsymbol\gamma"
+                      shape={"1\\times" + dimension}
+                    />
+                    <VectorStrip
+                      name=""
+                      nameWidth={0}
+                      length={String(dimension)}
+                      elementTex={(column) => "\\gamma_{" + column + "}"}
+                      tone="amber"
+                      uniformCells
+                    />
                   </Box>
                 </div>
-              </React.Fragment>
-            ))}
-            <span
+              </>
+            )}
+            <Operator tex="=" />
+            <div
+              data-rmsnorm-row-output
               style={{
-                position: "absolute",
-                left: "66.6667%",
-                top: "55%",
-                transform: "translate(-50%,-50%)",
+                position: "relative",
+                width: "fit-content",
+                maxWidth: "100%",
               }}
             >
-              <MathFormula tex="\cdots" />
-            </span>
+              <RowMatrix
+                tex={rowCount === "1" ? output : "\\mathbf y_{" + row + "}"}
+                shape={"1\\times" + dimension}
+                rows={["\\mathbf y_{" + row + "}"]}
+                rowLength={String(dimension)}
+                elementTex={(_, column) => "y_{" + row + "," + column + "}"}
+                tone="green"
+              />
+              {rowCount === "1" && outputHandle && (
+                <Handle
+                  id={outputHandle}
+                  type="source"
+                  position={Position.Right}
+                  style={handle}
+                />
+              )}
+            </div>
           </div>
           {gamma ? (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 6,
-                flexWrap: "wrap",
-                fontSize: 11,
-                lineHeight: 2.4,
-                gridColumn: horizontalReduction ? "1 / -1" : undefined,
-                gridRow: horizontalReduction ? 4 : undefined,
-              }}
-            >
-              <span>本框 γ：各行共用的可学习参数</span>
+            <div style={{ fontSize: 11 }}>
               <MathFormula
-                tex={`\\boldsymbol\\gamma=${gamma}\\in\\mathbb R^{${dimension}}`}
+                tex={
+                  "\\boldsymbol\\gamma=" +
+                  gamma +
+                  "\\in\\mathbb R^{" +
+                  dimension +
+                  "}"
+                }
               />
+              <span> · 独立缩放参数；⊙ 对应元素相乘</span>
             </div>
           ) : (
-            <span>本处只除以均方根，无可学习缩放参数。</span>
+            <span>整条向量共用一个分母，无缩放参数。</span>
           )}
-          {horizontalReduction ? (
-            <>
-              <div style={{ gridColumn: 3, gridRow: 2, textAlign: "center" }}>
-                各输出行组成
-              </div>
-              <div style={{ gridColumn: 2, gridRow: 3, alignSelf: "center" }}>
-                <Operator tex="\longrightarrow" />
-              </div>
-            </>
-          ) : (
-            <FlowStep>各输出行组成</FlowStep>
+          {rowCount !== "1" && (
+            <div
+              data-rmsnorm-output
+              style={{ position: "relative", justifySelf: "center" }}
+            >
+              <small>各行独立计算，按原行序组成</small>
+              {matrix(output, "y", "green")}
+              {outputHandle && (
+                <Handle
+                  id={outputHandle}
+                  type="source"
+                  position={Position.Right}
+                  style={handle}
+                />
+              )}
+            </div>
           )}
-          <div
-            data-rmsnorm-output
-            style={{
-              gridColumn: horizontalReduction ? 3 : undefined,
-              gridRow: horizontalReduction ? 3 : undefined,
-              alignSelf: horizontalReduction ? "center" : undefined,
-              position: "relative",
-              width: "fit-content",
-              maxWidth: "100%",
-            }}
-          >
-            {matrix(output, "y", "green")}
-            {outputHandle && (
-              <Handle
-                id={outputHandle}
-                type="source"
-                position={Position.Right}
-                style={handle}
-              />
-            )}
-          </div>
         </div>
         {horizontal && transfer && (
           <svg
@@ -3539,7 +3479,7 @@ function LocalKvProjection({ layer }: { layer: number }) {
       />
       <Title>
         Layer {layer} · 本层独立 KV
-        {token === "129" ? " · token129 新算一行" : ""}
+        {phase === "decode" ? " · 当前 token t 新算一行" : ""}
       </Title>
       <div data-local-kv-flow style={{ padding: 12 }}>
         <div
@@ -3556,9 +3496,10 @@ function LocalKvProjection({ layer }: { layer: number }) {
           <div data-local-parameter-meaning>
             W 的 SWA 上标只标记本地 KV 参数；窗口追加、淘汰在下方完成。
           </div>
-          {token === "129" && (
+          {phase === "decode" && layer > 1 && (
             <div>
-              本层输入来自第 1 层输出，经本层汇合与归一化；不接入第 1 层 KV。
+              本层输入来自第 {layer - 1}{" "}
+              层输出，经本层汇合与归一化；不接入上一层本地 KV。
             </div>
           )}
         </div>
@@ -3846,7 +3787,7 @@ function SwaSelectionConnector({ layer }: { layer: number }) {
           phase === "decode" ? x1 - 24 : Math.max(x1 + 24, x2 + 24),
         channelY = y2 - 18;
       setPath(
-        layer === 2 && phase === "decode"
+        phase === "decode"
           ? `M ${(from.left + from.width / 2 - root.left) * sx} ${(from.bottom - root.top) * sy} V ${channelY} H ${x2} V ${y2}`
           : `M ${x1} ${y1} H ${channelX} V ${channelY} H ${x2} V ${y2}`,
       );
@@ -3967,15 +3908,29 @@ function Head({ index, layer }: { index: number; layer: number }) {
           scalar={(row, column) => `v_{${row},${column}}`}
         />
       </div>
-      {token === "129" && (
+      {phase === "decode" && (
         <div
           data-attention-window-map
           style={{ display: "grid", gap: 5, textAlign: "center" }}
         >
-          <MathFormula tex="L_t=128,\quad K=V=U_{2,129}" />
-          <MathFormula tex="\mathbf k_1=\mathbf v_1=\mathbf u_{2,2},\quad\mathbf k_2=\mathbf v_2=\mathbf u_{2,3}" />
-          <MathFormula tex="\ldots,\quad\mathbf k_{128}=\mathbf v_{128}=\mathbf u_{2,129}" />
-          <span>窗口第 i 行 ↔ token i+1；以下 i = 1,…,128</span>
+          <MathFormula tex={`m_t=\\min(128,t),\\quad r=\\max(1,t-127)`} />
+          <MathFormula
+            tex={`\\mathbf k_j=\\mathbf v_j=\\mathbf u_{${layer},r+j-1},\\quad1\\le j\\le m_t`}
+          />
+          {layer <= 2 ? (
+            <MathFormula tex={`L_t=m_t,\\quad K=V=U_{${layer},t}`} />
+          ) : (
+            <>
+              <MathFormula
+                tex={`\\mathbf k_{m_t+j}=\\mathbf v_{m_t+j}=\\mathbf g_{${layer},i_{${layer},t,j}}`}
+              />
+              <MathFormula tex={`L_t=m_t+K_{${layer},t}`} />
+            </>
+          )}
+          <span>
+            前段：本层窗口；{layer > 2 ? "后段：选中 G 行。" : "无全局 G。"}当前
+            Q 对这些行打分、加权。
+          </span>
         </div>
       )}
       <span style={{ color: COLORS.muted }}>
@@ -4102,10 +4057,6 @@ function Head({ index, layer }: { index: number; layer: number }) {
               key={tex}
               style={{ display: "grid", justifyItems: "center", gap: 4 }}
             >
-              <Box tone="amber">
-                <MathFormula tex={tex} />
-              </Box>
-              <FlowStep>exp</FlowStep>
               <Box tone="amber">
                 <MathFormula tex={`e^{${tex}}`} />
               </Box>
@@ -5671,11 +5622,11 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         style={{
           ...panel,
           height: "auto",
-          paddingBottom: 112,
+          paddingBottom: phase === "prefill" ? 112 : 0,
           borderColor: frameColor(COLORS.green),
         }}
       >
-        {token !== "129" && (
+        {phase === "prefill" && (
           <Handle
             id="projected-kv"
             type="target"
@@ -5693,15 +5644,21 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           {phase === "decode" ? (
             <SlidingWindowRows
               layer={layer}
+              outputPort={
+                <Handle
+                  id="local-window"
+                  type="source"
+                  position={Position.Bottom}
+                  style={handle}
+                />
+              }
               newKvPort={
-                token === "129" ? (
-                  <Handle
-                    id="projected-kv"
-                    type="target"
-                    position={Position.Left}
-                    style={handle}
-                  />
-                ) : undefined
+                <Handle
+                  id="projected-kv"
+                  type="target"
+                  position={Position.Left}
+                  style={handle}
+                />
               }
             />
           ) : (
@@ -5890,7 +5847,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             </div>
           )}
         </div>
-        <SwaSelectionConnector layer={layer} />
+        {phase === "prefill" && <SwaSelectionConnector layer={layer} />}
       </div>
     );
   }
@@ -5924,9 +5881,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         >
           <MathFormula tex={`U_{${layer},${token}}`} />
           <span style={{ fontSize: 10 }}>
-            <MathFormula
-              tex={token === "129" ? "128\\times512" : "\\min(128,t)\\times512"}
-            />
+            <MathFormula tex="\min(128,t)\times512" />
           </span>
         </div>
         <span style={{ fontSize: 11, color: COLORS.green }}>
@@ -5981,268 +5936,335 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             <>
               <CompressorProjections layer={layer} ratio={ratio} />
               <Arrow vertical />
-              {phase === "decode" && ratio === 2 && (
-                <div
-                  data-compressor-pending
-                  style={{
-                    display: "grid",
-                    gap: 7,
-                    padding: 8,
-                    border: `1px solid ${frameColor(COLORS.amber)}`,
-                    borderRadius: 7,
-                    fontSize: 12,
-                  }}
-                >
-                  <strong>跨步保留一组 KV 与 gate 分数</strong>
+              <div
+                data-compressor-stages
+                style={{
+                  position: "relative",
+                  display: "grid",
+                  gridTemplateColumns:
+                    ratio === 2
+                      ? "minmax(0,1.03fr) minmax(0,.97fr)"
+                      : "minmax(0,1fr)",
+                  gap: 24,
+                  alignItems: "start",
+                }}
+              >
+                {ratio === 2 ? (
                   <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 24px 1fr",
-                      alignItems: "center",
-                      gap: 5,
-                    }}
+                    data-compressor-pooling
+                    style={{ display: "grid", gap: 10, fontSize: 14 }}
                   >
-                    <Box tone="blue">
-                      <MathFormula tex="t=2i-1" />
-                      <br />
-                      第一行暂存
-                    </Box>
-                    <Operator tex="\to" />
-                    <Box tone="amber">
-                      <MathFormula tex="t=2i" />
-                      <br />
-                      第二行到达，合并本组
-                    </Box>
-                  </div>
-                  <span>
-                    凑齐 2 行才新增压缩行；其余历史压缩行留在 G 缓存。
-                  </span>
-                </div>
-              )}
-              {ratio === 2 ? (
-                <div
-                  data-compressor-pooling
-                  style={{ display: "grid", gap: 10, fontSize: 14 }}
-                >
-                  <ModuleHeading>
-                    压缩权重 α 的来源 · 同一列的两个 gate 分数做 Softmax
-                  </ModuleHeading>
-                  <div
-                    data-compressor-gate-origin
-                    style={{ textAlign: "center", fontSize: 13 }}
-                  >
-                    第 i 组包含 token 2i−1 和 2i；上方两次投影分别提供候选内容
-                    vᶜ 与 gate 分数 a。 α
-                    随输入计算，不是另一组独立参数，也不是候选 KV。
-                  </div>
-                  <Box tone="amber" expanded>
-                    <strong>输出两条 1 × 512 权重行 · 每一列单独归一化</strong>
-                    <br />
-                    <MathFormula
-                      tex={`[\\boldsymbol\\alpha_{${layer},i,1};\\boldsymbol\\alpha_{${layer},i,2}]=\\operatorname{softmax}_{\\mathrm{row}}([\\mathbf a^{\\mathrm{gate}}_{${layer},2i-1};\\mathbf a^{\\mathrm{gate}}_{${layer},2i}])`}
-                    />
-                  </Box>
-                  <div
-                    data-compressor-gate-columns
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns:
-                        "max-content max-content 24px max-content",
-                      gap: 24,
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    {["1", "2", "\\cdots", "512"].map((d) =>
-                      d === "\\cdots" ? (
-                        <MathFormula key={d} tex={d} />
-                      ) : (
-                        <div
-                          key={d}
-                          data-compressor-gate-column={d}
-                          style={{
-                            display: "grid",
-                            gap: 7,
-                            justifyItems: "center",
-                          }}
-                        >
-                          <strong>第 {d} 列 · 两个 token 之间分配权重</strong>
-                          <Box tone="plum" expanded>
-                            <span>输入 · 上方 Gate 投影的同列分数</span>
-                            {["2i-1", "2i"].map((t) => (
-                              <div
-                                key={t}
-                                style={{
-                                  display: "grid",
-                                  justifyItems: "center",
-                                  paddingTop: 5,
-                                }}
-                              >
-                                <Box tone="plum">
-                                  <MathFormula
-                                    tex={`a^{\\mathrm{gate}}_{${layer},${t},${d}}`}
-                                  />
-                                </Box>
-                              </div>
-                            ))}
-                          </Box>
-                          <div style={{ color: COLORS.amber }}>
-                            Softmax · 只归一化这两个数
-                          </div>
-                          <Box tone="amber" expanded>
-                            <strong>输出 · 归一化压缩权重</strong>
-                            {[1, 2].map((row) => (
-                              <div
-                                key={row}
-                                style={{
-                                  padding: "5px 0",
-                                  display: "grid",
-                                  justifyItems: "center",
-                                }}
-                              >
-                                <Box tone="amber">
-                                  <MathFormula
-                                    tex={`\\alpha_{${layer},i,${row},${d}}=\\frac{\\exp(a^{\\mathrm{gate}}_{${layer},${row === 1 ? "2i-1" : "2i"},${d}})}{\\exp(a^{\\mathrm{gate}}_{${layer},2i-1,${d}})+\\exp(a^{\\mathrm{gate}}_{${layer},2i,${d}})}`}
-                                  />
-                                </Box>
-                              </div>
-                            ))}
-                          </Box>
-                          <MathFormula
-                            tex={`\\alpha_{${layer},i,1,${d}}+\\alpha_{${layer},i,2,${d}}=1`}
-                          />
-                        </div>
-                      ),
-                    )}
-                  </div>
-                  <ModuleHeading>
-                    权重 × 候选内容 · 对齐同一列，合并两行
-                  </ModuleHeading>
-                  <div style={{ textAlign: "center", fontSize: 13 }}>
-                    绿色 vᶜ 是内容，琥珀色 α 是权重；⊙ 表示对应元素相乘，512
-                    列分别使用自己的权重。
-                  </div>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(2,minmax(0,1fr))",
-                      alignItems: "center",
-                      gap: 5,
-                    }}
-                  >
-                    {[1, 2].map((row) => (
+                    {phase === "decode" && ratio === 2 && (
                       <div
-                        key={row}
-                        data-compressor-weighted-row={row}
-                        style={{ display: "grid", gap: 5 }}
+                        data-compressor-pending
+                        style={{
+                          justifySelf: "center",
+                          display: "grid",
+                          gap: 7,
+                          padding: 8,
+                          border: `1px solid ${frameColor(COLORS.amber)}`,
+                          borderRadius: 7,
+                          fontSize: 12,
+                        }}
                       >
+                        <strong>
+                          全局压缩组 · 两步凑齐，区别于每步更新的 U
+                        </strong>
                         <div
                           style={{
                             display: "grid",
                             gridTemplateColumns: "max-content 24px max-content",
-                            gap: 12,
                             justifyContent: "center",
                             alignItems: "center",
+                            gap: 5,
                           }}
                         >
-                          <div
-                            data-compressor-weight-role
-                            style={{ justifySelf: "center" }}
-                          >
-                            <Box tone="amber">
-                              <strong>压缩权重</strong>
-                              <TensorHeading
-                                name={`\\boldsymbol\\alpha_{${layer},i,${row}}`}
-                                shape="1\times512"
+                          <Box tone="blue">
+                            <MathFormula tex="t=2i-1" />
+                            <br />
+                            本步新算并暂存
+                            <div>
+                              <MathFormula
+                                tex={`\\mathbf v^c_{${layer},2i-1},\\;\\mathbf a^{\\mathrm{gate}}_{${layer},2i-1}`}
                               />
-                            </Box>
-                          </div>
-                          <Operator tex="\odot" />
-                          <div
-                            data-compressor-content-role
-                            style={{ justifySelf: "center" }}
-                          >
-                            <Box tone="green">
-                              <strong>候选 KV 内容</strong>
-                              <TensorHeading
-                                name={`\\mathbf v_{${layer},${row === 1 ? "2i-1" : "2i"}}^c`}
-                                shape="1\times512"
+                            </div>
+                            <small>不新增 G 行或索引 Key</small>
+                          </Box>
+                          <Operator tex="\to" />
+                          <Box tone="amber">
+                            <MathFormula tex="t=2i" />
+                            <br />
+                            读取上步暂存 + 本步新算
+                            <div>
+                              <MathFormula
+                                tex={`\\mathbf v^c_{${layer},2i},\\;\\mathbf a^{\\mathrm{gate}}_{${layer},2i}`}
                               />
-                            </Box>
-                          </div>
+                            </div>
+                            <small>两行齐：执行下方压缩，新增第 i 行</small>
+                          </Box>
                         </div>
-                        <Operator tex="\downarrow" />
-                        <VectorStrip
-                          name=""
-                          nameWidth={0}
-                          length="512"
-                          tone="green"
-                          elementTex={(j) =>
-                            `\\alpha_{${layer},i,${row},${j}}\\cdot v^c_{${layer},${row === 1 ? "2i-1" : "2i"},${j}}`
-                          }
-                        />
+                        <span>
+                          下方池化、归一化及旋转仅在 t=2i 时执行；旧 G
+                          始终直接读。
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                  <SumJunction count={2} />
-                  <Box tone="green">
-                    <MathFormula tex={`\\widehat{\\mathbf g}_{${layer},i}`} /> ·
-                    本组逐元素加权和
-                    <div>
-                      <MathFormula
-                        tex={`\\widehat g_{${layer},i,d}=\\alpha_{${layer},i,1,d}\\cdot v^c_{${layer},2i-1,d}+\\alpha_{${layer},i,2,d}\\cdot v^c_{${layer},2i,d},\\quad d=1,\\ldots,512`}
-                      />
+                    )}
+                    <ModuleHeading>
+                      压缩权重 α 的来源 · 同一列的两个 gate 分数做 Softmax
+                    </ModuleHeading>
+                    <div
+                      data-compressor-gate-origin
+                      style={{ textAlign: "center", fontSize: 13 }}
+                    >
+                      第 i 组包含 token 2i−1 和 2i；上方两次投影分别提供候选内容
+                      vᶜ 与 gate 分数 a。 α
+                      随输入计算，不是另一组独立参数，也不是候选 KV。
                     </div>
+                    <Box tone="amber" expanded>
+                      <strong>
+                        输出两条 1 × 512 权重行 · 每一列单独归一化
+                      </strong>
+                      <br />
+                      <MathFormula
+                        tex={`[\\boldsymbol\\alpha_{${layer},i,1};\\boldsymbol\\alpha_{${layer},i,2}]=\\operatorname{softmax}_{\\mathrm{row}}([\\mathbf a^{\\mathrm{gate}}_{${layer},2i-1};\\mathbf a^{\\mathrm{gate}}_{${layer},2i}])`}
+                      />
+                    </Box>
+                    <div
+                      data-compressor-gate-columns
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "max-content max-content 16px max-content",
+                        gap: 8,
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      {["1", "2", "\\cdots", "512"].map((d) =>
+                        d === "\\cdots" ? (
+                          <MathFormula key={d} tex={d} />
+                        ) : (
+                          <div
+                            key={d}
+                            data-compressor-gate-column={d}
+                            style={{
+                              display: "grid",
+                              gap: 7,
+                              justifyItems: "center",
+                            }}
+                          >
+                            <strong>第 {d} 列 · 两个 token 之间分配权重</strong>
+                            <Box tone="plum" expanded>
+                              <span>输入 · 上方 Gate 投影的同列分数</span>
+                              {["2i-1", "2i"].map((t) => (
+                                <div
+                                  key={t}
+                                  style={{
+                                    display: "grid",
+                                    justifyItems: "center",
+                                    paddingTop: 5,
+                                  }}
+                                >
+                                  <Box tone="plum">
+                                    <MathFormula
+                                      tex={`a^{\\mathrm{gate}}_{${layer},${t},${d}}`}
+                                    />
+                                  </Box>
+                                </div>
+                              ))}
+                            </Box>
+                            <div style={{ color: COLORS.amber }}>
+                              Softmax · 只归一化这两个数
+                            </div>
+                            <Box tone="amber" expanded>
+                              <strong>输出 · 归一化压缩权重</strong>
+                              {[1, 2].map((row) => (
+                                <div
+                                  key={row}
+                                  style={{
+                                    padding: "5px 0",
+                                    display: "grid",
+                                    justifyItems: "center",
+                                  }}
+                                >
+                                  <Box tone="amber">
+                                    <MathFormula
+                                      tex={`\\alpha_{${layer},i,${row},${d}}=\\frac{\\exp(a^{\\mathrm{gate}}_{${layer},${row === 1 ? "2i-1" : "2i"},${d}})}{\\exp(a^{\\mathrm{gate}}_{${layer},2i-1,${d}})+\\exp(a^{\\mathrm{gate}}_{${layer},2i,${d}})}`}
+                                    />
+                                  </Box>
+                                </div>
+                              ))}
+                            </Box>
+                            <MathFormula
+                              tex={`\\alpha_{${layer},i,1,${d}}+\\alpha_{${layer},i,2,${d}}=1`}
+                            />
+                          </div>
+                        ),
+                      )}
+                    </div>
+                    <ModuleHeading>
+                      权重 × 候选内容 · 对齐同一列，合并两行
+                    </ModuleHeading>
+                    <div style={{ textAlign: "center", fontSize: 13 }}>
+                      绿色 vᶜ 是内容，琥珀色 α 是权重；⊙ 表示对应元素相乘，512
+                      列分别使用自己的权重。
+                    </div>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(2,minmax(0,1fr))",
+                        alignItems: "center",
+                        gap: 5,
+                      }}
+                    >
+                      {[1, 2].map((row) => (
+                        <div
+                          key={row}
+                          data-compressor-weighted-row={row}
+                          style={{ display: "grid", gap: 5 }}
+                        >
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns:
+                                "max-content 24px max-content",
+                              gap: 12,
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            <div
+                              data-compressor-weight-role
+                              style={{ justifySelf: "center" }}
+                            >
+                              <Box tone="amber">
+                                <strong>压缩权重</strong>
+                                <TensorHeading
+                                  name={`\\boldsymbol\\alpha_{${layer},i,${row}}`}
+                                  shape="1\times512"
+                                />
+                              </Box>
+                            </div>
+                            <Operator tex="\odot" />
+                            <div
+                              data-compressor-content-role
+                              style={{ justifySelf: "center" }}
+                            >
+                              <Box tone="green">
+                                <strong>候选 KV 内容</strong>
+                                <TensorHeading
+                                  name={`\\mathbf v_{${layer},${row === 1 ? "2i-1" : "2i"}}^c`}
+                                  shape="1\times512"
+                                />
+                              </Box>
+                            </div>
+                          </div>
+                          <Operator tex="\downarrow" />
+                          <VectorStrip
+                            name=""
+                            nameWidth={0}
+                            length="512"
+                            tone="green"
+                            elementTex={(j) =>
+                              `\\alpha_{${layer},i,${row},${j}}\\cdot v^c_{${layer},${row === 1 ? "2i-1" : "2i"},${j}}`
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <SumJunction count={2} />
+                    <div
+                      data-compressor-pool-result
+                      style={{ width: "fit-content", justifySelf: "center" }}
+                    >
+                      <Box tone="green">
+                        <MathFormula
+                          tex={`\\widehat{\\mathbf g}_{${layer},i}`}
+                        />{" "}
+                        · 本组逐元素加权和
+                        <div>
+                          <MathFormula
+                            tex={`\\widehat g_{${layer},i,d}=\\alpha_{${layer},i,1,d}\\cdot v^c_{${layer},2i-1,d}+\\alpha_{${layer},i,2,d}\\cdot v^c_{${layer},2i,d},\\quad d=1,\\ldots,512`}
+                          />
+                        </div>
+                      </Box>
+                    </div>
+                  </div>
+                ) : (
+                  <Box tone="amber">
+                    <strong>压缩比 1 · 每个投影行直接进入归一化</strong>
+                    <MathFormula tex="i=t" />
                   </Box>
+                )}
+                <div
+                  data-compressor-normalize-cache
+                  style={{
+                    display: "grid",
+                    gap: 12,
+                    justifyItems: "center",
+                    minWidth: 0,
+                  }}
+                >
+                  <FlowStep>每个压缩行沿 512 维归一化</FlowStep>
+                  <RmsNormProcess
+                    input={
+                      phase === "decode"
+                        ? ratio === 2
+                          ? `\\widehat{\\mathbf g}_{${layer},i}`
+                          : `\\mathbf v_{${layer},i}^c`
+                        : ratio === 2
+                          ? `\\widehat G_{${layer}}`
+                          : `V_{${layer}}^c`
+                    }
+                    output={
+                      phase === "decode"
+                        ? `\\bar{\\mathbf g}_{${layer},i}`
+                        : `\\bar G_{${layer}}`
+                    }
+                    dimension={512}
+                    rowCount={phase === "decode" ? "1" : "M"}
+                    rowIndex="i"
+                    gamma={`\\boldsymbol\\gamma_{${layer}}^c`}
+                    label="压缩 KV"
+                    horizontal
+                    horizontalReduction
+                    outputHandle="to-indexer"
+                  />
+                  <FlowStep>
+                    <MathFormula tex={`\\bar G_{${layer}}`} /> 分支送入
+                    Indexer；缓存分支按压缩组首 token 的位置旋转
+                  </FlowStep>
+                  <div
+                    style={{
+                      width: "fit-content",
+                      maxWidth: "100%",
+                      justifySelf: "center",
+                    }}
+                  >
+                    <RotaryProcess
+                      input={`\\bar{\\mathbf g}_{${layer},i}`}
+                      output={`\\mathbf g_{${layer},i}`}
+                      position={`(i-1)\\cdot ${ratio}`}
+                      layer={layer}
+                      compact
+                    />
+                  </div>
+                  {writesKv && phase === "decode" && (
+                    <GlobalCacheHistory
+                      layer={layer}
+                      ratio={ratio}
+                      outputPort={
+                        <Handle
+                          id="global-kv-out"
+                          type="source"
+                          position={Position.Bottom}
+                          style={handle}
+                        />
+                      }
+                    />
+                  )}
                 </div>
-              ) : (
-                <Box tone="amber">
-                  <strong>压缩比 1 · 每个投影行直接进入归一化</strong>
-                </Box>
-              )}
-              <FlowStep>每个压缩行沿 512 维归一化</FlowStep>
-              <RmsNormProcess
-                input={
-                  phase === "decode"
-                    ? ratio === 2
-                      ? `\\widehat{\\mathbf g}_{${layer},i}`
-                      : `\\mathbf v_{${layer},i}^c`
-                    : ratio === 2
-                      ? `\\widehat G_{${layer}}`
-                      : `V_{${layer}}^c`
-                }
-                output={
-                  phase === "decode"
-                    ? `\\bar{\\mathbf g}_{${layer},i}`
-                    : `\\bar G_{${layer}}`
-                }
-                dimension={512}
-                rowCount={phase === "decode" ? "1" : "M"}
-                rowIndex="i"
-                gamma={`\\boldsymbol\\gamma_{${layer}}^c`}
-                label="压缩 KV"
-                horizontal
-                horizontalReduction
-                outputHandle="to-indexer"
-              />
-              <FlowStep>
-                <MathFormula tex={`\\bar G_{${layer}}`} /> 分支送入
-                Indexer；缓存分支按压缩组首 token 的位置旋转
-              </FlowStep>
-              <div
-                style={{
-                  width: "fit-content",
-                  maxWidth: "100%",
-                  justifySelf: "center",
-                }}
-              >
-                <RotaryProcess
-                  input={`\\bar{\\mathbf g}_{${layer},i}`}
-                  output={`\\mathbf g_{${layer},i}`}
-                  position={`(i-1)\\cdot ${ratio}`}
-                  layer={layer}
-                  compact
-                />
+                {ratio === 2 && <CompressorStageConnector />}
               </div>
             </>
           ) : mode === "reindex" ? (
@@ -6266,39 +6288,38 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               <MathFormula tex={`G_{${layer}}`} />
             </Box>
           )}
-          {writesKv && phase === "decode" && (
-            <GlobalCacheHistory layer={layer} ratio={ratio} />
-          )}
           {writesKv && phase === "prefill" && (
             <div style={{ fontSize: 13 }}>
               Prefill：由输入序列建立 G，各 Query 仅选因果可见行。Decode：旧 G
               保留，只生成并追加当前完成的新行。
             </div>
           )}
-          <div
-            style={{
-              position: "relative",
-              width: "fit-content",
-              maxWidth: "100%",
-              justifySelf: "center",
-            }}
-          >
-            <Matrix
-              tex={`G_{${layer}}`}
-              shape={`M\\times512,\\;M=\\left\\lfloor\\frac{${phase === "prefill" ? "N" : "t"}}{${ratio}}\\right\\rfloor`}
-              rowTex={(row) => `\\mathbf g_{${layer},${row}}`}
-              elementTex={(row, column) => `g_{${layer},${row},${column}}`}
-              vectorLength="512"
-              lastRow="M"
-              tone="green"
-            />
-            <Handle
-              id="global-kv-out"
-              type="source"
-              position={Position.Bottom}
-              style={handle}
-            />
-          </div>
+          {!(writesKv && phase === "decode") && (
+            <div
+              style={{
+                position: "relative",
+                width: "fit-content",
+                maxWidth: "100%",
+                justifySelf: "center",
+              }}
+            >
+              <Matrix
+                tex={`G_{${layer}}`}
+                shape={`M\\times512,\\;M=\\left\\lfloor\\frac{${phase === "prefill" ? "N" : "t"}}{${ratio}}\\right\\rfloor`}
+                rowTex={(row) => `\\mathbf g_{${layer},${row}}`}
+                elementTex={(row, column) => `g_{${layer},${row},${column}}`}
+                vectorLength="512"
+                lastRow="M"
+                tone="green"
+              />
+              <Handle
+                id="global-kv-out"
+                type="source"
+                position={Position.Bottom}
+                style={handle}
+              />
+            </div>
+          )}
           <CacheOutputScope layer={layer} kind="G" />
         </div>
       </div>
@@ -6682,7 +6703,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               </span>
             </Box>
             {/* [OM-FREEPLAY] 3、7、12 是说明索引与行向量对应关系的示例行号。 */}
-            {!(phase === "decode" && (layer === 3 || layer === 4)) && (
+            {phase === "prefill" && (
               <div
                 data-selection-example
                 style={{
@@ -6751,29 +6772,19 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           <div style={{ padding: 8 }}>
             <RowMatrix
               tex={`\\mathrm{KV}_{${layer},${token}}=U_{${layer},${token}}`}
-              shape={
-                token === "129" ? "128\\times512" : "\\min(128,t)\\times512"
-              }
-              rows={
-                token === "129"
-                  ? [
-                      "\\mathbf u_{2,2}",
-                      "\\mathbf u_{2,3}",
-                      "\\vdots",
-                      "\\mathbf u_{2,129}",
-                    ]
-                  : [
-                      `\\mathbf u_{${layer},r}`,
-                      `\\mathbf u_{${layer},r+1}`,
-                      "\\vdots",
-                      `\\mathbf u_{${layer},t}`,
-                    ]
-              }
+              shape="\min(128,t)\times512"
+              rows={[
+                `\\mathbf u_{${layer},r}`,
+                `\\mathbf u_{${layer},r+1}`,
+                "\\vdots",
+                `\\mathbf u_{${layer},t}`,
+              ]}
               rowLength="512"
               elementTex={(row, column) =>
-                `u_{${layer},${(token === "129" ? ["2", "3", "", "129"] : ["r", "r+1", "", "t"])[row]},${column}}`
+                `u_{${layer},${["r", "r+1", "", "t"][row]},${column}}`
               }
             />
+            <MathFormula tex="r=\max(1,t-127)" />
           </div>
         </div>
       );
@@ -6913,37 +6924,11 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                       组 {group} · Head {(group - 1) * 8 + 1}–{group * 8}{" "}
                       沿列拼接
                     </strong>
-                    <div
-                      data-head-concat-sources={group}
-                      style={{
-                        display: "flex",
-                        gap: 4,
-                        justifyContent: "center",
-                        alignItems: "center",
-                      }}
-                    >
-                      {[0, 1, 7].map((j) => (
-                        <React.Fragment key={j}>
-                          {j === 7 && (
-                            <>
-                              <Operator tex="\mid" />
-                              <Operator tex="\cdots" />
-                            </>
-                          )}
-                          {j > 0 && <Operator tex="\mid" />}
-                          <Box tone="green">
-                            <MathFormula
-                              tex={`O_{${layer},${(group - 1) * 8 + j + 1}}`}
-                            />
-                          </Box>
-                        </React.Fragment>
-                      ))}
-                    </div>
-                    <span style={{ textAlign: "center", fontSize: 12 }}>
-                      每块 {count} × dₖ，dₖ = 512；保留 token 行，按 Head
-                      顺序接列
-                    </span>
-                    <FlowStep />
+                    <HeadGroupConcat
+                      layer={layer}
+                      group={group}
+                      count={count}
+                    />
                     <AttentionTensor
                       tex={`C_{${group}}`}
                       rows={count}
@@ -8261,7 +8246,9 @@ function node(
       // [OM-FREEPLAY] 权重行、四路矩阵、输出行与运算符按内容排列，840px 留出完整下标和必要间距。
       ...(kind === "hc-pre" ? { minWidth: 840 } : {}),
       // 四路矩阵保持同排；由内部实际内容决定最小宽度，旧保存尺寸也不能压破外框。
-      ...(["tensor", "state1", "output", "next-inputs"].includes(kind)
+      ...(["tensor", "state1", "output", "next-inputs", "swa-window"].includes(
+        kind,
+      )
         ? { minWidth: "min-content" }
         : {}),
     },
@@ -8501,7 +8488,7 @@ export function buildGraph(
       mode,
       hasGlobal ? 40 : 350,
       swaY,
-      hasGlobal ? 780 : 900,
+      phase === "decode" ? 1000 : hasGlobal ? 780 : 900,
       swaHeight,
     ),
     node(
@@ -8709,20 +8696,24 @@ export function buildGraph(
     data: { kind: "structure-operator", layer, mode, tex: "\\cdots" },
   });
   nodes.push(
-    {
-      ...node(
-        "swa-result",
-        "swa-output",
-        layer,
-        mode,
-        10,
-        swaHeight - 100,
-        (((hasGlobal ? 780 : 900) - 56) * 1.7) / 2.6,
-        82,
-      ),
-      parentId: "swa-window",
-      extent: "parent",
-    },
+    ...(phase === "prefill"
+      ? [
+          {
+            ...node(
+              "swa-result",
+              "swa-output",
+              layer,
+              mode,
+              10,
+              swaHeight - 100,
+              (((hasGlobal ? 780 : 900) - 56) * 1.7) / 2.6,
+              82,
+            ),
+            parentId: "swa-window",
+            extent: "parent" as const,
+          },
+        ]
+      : []),
     structureNode({
       id: "q-x",
       parentId: "q",
@@ -9093,10 +9084,16 @@ export function buildGraph(
         : `\\mathbf u_{${layer},${token}}\\in\\mathbb{R}^{1\\times512}`,
       { sourceHandle: "swa", targetHandle: "projected-kv" },
     ),
-    mathEdge("swa-merge", "swa-result", "kv-merge", `U_{${layer},${token}}`, {
-      sourceHandle: "local-window",
-      targetHandle: "local",
-    }),
+    mathEdge(
+      "swa-merge",
+      phase === "decode" ? "swa-window" : "swa-result",
+      "kv-merge",
+      `U_{${layer},${token}}`,
+      {
+        sourceHandle: "local-window",
+        targetHandle: "local",
+      },
+    ),
     mathEdge(
       "merge-heads",
       "kv-merge",
@@ -9568,8 +9565,8 @@ export function applySavedLayout(
   const edges: EditableEdge[] = saved.edges
     .filter(
       (item) =>
-        nodeIds.has(item.source) &&
-        nodeIds.has(item.target) &&
+        ((nodeIds.has(item.source) && nodeIds.has(item.target)) ||
+          baselineEdges.has(item.id)) &&
         (baselineEdges.has(item.id) || item.id.startsWith("manual-")),
     )
     .map((item) => {
@@ -9577,7 +9574,9 @@ export function applySavedLayout(
       // 阶段插入后，重排节点的主流程边也回到语义图；旧折点与旧张量名不跨结构沿用。
       if (
         baseline &&
-        (!nodeLayouts.has(baseline.source) ||
+        (!nodeIds.has(item.source) ||
+          !nodeIds.has(item.target) ||
+          !nodeLayouts.has(baseline.source) ||
           !nodeLayouts.has(baseline.target) ||
           reflowedNodes.has(baseline.source) ||
           reflowedNodes.has(baseline.target))
@@ -10788,9 +10787,7 @@ export const DeepSeekV41Layer: React.FC<Props> = ({ initialLayer = 1 }) => {
           <span style={{ fontSize: 12, color: COLORS.muted }}>
             {phase === "prefill"
               ? "N 行并行 · t 是其中一个序列位置"
-              : layer === 2
-                ? "本层示例 t=129 · 当前只算 1 行，历史 KV 直接读"
-                : "当前 1 行 · t=P+k · 历史 KV 来自缓存"}
+              : "当前 token t · 历史 KV 直接读 · 窗口满时保留 t−127 到 t"}
           </span>
           {(layer === 3 || layer === 4) && (
             <span
@@ -10798,7 +10795,7 @@ export const DeepSeekV41Layer: React.FC<Props> = ({ initialLayer = 1 }) => {
               style={{ fontSize: 12, color: COLORS.green }}
             >
               {phase === "decode"
-                ? "本层路径已展开；局部窗口用 token 129 示意淘汰，独立缓存章节保留两步筛选例"
+                ? "本层 SWA 独立更新；全局 G 仅在压缩组完成后追加"
                 : "本批 KV 为 T，局部窗口为 U；切换 Decode 查看追加与淘汰"}
             </span>
           )}

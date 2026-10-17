@@ -10,7 +10,7 @@ import { buildGraph, MhcMix } from "../src/compositions/DeepSeekV41Layer";
 import { createElement } from "react";
 
 describe("模块解释的显式开关", () => {
-  it("第 2 层生成、窗口与 Attention 旁注讲清同一 token129 路径", () => {
+  it("本层生成、窗口与 Attention 旁注统一使用当前 token t", () => {
     for (const kind of [
       "projection-kv",
       "swa-window",
@@ -23,11 +23,12 @@ describe("模块解释的显式开关", () => {
         layer: 2,
         phase: "decode",
       }).paragraphs.join("\n");
-      expect(text).toContain("token1–128");
-      expect(text).toContain("token2–128 原样保留");
-      expect(text).toContain("第 1 层的本地 KV 不拼进第 2 层缓存");
-      expect(text).toContain("只是本地 KV 分支的参数标记");
-      expect(text).toContain("token2、3、129");
+      expect(text).toContain("t−128 到 t−1");
+      expect(text).toContain("原样保留 t−127 到 t−1");
+      expect(text).toContain("上一层的本地 KV 不拼进本层");
+      expect(text).toContain("只标识参数所属分支");
+      expect(text).toContain("127 条历史加当前行");
+      expect(text).not.toContain("token129");
     }
   });
   it("初始化与系数旁注明确完整复制、单次子层计算和动态权重", () => {

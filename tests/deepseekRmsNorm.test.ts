@@ -136,8 +136,12 @@ describe("RMSNorm 的逐行结构与来源", () => {
     expect(root.querySelector("[data-rmsnorm-square]")).not.toBeNull();
     expect(root.querySelector("[data-rmsnorm-reduction]")).not.toBeNull();
     expect(root.querySelectorAll("[data-rmsnorm-product-arrows]")).toHaveLength(
-      3,
+      0,
     );
+    expect(root.querySelectorAll("[data-rmsnorm-operands]")).toHaveLength(0);
+    expect(
+      root.querySelector("[data-rmsnorm-broadcast]")?.textContent,
+    ).toContain("\\frac{\\mathbf z_{i}}{r_{i}}");
     expect(root.querySelector('[aria-label="Y"]')).not.toBeNull();
     expect(root.querySelectorAll("[data-rmsnorm-stage]")).toHaveLength(2);
     expect(root.querySelector("[data-rmsnorm-root-result]")).not.toBeNull();
@@ -184,9 +188,7 @@ describe("RMSNorm 的逐行结构与来源", () => {
         `\\frac{\\sum_{j=1}^{d}z_{s,j}^{2}}{d},\\quad d=${dimension}`,
         "=",
         "m_{s}",
-        "\\downarrow",
-        "+\\varepsilon\\;\\longrightarrow\\;\\sqrt{\\phantom{x}}",
-        "r_{s}",
+        "r_{s}=\\sqrt{m_{s}+\\varepsilon}",
       ]);
       expect(formulas).toContain(`\\gamma_{${dimension}}`);
       expect(formulas).toContain(
@@ -194,12 +196,13 @@ describe("RMSNorm 的逐行结构与来源", () => {
       );
       expect(
         root.querySelectorAll("[data-rmsnorm-operands] > div"),
-      ).toHaveLength(6);
+      ).toHaveLength(0);
       expect(
         root.querySelectorAll("[data-rmsnorm-product-arrows]"),
-      ).toHaveLength(3);
+      ).toHaveLength(0);
       expect(formulas).toContain(`y_{s,${dimension}}`);
-      expect(root.querySelectorAll("[data-vector-elements]")).toHaveLength(6);
+      expect(root.querySelectorAll("[data-vector-elements]")).toHaveLength(8);
+      expect(formulas).toContain("\\frac{\\mathbf z_{s}}{r_{s}}");
       expect(
         root.querySelector("[data-rmsnorm-example]")?.textContent,
       ).toContain("4 维算例");

@@ -6,7 +6,31 @@ import {
   cachePolicy,
   CacheOutputScope,
 } from "../src/components/CacheSemantics";
-import { buildGraph } from "../src/compositions/DeepSeekV41Layer";
+import {
+  buildGraph,
+  applySavedLayout,
+} from "../src/compositions/DeepSeekV41Layer";
+
+it("窗口出口合并后，已保存的主流程连线回到真实矩阵，不丢线", () => {
+  const graph = buildGraph(4, new Map(), "decode");
+  const saved = {
+    version: 12,
+    nodes: graph.nodes.map((n) => ({
+      id: n.id,
+      x: n.position.x,
+      y: n.position.y,
+    })),
+    edges: graph.edges.map((e) =>
+      e.id === "swa-merge" ? { ...e, source: "swa-result" } : e,
+    ),
+  };
+  const restored = applySavedLayout(graph, saved);
+  expect(restored.edges.find((e) => e.id === "swa-merge")).toMatchObject({
+    source: "swa-window",
+    sourceHandle: "local-window",
+  });
+  expect(restored.edges).toHaveLength(graph.edges.length);
+});
 
 it("全部层保留本地 KV 和 Attention；跨层入口按配置定义本层别名", () => {
   for (let layer = 1; layer <= 40; layer++) {
@@ -14,9 +38,7 @@ it("全部层保留本地 KV 和 Attention；跨层入口按配置定义本层�
     const graph = buildGraph(layer, new Map(), "decode");
     const edge = (id: string) => graph.edges.find((e) => e.id === id);
     expect(edge("norm-kv")?.data?.labelTex).toBe(`X_{${layer}}`);
-    expect(edge("swa-merge")?.data?.labelTex).toBe(
-      `U_{${layer},${layer === 2 ? "129" : "t"}}`,
-    );
+    expect(edge("swa-merge")?.data?.labelTex).toBe(`U_{${layer},t}`);
     expect(edge("merge-heads")?.target).toBe("heads");
     expect(Boolean(edge("norm-compressor"))).toBe(p.mode === "Full");
     if (p.mode === "Full") {
@@ -63,7 +85,7 @@ it("全部层保留本地 KV 和 Attention；跨层入口按配置定义本层�
   }
 });
 
-it("第 2 层 token129 从新 KV 连到窗口，再连到当前 Query 的 Attention", () => {
+it("第 2 层 token t 从新 KV 连到窗口，再连到当前 Query 的 Attention", () => {
   const graph = buildGraph(2, new Map([["swa-window", 640]]), "decode");
   const edge = (id: string) => graph.edges.find((e) => e.id === id)!;
   expect(edge("kv-swa")).toMatchObject({
@@ -72,12 +94,12 @@ it("第 2 层 token129 从新 KV 连到窗口，再连到当前 Query 的 Attent
     sourceHandle: "swa",
     targetHandle: "projected-kv",
   });
-  expect(edge("kv-swa").data?.labelTex).toContain("u_{2,129}");
-  expect(edge("swa-merge").data?.labelTex).toBe("U_{2,129}");
-  expect(edge("merge-heads").data?.labelTex).toBe("\\mathrm{KV}_{2,129}");
+  expect(edge("kv-swa").data?.labelTex).toContain("u_{2,t}");
+  expect(edge("swa-merge").data?.labelTex).toBe("U_{2,t}");
+  expect(edge("merge-heads").data?.labelTex).toBe("\\mathrm{KV}_{2,t}");
   for (const h of [1, 2, 64]) {
     expect(edge(`query-head-${h}`).data?.labelTex).toBe(
-      `\\mathbf q_{2,${h},129}`,
+      `\\mathbf q_{2,${h},t}`,
     );
     expect(edge(`query-head-${h}`).targetHandle).toBe(`query-${h}`);
   }
@@ -86,7 +108,8 @@ it("第 2 层 token129 从新 KV 连到窗口，再连到当前 Query 的 Attent
   expect(
     graph.nodes.find((n) => n.id === "kv-merge")!.position.y,
   ).toBeGreaterThan(window.position.y + 640);
-  expect(graph.nodes.find((n) => n.id === "swa-result")!.position.y).toBe(540);
+  expect(graph.nodes.find((n) => n.id === "swa-result")).toBeUndefined();
+  expect(edge("swa-merge").source).toBe("swa-window");
   const root = document.createElement("div");
   root.innerHTML = renderToStaticMarkup(<SlidingWindowRows layer={2} />);
   expect(root.querySelector(".katex-error")).toBeNull();
@@ -94,14 +117,14 @@ it("第 2 层 token129 从新 KV 连到窗口，再连到当前 Query 的 Attent
     [...root.querySelectorAll("[data-previous-token]")].map((el) =>
       el.getAttribute("data-previous-token"),
     ),
-  ).toEqual(["1", "2", "3", "128"]);
+  ).toEqual(["t-128", "t-127", "t-126", "t-1"]);
   expect(
     [...root.querySelectorAll("[data-window-token]")].map((el) =>
       el.getAttribute("data-window-token"),
     ),
-  ).toEqual(["2", "3", "128", "129"]);
+  ).toEqual(["t-127", "t-126", "t-1", "t"]);
   expect(root.querySelector("[data-window-new-kv]")?.textContent).toContain(
-    "RoPE",
+    "u_{2,t,512}",
   );
 });
 
@@ -111,22 +134,22 @@ it("窗口用原 token 行顺序展示淘汰、新增与 128 行括号，灰行�
     root.innerHTML = renderToStaticMarkup(<SlidingWindowRows layer={layer} />);
     expect(root.querySelector(".katex-error")).toBeNull();
     const active = root.querySelector("[data-selection-window]")!;
-    expect(active.querySelector('[data-window-token="1"]')).toBeNull();
+    expect(active.querySelector('[data-window-token="t-128"]')).toBeNull();
     expect(
       root
-        .querySelector('[data-window-token="1"]')
-        ?.getAttribute("data-window-state"),
-    ).toBe("old");
+        .querySelector('[data-previous-token="t-128"]')
+        ?.getAttribute("aria-label"),
+    ).toContain("淘汰");
     expect(
       active
-        .querySelector('[data-window-token="129"]')
+        .querySelector('[data-window-token="t"]')
         ?.getAttribute("data-window-state"),
     ).toBe("new");
     expect(
       [...active.querySelectorAll("[data-window-token]")].map((e) =>
         e.getAttribute("data-window-token"),
       ),
-    ).toEqual(["2", "3", "128", "129"]);
+    ).toEqual(["t-127", "t-126", "t-1", "t"]);
     expect(root.querySelector("[data-window-bracket]")?.textContent).toContain(
       "128 行",
     );

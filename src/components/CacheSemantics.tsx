@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { rawConfigs } from "../data/models";
 import { ReindexCandidates, REINDEX_EXPLANATION } from "./ReindexCandidates";
 import { MathFormula as M, Box, RowMatrix } from "./diagram-primitives";
@@ -247,7 +248,7 @@ export function cacheExplanation(layer: number) {
     REINDEX_EXPLANATION,
     `T 是本批新算的本地 KV 矩阵，行向量记为 u；U 只表示当前局部窗口缓存，最多 128 行。$X_{${layer}}$ 乘本层独立参数 $W_{${layer}}^{KV,\\mathrm{SWA}}$，再经 RMSNorm、RoPE 生成当前新行，按时间顺序写入 U。每种模式都为当前 token 新算本地 KV，历史窗口行直接读取；窗口满后覆盖最旧行。`,
     "本层的 U 与选中 G 行沿行拼成 KV，主 Query 对拼接后的全部行做 Attention 打分与 Value 加权。Indexer 只给 G 的行打分，不筛选 U。第 1、2 层没有 G，也没有 Indexer；它们的 Attention 仅使用本层 U，U 始终表示局部窗口。第 3–20 层的 G 每两个 token 合成一行；第 21–40 层读第 21 层比例 1 的 G，每个 token 一行，但仍只选最多 512 个全局行。都不等于读取每层所有原始历史 KV。",
-    "t=129 的窗口图把 token 1 的本层 KV 变灰，表示已退出有效 U；token 2–128 直接保留，当前 token 129 新算一行并追加，括号内恰好 128 行。灰行只是淘汰示意，实际窗口不持久保留全部旧行。退出 U 不代表对应信息从 G 或当前隐藏状态中也被删除；后续 token 不再经本层局部窗口直接读取该原始 KV。",
+    "窗口满时，进入当前 token t 之前，U 保存 t−128 到 t−1 的 128 条本层 KV。更新时 t−128 变灰退出，t−127 到 t−1 的 127 条历史行直接保留，再追加当前新算的 uₗ,ₜ。更新后是 t−127 到 t，共 128 行。序列不足 128 个位置时只保留已出现的行。灰行只是淘汰示意；退出 U 不代表其信息也从 G 或隐藏状态删除。",
     "G 是全局分支 KV 缓存：全局表示可覆盖局部窗口之外的因果历史，只在指定层间共享，压缩表示会损失部分原始信息。只有 Full 来源层独立生成 G；指定后续层读取同一对象。压缩比 2 时由候选内容与 gate 权重逐列合并两行，比例 1 时仅投影和归一化、不做行池化；随后主分支做 RoPE 并存储。",
     p.mode === "SWA-only"
       ? `第 ${layer} 层是 SWA-only：只有自己的 U，没有 G 分支。`
@@ -338,58 +339,146 @@ export function CacheModeLedger({ layer }: { layer: number }) {
 export function GlobalCacheHistory({
   layer,
   ratio,
+  outputPort,
 }: {
   layer: number;
   ratio: number;
+  outputPort?: ReactNode;
 }) {
+  const rows = ["1", "2", "\\vdots", "M_{old}"];
+  const historyRows = rows.map((r) =>
+    r === "\\vdots" ? r : "\\mathbf g_{" + layer + "," + r + "}",
+  );
+  const frame = {
+    border: "1px solid #578d7f",
+    borderRadius: 7,
+    padding: 10,
+    display: "grid",
+    gap: 7,
+  };
+  const rowStyle = {
+    border: "1px solid #578d7f",
+    borderRadius: 4,
+    padding: "6px 10px",
+    background: "#dceee3",
+    textAlign: "center" as const,
+  };
+  const transfer = (label: string) => (
+    <div
+      style={{
+        alignSelf: "center",
+        textAlign: "center",
+        fontSize: 12,
+        color: "#327463",
+      }}
+    >
+      <span>{label}</span>
+      <svg width="64" height="20" viewBox="0 0 64 20" aria-hidden>
+        <path
+          d="M0 10 H62 M56 5 L62 10 L56 15"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+      </svg>
+    </div>
+  );
   return (
     <section
       data-global-history
-      style={{ display: "grid", gap: 8, fontSize: 13 }}
+      style={{ display: "grid", gap: 10, fontSize: 13, justifySelf: "center" }}
     >
-      <strong>Decode 缓存写入 · 旧行原样保留，新行沿行维追加</strong>
+      <strong>全局 G 更新 · 历史不淘汰，与本层 SWA 分开</strong>
       <div
         style={{
-          display: "flex",
+          display: "grid",
+          gridTemplateColumns: "max-content 72px max-content",
+          gap: 12,
           alignItems: "center",
-          justifyContent: "center",
-          flexWrap: "wrap",
-          gap: 14,
         }}
       >
-        <div>
+        <div style={{ ...frame, gridColumn: 1, gridRow: 1 }}>
           <RowMatrix
-            tex={`G_{${layer}}^{<t}`}
+            tex={"G_{" + layer + "}^{<t}"}
             shape="M_{old}\times512"
-            rows={[
-              `\\mathbf g_{${layer},1}`,
-              `\\mathbf g_{${layer},2}`,
-              "\\vdots",
-              `\\mathbf g_{${layer},M_{old}}`,
-            ]}
+            rows={historyRows}
             tone="green"
           />
-          <M
-            tex={`M_{old}=\\left\\lfloor\\frac{t-1}{${ratio}}\\right\\rfloor`}
-          />
-          <div>进入本步前已有 · 直接保留，不重算</div>
+          <small>历史直接读 · 不重算</small>
         </div>
-        <span>与</span>
-        <Box tone="green">
-          <M tex={`\\mathbf g_{${layer},i}\\in\\mathbb R^{1\\times512}`} />
-          <div>来自上方全局生成分支</div>
-          <div>
-            {ratio === 2
-              ? "偶数 t：组满才生成；奇数 t：仅暂存，不追加"
-              : "比例 1：每个新 token 生成一行"}
+        {transfer("原样保留")}
+        <div
+          data-global-append-result
+          style={{
+            ...frame,
+            position: "relative",
+            gridColumn: 3,
+            gridRow: "1 / 3",
+            alignSelf: "stretch",
+            gridTemplateRows: "subgrid",
+          }}
+        >
+          <div data-global-kept-rows style={{ display: "grid", gap: 7 }}>
+            <M tex={"G_{" + layer + "}\\quad M\\times512"} />
+            {historyRows.map((r) =>
+              r === "\\vdots" ? (
+                <M key={r} tex={r} />
+              ) : (
+                <div key={r} style={rowStyle}>
+                  <M tex={r} />
+                </div>
+              ),
+            )}
           </div>
-        </Box>
+          <div
+            data-global-new-row
+            style={{
+              borderTop: "1px dashed #b57d2b",
+              paddingTop: 8,
+              alignSelf: "center",
+              display: "grid",
+              gap: 6,
+            }}
+          >
+            <div
+              style={{
+                ...rowStyle,
+                background: "#f9e7c6",
+                borderColor: "#b57d2b",
+              }}
+            >
+              <M tex={"\\mathbf g_{" + layer + ",i}\\quad1\\times512"} />
+            </div>
+            <small>
+              {ratio === 2 ? "仅 t=2i 时存在这一新增行" : "本步新增 · i=t"}
+            </small>
+          </div>
+          {outputPort}
+        </div>
+        <div style={{ ...frame, gridColumn: 1, gridRow: 2 }}>
+          <Box tone="amber">
+            <M tex={"\\mathbf g_{" + layer + ",i}\\quad1\\times512"} />
+          </Box>
+          <small>来自上方全局生成与 RoPE</small>
+          <small>
+            {ratio === 2
+              ? "t=2i−1：仅暂存，不追加"
+              : "比例 1：每个新 token 生成一行"}
+          </small>
+        </div>
+        {transfer(ratio === 2 ? "组满才追加" : "追加")}
       </div>
-      <div style={{ textAlign: "center" }}>
-        <M tex="\downarrow" />
-      </div>
-      <div style={{ textAlign: "center" }}>
-        下方 G = 原历史行，末尾接本步新行（若有）；供当前选行及后续指定层读取
+      <div style={{ textAlign: "center", display: "grid", gap: 5 }}>
+        <M
+          tex={
+            "M_{old}=\\left\\lfloor\\frac{t-1}{" +
+            ratio +
+            "}\\right\\rfloor,\\quad M=\\left\\lfloor\\frac{t}{" +
+            ratio +
+            "}\\right\\rfloor"
+          }
+        />
+        <small>旧行原样保留；写后 G 供本步选行与后续指定层读取。</small>
       </div>
     </section>
   );

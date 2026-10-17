@@ -122,7 +122,7 @@ export function KvRowConcat({
         <div data-concat-local style={frame}>
           {localPort}
           <TensorHeading name={`U_{${layer},t}`} shape={"m_t\\times512"} />
-          <div>本地窗口 · 按 token 位置 r 到 t 排列</div>
+          <div>本地窗口 · t−127 到 t（窗口已满）</div>
           {rows(localRows, ["1", "2", "", "m_t"], "local-input")}
         </div>
         {transfer("整行原样放入")}
