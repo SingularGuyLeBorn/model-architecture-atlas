@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 
 const skill = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repo = resolve(skill, '../../..');
+const checkRepoTests = existsSync(resolve(repo, 'src/compositions/DeepSeekV41Layer.tsx'));
 const refs = resolve(skill, 'references');
 const casebook = readFileSync(resolve(refs, 'counterexamples.md'), 'utf8');
 const guide = readFileSync(resolve(refs, 'inspection-playbook.md'), 'utf8');
@@ -32,7 +33,7 @@ for (const [filename, content] of [['counterexamples.md', casebook], ['inspectio
     if (match[1]) images.add(target);
   }
   for (const match of content.matchAll(/`((?:e2e|tests)\/[^`]+\.(?:ts|tsx))`/g)) {
-    assert(existsSync(resolve(repo, match[1])), `测试文件不存在：${match[1]}`);
+    if (checkRepoTests) assert(existsSync(resolve(repo, match[1])), `测试文件不存在：${match[1]}`);
   }
 }
 
@@ -64,4 +65,4 @@ for (const asset of manifest.assets) {
 assert.deepEqual([...images].sort(), [...files].sort(), '正文图片与登记不一致');
 const actual = readdirSync(resolve(refs, 'counterexamples')).map(name => `counterexamples/${name}`).sort();
 assert.deepEqual(actual, [...files].sort(), '资产目录有漏登记或多余文件');
-console.log(JSON.stringify({ status: '通过：仅案例库完整性', families: families.length, patterns: patterns.length, images: files.size, totalBytes, dimensions }, null, 2));
+console.log(JSON.stringify({ status: '通过：仅案例库完整性', repositoryTests: checkRepoTests ? '引用路径已检查（未运行测试）' : '独立分享包：跳过原仓库测试路径检查', families: families.length, patterns: patterns.length, images: files.size, totalBytes, dimensions }, null, 2));
