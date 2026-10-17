@@ -59,6 +59,21 @@ it.each([3, 9, 15])("第 %s 层复用池化结构，权重和内容逐列展开"
   expect(
     root.querySelectorAll("[data-compressor-weighted-row] [data-branch-frame]"),
   ).toHaveLength(2);
+  for (const [i, product] of [
+    ...root.querySelectorAll("[data-compressor-product]"),
+  ].entries()) {
+    const vector = product.querySelector("[data-expanded-tensor]")!;
+    expect(vector).not.toBeNull();
+    expect(vector.querySelectorAll("[data-vector-cell]")).toHaveLength(3);
+    expect(
+      [...vector.querySelectorAll("annotation")].map((el) => el.textContent),
+    ).toContain(
+      `\\boldsymbol\\alpha_{${layer},i,${i + 1}}\\odot\\mathbf v^c_{${layer},${i === 0 ? "2i-1" : "2i"}}`,
+    );
+    expect(
+      [...vector.querySelectorAll("annotation")].map((el) => el.textContent),
+    ).toContain("1\\times512");
+  }
 });
 
 it("指数的公共表示只框变量，拒绝不存在的分子", () => {

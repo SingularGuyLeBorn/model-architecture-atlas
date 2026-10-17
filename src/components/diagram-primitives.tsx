@@ -187,6 +187,7 @@ export function Arrow({ vertical = false }: { vertical?: boolean }) {
 export function Operator({ tex }: { tex: string }) {
   return (
     <span
+      data-diagram-operator={tex}
       style={{
         color: COLORS.green,
         fontSize: 18,

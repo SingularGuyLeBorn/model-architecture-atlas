@@ -750,7 +750,7 @@ export function RmsNormProcess({
         display: "grid",
         gap: 7,
         fontSize: 13,
-        minWidth: 0,
+        minWidth: horizontalReduction ? "min-content" : 0,
         background: "transparent",
       }}
     >
@@ -787,9 +787,12 @@ export function RmsNormProcess({
           data-rmsnorm-stage="root"
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0,1fr)",
+            gridTemplateColumns: horizontalReduction
+              ? "minmax(min-content,1fr)"
+              : "minmax(0,1fr)",
             gap: 5,
-            minWidth: 0,
+            minWidth: horizontalReduction ? "min-content" : 0,
+            flexShrink: 0,
           }}
         >
           {horizontal && <strong style={{ fontSize: 11 }}>① 本行均方根</strong>}
@@ -6009,7 +6012,9 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   position: "relative",
                   display: "grid",
                   gridTemplateColumns:
-                    ratio === 2 ? "max-content minmax(0,1fr)" : "minmax(0,1fr)",
+                    ratio === 2
+                      ? "max-content minmax(min-content,1fr)"
+                      : "minmax(min-content,1fr)",
                   gap: 24,
                   alignItems: "start",
                 }}
@@ -8103,6 +8108,8 @@ function DiagramNodeView({ id, data, selected }: NodeProps<DiagramNode>) {
                 "output",
                 "next-inputs",
                 "kv-merge",
+                "global-select",
+                "compressor",
               ].includes(data.kind)
                 ? "minmax(min-content,1fr)"
                 : "minmax(0,1fr)",
@@ -8170,6 +8177,8 @@ function node(
         "next-inputs",
         "swa-window",
         "kv-merge",
+        "global-select",
+        "compressor",
       ].includes(kind)
         ? { minWidth: "min-content" }
         : {}),

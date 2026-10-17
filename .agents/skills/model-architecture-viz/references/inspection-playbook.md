@@ -27,6 +27,7 @@
 | 04–05 真实层内路径、分支 | `e2e/layer-cache-inline.spec.ts`、`e2e/compressor-structure.spec.ts`、`tests/architectureBoundary.test.ts` | 是否以长文字代替结构、是否假串行 |
 | 06 简单算术、归约 | `e2e/compact-normalization.spec.ts`、`tests/deepseekRmsNorm.test.ts` | 过度拆解与遗漏运算之间的界限 |
 | 07 裁切、末列、公式 | `e2e/residual-containment.spec.ts`、`e2e/matrix-grid.spec.ts`、`tests/mathMarkup.test.tsx` | 分数与下标可读性、真实裁切 |
+| 07 运算符净空、祖先裁切 | `e2e/content-bounds.spec.ts`、`e2e/helpers/content-bounds.ts` | 等号两侧的可见空隙、完整乘积向量框与真实求和连线 |
 | 08 符号与拼接 | `tests/headGroupConcat.test.tsx`、`tests/diagramNotation.test.tsx`、`e2e/concat-and-route-regression.spec.ts` | 原块在结果中是否一眼可认 |
 | 09 颜色与选区 | `tests/diagramAppearance.test.ts`、`tests/mhcColors.test.tsx`、`e2e/semantic-palette.spec.ts`、`e2e/color-identity.spec.ts`、`e2e/selection-style.spec.ts`、`e2e/compact-semantic-regression.spec.ts` | 色系相近难辨、同对象跨模块连续性、正常阅读尺度的虚线净空 |
 | 10 端口、线路、标签 | `e2e/full-route-audit.spec.ts`、`e2e/edge-label-audit.spec.ts`、`e2e/sum-source-attachment.spec.ts` | 绕路理由、箭翼、入口变量能否跟踪 |
@@ -37,6 +38,8 @@
 | 17 手势、状态、性能 | `e2e/interaction-budget.spec.ts`、`e2e/wire-drag-topology.spec.ts`、`e2e/editing-regression.spec.ts`、`e2e/internal-selection.spec.ts` | 连续操作的视觉稳定性、目标是否被面板遮盖 |
 
 `content-width-audit` 的现有启发式只筛“单公式、没有其他说明、明显宽于内容”的一部分框。它不会自动识别整个模块是否空旷，也不会把含文字的所有大框都列出。没有命中不代表全部紧凑。
+
+`content-bounds` 在第 3、15、29 层的代表模式及宽窄屏检查选行、mHC 与压缩器：从 MathML 实际公式、向量框、元素格和选区轮廓向上逐级比较边框/裁切祖先，报告对象、祖先与越界方向；不把画布视口外的正常内容误报成数据溢出。它另测 mHC 等号等裸运算符到左右框的净空，检查乘积向量外框。检查器会故意收窄并裁切祖先，确认能够报错，再恢复 DOM；不能只用正常页面的零报错证明检查器有效。运行 `pnpm exec playwright test e2e/content-bounds.spec.ts`，先完成构建。它不扫描所有层，也不判定数学语义；新组件须补场景，完整模块与局部截图仍要打开复核。
 
 `candidate-score-caption` 比较说明与框的上下边界、框内文本、公式之外的额外高度，并覆盖多个 Reindex 层。这比只检查“本层分数”四个字存在更接近用户要求，但仍需看截图。
 

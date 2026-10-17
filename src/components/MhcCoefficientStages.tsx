@@ -464,10 +464,10 @@ export function MhcGate({
             data-mhc-affine-row
             style={{
               display: "grid",
-              gridTemplateColumns:
-                "max-content 18px max-content 18px max-content 18px max-content",
+              gridTemplateColumns: "repeat(7, max-content)",
               justifyContent: "center",
-              gap: 4,
+              // 运算符按实际字宽占轨道；两侧另留净空，不用 18px 压住等号。
+              gap: 8,
               alignItems: "center",
             }}
           >

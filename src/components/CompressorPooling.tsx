@@ -9,7 +9,6 @@ import {
   Operator,
   StructureEllipsis,
   SumJunction,
-  VectorStrip,
 } from "./diagram-primitives";
 import { normalizedExponentialTex } from "./exponential-notation";
 import { frameColor } from "./diagram-appearance";
@@ -190,13 +189,10 @@ export function CompressorPooling({ layer }: { layer: number }) {
               </div>
               <Operator tex="=" />
               <div data-compressor-product style={{ justifySelf: "center" }}>
-                <VectorStrip
-                  name=""
-                  nameWidth={0}
+                <ExpandedVector
+                  name={`\\boldsymbol\\alpha_{${layer},i,${row}}\\odot\\mathbf v^c_{${layer},${token(row)}}`}
                   length="512"
                   tone={COMPRESSION_TONES.product}
-                  uniformCells
-                  cellPadding={4}
                   elementTex={(d) =>
                     `\\alpha_{${layer},i,${row},${d}}\\cdot v^c_{${layer},${token(row)},${d}}`
                   }
@@ -210,7 +206,7 @@ export function CompressorPooling({ layer }: { layer: number }) {
         count={2}
         inputColor={COLORS[COMPRESSION_TONES.product]}
         outputColor={COLORS[COMPRESSION_TONES.pooled]}
-        sourceSelector="[data-compressor-product]"
+        sourceSelector="[data-compressor-product] [data-expanded-tensor]"
         targetSelector="[data-compressor-pool-result] [data-expanded-tensor]"
       />
       <div
