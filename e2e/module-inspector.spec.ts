@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { centerCanvasTarget } from "./canvas-navigation";
 
 test("解释面板显式开关、独立占位、滚轮平移与 mHC 结构验收", async ({
   page,
@@ -56,6 +57,7 @@ test("解释面板显式开关、独立占位、滚轮平移与 mHC 结构验收
       true,
     );
   });
+  await centerCanvasTarget(page, mix.locator("[data-mhc-mix]>strong"));
   await mix.locator("[data-mhc-mix]>strong").click();
   await expect(pane).toBeVisible();
   await expect(pane.getByRole("heading", { level: 2 })).toContainText(

@@ -1,9 +1,18 @@
 import { test, expect } from "@playwright/test";
 
-const stablePath = (value: string | null) =>
-  value?.replace(/-?\d+(?:\.\d+)?/g, (n) =>
-    String(Math.round(Number(n) * 100) / 100),
+const samePath = (actual: string | null, expected: string | null) => {
+  if (!actual || !expected) return actual === expected;
+  const numbers = /-?\d+(?:\.\d+)?/g;
+  if (actual.replace(numbers, "#") !== expected.replace(numbers, "#"))
+    return false;
+  const a = actual.match(numbers)!.map(Number);
+  const b = expected.match(numbers)!.map(Number);
+  // [OM-FREEPLAY] 浏览器重载后的子像素舍入允许 0.02 世界像素；命令与点数仍须完全一致。
+  return (
+    a.length === b.length &&
+    a.every((value, i) => Math.abs(value - b[i]) <= 0.02)
   );
+};
 
 test("直接拖线与终端标签，焦点离开画布仍可撤销重做并保存", async ({ page }) => {
   await page.setViewportSize({ width: 2000, height: 1400 });
@@ -125,8 +134,8 @@ test("直接拖线与终端标签，焦点离开画布仍可撤销重做并保�
   await page.reload();
   await focus.selectOption("kv");
   await expect
-    .poll(async () => stablePath(await wire.getAttribute("d")))
-    .toBe(stablePath(pathMoved));
+    .poll(async () => samePath(await wire.getAttribute("d"), pathMoved))
+    .toBe(true);
 });
 
 test("Query 标题保持单行，子框内容与父框均无溢出", async ({ page }) => {

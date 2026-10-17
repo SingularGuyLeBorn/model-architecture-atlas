@@ -1,15 +1,19 @@
 import { test, expect } from "@playwright/test";
 import { buildGraph } from "../src/compositions/DeepSeekV41Layer";
+import { centerCanvasTarget } from "./canvas-navigation";
 
 test("变量标签沿线拖动、撤销、改字和保存后仍可避让", async ({ page }) => {
   test.setTimeout(25000);
   await page.setViewportSize({ width: 2000, height: 1400 });
   await page.goto("/#model=v41&chapter=layer");
+  await page.getByRole("button", { name: "收起左栏", exact: true }).click();
   await page.getByRole("button", { name: "15", exact: true }).click();
   await page
     .getByRole("combobox", { name: "定位模块" })
-    .selectOption("global-select");
+    .selectOption("kv-merge");
   const label = page.locator('[data-edge-label="select-merge"]');
+  // 长线主标签可能位于模块外；先用真实滚轮将它移进画布，再开始拖动。
+  await centerCanvasTarget(page, label);
   const before = await label.getAttribute("style");
   const r = (await label.boundingBox())!;
   await page.mouse.move(r.x + r.width / 2, r.y + r.height / 2);

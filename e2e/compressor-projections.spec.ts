@@ -48,14 +48,16 @@ test("压缩器投影维度、并行布局及输出连接", async ({ page }) => 
       const formulas = await node
         .locator("[data-compressor-gate-columns] [aria-label]")
         .evaluateAll((els) => els.map((el) => el.getAttribute("aria-label")));
+      await expect(
+        node.locator("[data-compressor-gate-columns]").locator(".."),
+      ).toContainText("每列权重之和为 1");
       for (const d of [1, 2, 512]) {
-        expect(formulas).toContain(
-          `\\alpha_{${layer},i,1,${d}}+\\alpha_{${layer},i,2,${d}}=1`,
-        );
-        for (const row of [1, 2])
+        for (const row of [1, 2]) {
+          expect(formulas).toContain(`\\alpha_{${layer},i,${row},${d}}`);
           expect(formulas).toContain(
-            `\\alpha_{${layer},i,${row},${d}}=\\frac{\\exp(a^{\\mathrm{gate}}_{${layer},${row === 1 ? "2i-1" : "2i"},${d}})}{\\exp(a^{\\mathrm{gate}}_{${layer},2i-1,${d}})+\\exp(a^{\\mathrm{gate}}_{${layer},2i,${d}})}`,
+            `\\frac{e^{\\boxed{a^{\\mathrm{gate}}_{${layer},${row === 1 ? "2i-1" : "2i"},${d}}}}}{e^{\\boxed{a^{\\mathrm{gate}}_{${layer},2i-1,${d}}}}+e^{\\boxed{a^{\\mathrm{gate}}_{${layer},2i,${d}}}}}`,
           );
+        }
       }
     }
     if (!branches) continue;

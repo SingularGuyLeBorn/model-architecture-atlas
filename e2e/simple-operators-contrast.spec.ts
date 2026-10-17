@@ -44,7 +44,9 @@ test("简单平方合并、汇入线正交、透明矩阵保留有色元素", as
           elements.map((el) => el.getAttribute("aria-label")),
         );
       expect(formulas).not.toContain("\\downarrow\\; -m_1");
-      expect(formulas).toContain("e_{1j}=\\exp(a^C_{1j}-m_1),\\quad j=1,2,3,4");
+      expect(formulas).toContain(
+        "e_{1j}=e^{\\boxed{a^C_{1j}}-\\boxed{m_1}},\\quad j=1,2,3,4",
+      );
       await expect(node.locator("[data-mhc-sigmoid] [aria-label]")).toHaveCount(
         1,
       );

@@ -56,7 +56,24 @@ test("窄通道的箭头在选中与缩放时保持比例且正常进入专家�
     });
   await expect.poll(async () => (await measure()).units).toBe("userSpaceOnUse");
   const before = await measure();
-  await page.mouse.click(before.click.x, before.click.y);
+  // 内部端口前的线可能在专家父框下方；只点击实际可命中的线身。
+  const hit = await path.evaluate((element) => {
+    const p = element as SVGPathElement;
+    for (let distance = p.getTotalLength() - 24; distance > 0; distance -= 12) {
+      const point = p
+        .getPointAtLength(distance)
+        .matrixTransform(p.getScreenCTM()!);
+      if (
+        document
+          .elementFromPoint(point.x, point.y)
+          ?.closest(".react-flow__edge")
+          ?.getAttribute("data-id") === "moe-input-shared"
+      )
+        return { x: point.x, y: point.y };
+    }
+    throw new Error("专家输入线没有可见、可点击的线段");
+  });
+  await page.mouse.click(hit.x, hit.y);
   await expect(edge).toHaveClass(/selected/);
   const selected = await measure();
   const points = [...selected.d!.matchAll(/[ML]\s*([-\d.]+)\s+([-\d.]+)/g)].map(

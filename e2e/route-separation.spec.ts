@@ -47,7 +47,15 @@ test("整页外部线段无共线重叠，求和输入落点彼此分开", async
           const right = norm
             .querySelector('[data-rmsnorm-stage="scale"]')!
             .getBoundingClientRect();
-          if (!(corridorX > left.right && corridorX < right.left))
+          if (right.top >= left.bottom) {
+            const lane = path.getAttribute("d")!.match(/V([\d.-]+) H/);
+            const corridorY = new DOMPoint(
+              0,
+              Number(lane?.[1]),
+            ).matrixTransform(matrix).y;
+            if (!(corridorY > left.bottom && corridorY < right.top))
+              failures.push("RMSNorm 连线越出两行之间的专用通道");
+          } else if (!(corridorX > left.right && corridorX < right.left))
             failures.push("RMSNorm 连线越出两列之间的专用通道");
         }
         for (const sum of root.querySelectorAll(

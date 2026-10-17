@@ -21,18 +21,24 @@ test("Indexer 得分与行号按内容收紧，保持连接和选中行", async 
       const selection = el.querySelector<HTMLElement>(
         "[data-index-selection]",
       )!;
-      const center = (node: Element) => {
-        const r = node.getBoundingClientRect();
-        return r.left + r.width / 2;
-      };
+      const summaryBounds = el
+        .querySelector("[data-index-score-summary]")!
+        .getBoundingClientRect();
+      const stagesBounds = el
+        .querySelector("[data-index-selection-stages]")!
+        .getBoundingClientRect();
       return {
         cells: [...el.querySelectorAll<HTMLElement>("[data-vector-cell]")].map(
           (n) => n.offsetWidth,
         ),
         matrixWidth: matrix.offsetWidth,
         selectionWidth: selection.offsetWidth,
-        centered: Math.abs(center(matrix) - center(el)) < 1,
-        selectionCentered: Math.abs(center(selection) - center(el)) < 1,
+        matrixBeforeSelection:
+          matrix.getBoundingClientRect().right <
+          selection.getBoundingClientRect().left,
+        sameRow:
+          Math.min(summaryBounds.bottom, stagesBounds.bottom) >
+          Math.max(summaryBounds.top, stagesBounds.top),
         selected: matrix.querySelectorAll('[data-vector-selected="true"]')
           .length,
         overflow: [...el.querySelectorAll<HTMLElement>("div,span")]
@@ -44,8 +50,8 @@ test("Indexer 得分与行号按内容收紧，保持连接和选中行", async 
     expect(Math.max(...measurements.cells)).toBeLessThan(120);
     expect(measurements.matrixWidth).toBeLessThan(400);
     expect(measurements.selectionWidth).toBeLessThan(800);
-    expect(measurements.centered).toBe(true);
-    expect(measurements.selectionCentered).toBe(true);
+    expect(measurements.matrixBeforeSelection).toBe(true);
+    expect(measurements.sameRow).toBe(true);
     expect(measurements.selected).toBe(1);
     expect(measurements.overflow).toEqual([]);
     console.log(`Indexer ${layer}`, measurements);

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { centerCanvasTarget } from "./canvas-navigation";
 
 test("MoE 结果框公式与说明增大两号且保持在框内", async ({ page }) => {
   await page.setViewportSize({ width: 2000, height: 1400 });
@@ -243,11 +244,13 @@ test("mHC 参数来源可见、迭代去装饰箭头，专家求和分用三侧�
 test("长折线偏心抓取只平移目标线段，连续帧不出现斜线", async ({ page }) => {
   await page.setViewportSize({ width: 2000, height: 1400 });
   await page.goto("/#model=v41&chapter=layer");
+  await page.getByRole("button", { name: "收起左栏", exact: true }).click();
   await page.getByRole("combobox", { name: "定位模块" }).selectOption("state1");
   const wire = page.locator(
     '.react-flow__edge[data-id="add1-state"] .react-flow__edge-path',
   );
   await expect(wire).toBeAttached();
+  await centerCanvasTarget(page, wire);
   const grab = await wire.evaluate((el) => {
     const path = el as SVGPathElement,
       matrix = path.getScreenCTM()!;

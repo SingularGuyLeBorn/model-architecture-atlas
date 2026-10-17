@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("mHC 两个汇合输出不随父框拉宽，矩阵同列对齐并接在 Σ 下方", async ({
+test("mHC 两个汇合输出不随父框拉宽，矩阵同列对齐并接在矩阵乘法下方", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1800, height: 1400 });
@@ -46,7 +46,7 @@ test("mHC 两个汇合输出不随父框拉宽，矩阵同列对齐并接在 Σ 
         );
         const m = matrix.getBoundingClientRect();
         const sum = el
-          .querySelector("[data-sum-junction]")!
+          .querySelector("[data-mhc-matmul]")!
           .getBoundingClientRect();
         return {
           before,
