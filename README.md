@@ -6,11 +6,13 @@
 
 ## 在线访问
 
-[打开在线站点](https://dace0047.pinme.dev) · [token 1201、1202 缓存示例](https://dace0047.pinme.dev/#model=v41&chapter=cache) · [直达 V4.1 逐层图](https://dace0047.pinme.dev/#model=v41&chapter=layer) · [GitHub 源码](https://github.com/SingularGuyLeBorn/model-architecture-atlas)
+[打开在线站点](https://e3deacba.pinme.dev) · [token 1201、1202 缓存示例](https://e3deacba.pinme.dev/#model=v41&chapter=cache) · [直达 V4.1 逐层图](https://e3deacba.pinme.dev/#model=v41&chapter=layer) · [GitHub 源码](https://github.com/SingularGuyLeBorn/model-architecture-atlas)
 
 网站免登录，GitHub 仓库公开。主入口由 PinMe 托管，[Sites 备用入口](https://model-architecture-atlas.justfox32.chatgpt.site)也已开放匿名访问。大陆不同运营商的可用性尚未完成验证，不能据部署成功保证所有网络都可访问。也可以下载源码，在本机运行。
 
 推荐先选模型与机制章节，再进入 V4.1 逐层图查看具体层、Prefill 与 Decode。选中框或连线后，可在右侧解释中对照变量来源和去向。
+
+逐层图的“定位模块 → 40 层缓存共享”列出 G 与选行 ID 的全部来源区间；切层时，层选择区也显示当前来源。第 2、15 层的“Engram 查表”展开独立参数表、上下文门控、收益与计算开销。PinMe 每次发布产生新地址，旧地址保留旧版本；以上链接对应当前发布。
 
 ## 内容
 
