@@ -5286,6 +5286,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               ...(data.columnVectors
                 ? {
                     display: "flex",
+                    flexWrap: "wrap",
                     alignItems: "center",
                     justifyContent: "space-between",
                     gap: 8,

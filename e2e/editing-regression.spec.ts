@@ -170,7 +170,18 @@ test("Query 标题保持单行，子框内容与父框均无溢出", async ({ pa
                 item.scrollHeight > item.clientHeight + 1 ||
                 item.scrollWidth > item.clientWidth + 1
               )
-                issues.push("内容越界");
+                issues.push(
+                  `内容越界 ${item.hasAttribute("data-module-title") ? "标题" : "结构"}: ${JSON.stringify(
+                    {
+                      right: r.right - frame.right,
+                      bottom: r.bottom - frame.bottom,
+                      scrollWidth: item.scrollWidth,
+                      clientWidth: item.clientWidth,
+                      scrollHeight: item.scrollHeight,
+                      clientHeight: item.clientHeight,
+                    },
+                  )}`,
+                );
               if (item.hasAttribute("data-module-title")) {
                 const style = getComputedStyle(item);
                 if (
