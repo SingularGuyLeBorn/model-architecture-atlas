@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cacheDecodeRecipe } from "../components/CacheDecodeExample";
+import { EngramPurpose } from "../components/EngramPurpose";
 import {
   MathFormula as M,
   SplitArrows,
@@ -1265,6 +1266,7 @@ export function recipeFor(
           "ngrams",
           "01 · token ID → 压缩词表 ID → n-gram",
           <>
+            <EngramPurpose />
             <Data tone="blue">当前 token 与前面的 token ID</Data>
             <Down label="tokenizer 规范化对应的压缩 ID 映射" />
             <Parallel>
@@ -1295,7 +1297,10 @@ export function recipeFor(
             </Parallel>
             <Down label="3 类 n-gram × 8 个 Head × 256 维拼接" />
             {vec("e_t", 6144, "violet")}
-            <p>内存表与模型计算参数不同；查到的行才进入当前 token 的计算。</p>
+            <p>
+              E 是独立模型参数表，推理期间固定，只读取被选中的行；KV
+              缓存则随当前序列写入，与 E 区分。
+            </p>
           </>,
           "e_t",
         ),
@@ -1317,7 +1322,7 @@ export function recipeFor(
                 </div>,
               ]}
             </Parallel>
-            <Down label="门控 × 记忆 Value；结合因果卷积支路" />
+            <Down label="门控 × 记忆 Value；逐元素加到原残差" />
             <Add result={vec("x^{engram}_{l,t}", d)}>
               {[
                 <Data key="x" tone="blue">
@@ -1330,7 +1335,8 @@ export function recipeFor(
             </Add>
             <p>
               进入「逐层交互」第 2 或 15
-              层可看投影矩阵、卷积与逐元素门控的全部连接。
+              层可看投影矩阵与逐元素门控的全部连接。此版本没有 Engram
+              因果卷积分支，注入后 Attention 与 FFN 照常计算。
             </p>
           </>,
           "X_l^{engram}",

@@ -5,7 +5,11 @@ import { LayerCacheExample } from "../components/CacheDecodeExample";
 import {
   CacheModeLedger,
   GlobalCacheHistory,
+  CacheSharingMap,
+  cachePolicy,
+  cacheSourceSummary,
 } from "../components/CacheSemantics";
+import { EngramPurpose } from "../components/EngramPurpose";
 import {
   DiagramExportButton,
   useDiagramExporting,
@@ -128,6 +132,7 @@ type NodeKind =
   | "engram-lookup"
   | "engram-inject"
   | "execution-guide"
+  | "cache-sharing"
   | "query-row"
   | "tensor"
   | "norm1"
@@ -314,6 +319,7 @@ const CONTENT_SIZED_KINDS = new Set<NodeKind>([
   "tokenizer",
   "embedding",
   "execution-guide",
+  "cache-sharing",
   "norm1",
   "norm2",
   "query-norm",
@@ -359,10 +365,14 @@ export function hasEngram(layer: number) {
 const HC_COPIES = [1, 2, 3, 4] as const;
 
 function modeForLayer(layer: number): LayerMode {
-  if (layer <= 2) return "swa";
-  if ([3, 9, 15, 21].includes(layer)) return "full";
-  if ([25, 29, 33, 37].includes(layer)) return "reindex";
-  return "reuse";
+  const mode = cachePolicy(layer).mode;
+  return mode === "SWA-only"
+    ? "swa"
+    : mode === "Full"
+      ? "full"
+      : mode === "Reindex"
+        ? "reindex"
+        : "reuse";
 }
 
 function modeLabel(mode: LayerMode) {
@@ -373,26 +383,14 @@ function modeLabel(mode: LayerMode) {
 }
 
 function globalKvSourceLayer(layer: number) {
-  if (layer < 3) return null;
-  if (layer < 9) return 3;
-  if (layer < 15) return 9;
-  if (layer < 21) return 15;
-  return 21;
+  return cachePolicy(layer).kv;
 }
 
 function globalIndexSourceLayer(layer: number) {
-  if (layer < 3) return null;
-  if (layer < 9) return 3;
-  if (layer < 15) return 9;
-  if (layer < 21) return 15;
-  if (layer < 25) return 21;
-  if (layer < 29) return 25;
-  if (layer < 33) return 29;
-  if (layer < 37) return 33;
-  return 37;
+  return cachePolicy(layer).index;
 }
 
-// 只列下一子层实际读取的跨层对象；Full 层会重建全局 KV 与索引。
+// 只列下一子层实际读取的跨层对象；Full 自己维护历史 G，并计算当前新增部分和选行。
 export function nextLayerDependencies(layer: number) {
   const next = layer + 1;
   if (layer === 40)
@@ -2470,6 +2468,7 @@ export function EngramLookup({
       <ModuleHeading>
         Engram · Layer {layer} · Token ID → N-gram → 哈希查表
       </ModuleHeading>
+      <EngramPurpose layer={layer} />
       <Box tone="blue">
         沿用 Tokenizer 的真实 ID；同一张压缩映射表将等价文本归到同一 ID
         <br />
@@ -2517,7 +2516,7 @@ export function EngramLookup({
             <Operator tex="\downarrow" />
             <Box tone="amber">
               <MathFormula
-                tex={`u_${n}=\\bigoplus_{j=0}^{${n - 1}}(a_{${layer},j}c_{t-j})`}
+                tex={`u_${n}=\\bigoplus_{j=0}^{${n - 1}}(a_{${layer},j}\\cdot c_{t-j})`}
               />
             </Box>
             <span>8 个独立模数与桶偏移</span>
@@ -2535,12 +2534,16 @@ export function EngramLookup({
         ))}
       </div>
       <FlowStep>3 种长度 × 8 个哈希头 = 24 个地址；每个地址查一行</FlowStep>
+      <div>
+        哈希乘数 a、素数模数 p 与桶偏移 o
+        是固定地址规则；不由当前隐藏状态预测，也不是注意力权重。
+      </div>
       <div
         style={{
           width: "max-content",
           maxWidth: "100%",
           justifySelf: "center",
-          border: `1px solid ${frameColor(COLORS.blue)}`,
+          border: `1px solid ${frameColor(COLORS.indigo)}`,
           borderRadius: 8,
           padding: 9,
           display: "grid",
@@ -2579,7 +2582,8 @@ export function EngramLookup({
           ),
         )}
         <span style={{ fontSize: 11 }}>
-          桶地址从 0 开始；列为该行的 256 个特征。
+          E 是本层独立参数表，推理期间固定；桶地址从 0 开始，每行 256
+          个特征。取出的行不是原文片段。
         </span>
       </div>
       <FlowStep>所选 24 行反量化，再沿特征轴拼接</FlowStep>
@@ -4935,6 +4939,16 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
       />
     </>
   );
+
+  if (kind === "cache-sharing")
+    return (
+      <div style={{ ...panel, height: "auto" }}>
+        <Title>40 层缓存共享 · G 来源与选行来源分开追踪</Title>
+        <div style={{ padding: 16 }}>
+          <CacheSharingMap layer={layer} />
+        </div>
+      </div>
+    );
 
   // [OM-FREEPLAY] 用 N=6、t=3 与 P=6 对照并行行数和 Decode 的全局位置，数值仅为教学示例。
   if (kind === "execution-guide")
@@ -8364,13 +8378,15 @@ export function buildGraph(
   const priorLayersY =
     firstInputY + (contentHeights.get("first-input") ?? tensorHeight) + mainGap;
   const inputY = layer === 1 ? firstInputY : priorLayersY + 120 + mainGap;
+  const sharingHeight = contentHeights.get("cache-sharing") ?? 950;
+  const engramLookupY = Math.max(inputY, sharingHeight + mainGap);
   const engramY =
-    inputY +
+    engramLookupY +
     Math.max(tensorHeight, contentHeights.get("engram-lookup") ?? 1100) +
     mainGap;
   const preAY = hasEngram(layer)
     ? engramY + (contentHeights.get("engram-inject") ?? 2000) + mainGap
-    : inputY + tensorHeight + mainGap;
+    : Math.max(inputY + tensorHeight + mainGap, sharingHeight + mainGap);
   const mixAHeight = contentHeights.get("hc-mix-a") ?? 900;
   const mixFHeight = contentHeights.get("hc-mix-f") ?? 900;
   // 系数在独立的右侧支路生成，主路归一化不等待旁路卡片的显示高度。
@@ -8449,6 +8465,16 @@ export function buildGraph(
   const add2Y = moeOutputY + 100 + mainGap;
   const outputY = add2Y + add2Height + mainGap;
   const nodes: DiagramNode[] = [
+    node(
+      "cache-sharing",
+      "cache-sharing",
+      layer,
+      mode,
+      2100,
+      0,
+      1320,
+      sharingHeight,
+    ),
     node("tokenizer", "tokenizer", layer, mode, 400, 0, 800, tokenizerHeight),
     node(
       "execution-guide",
@@ -8648,7 +8674,7 @@ export function buildGraph(
         layer,
         mode,
         2100,
-        inputY,
+        engramLookupY,
         1000,
         1100,
       ),
@@ -10347,6 +10373,7 @@ function DiagramCanvas({
             {[
               ["tokenizer", "输入与分词"],
               ["execution-guide", "Prefill / Decode 视角"],
+              ["cache-sharing", "40 层缓存共享 · G 与 ID 来源"],
               ["embedding", "Embedding 查表"],
               ["hc-expand", "首层四路初始化"],
               ["input", "四路残差输入"],
@@ -10848,7 +10875,7 @@ export const DeepSeekV41Layer: React.FC<Props> = ({ initialLayer = 1 }) => {
                 key={value}
                 type="button"
                 onClick={() => setLayer(value)}
-                title={`Layer ${value} · mHC${hasEngram(value) ? " · Engram 查表与注入" : ""}`}
+                title={`${cacheSourceSummary(value)}${hasEngram(value) ? " · Engram 查表与注入" : ""}`}
                 aria-pressed={active}
                 style={{
                   border: `1px solid ${active ? color : COLORS.line}`,
@@ -10865,6 +10892,12 @@ export const DeepSeekV41Layer: React.FC<Props> = ({ initialLayer = 1 }) => {
               </button>
             );
           })}
+        </div>
+        <div
+          data-layer-cache-source
+          style={{ marginTop: 7, fontSize: 13, color: COLORS.green }}
+        >
+          {cacheSourceSummary(layer)}。完整区间见“定位模块 → 40 层缓存共享”。
         </div>
       </div>
       <div style={{ position: "relative", flex: 1, minHeight: 0 }}>

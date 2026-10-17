@@ -20,6 +20,167 @@ export function cachePolicy(layer: number) {
   };
 }
 
+// G 的所有者与选行 ID 的所有者是两条独立关系，分段由固定版本配置推导。
+export function cacheSharingSegments() {
+  const segments: { start: number; end: number; kv: number; index: number }[] =
+    [];
+  for (
+    let layer = 1;
+    layer <= rawConfigs.v41.text_config.num_hidden_layers;
+    layer++
+  ) {
+    const { kv, index } = cachePolicy(layer);
+    if (kv === null || index === null) continue;
+    const previous = segments.at(-1);
+    if (previous?.kv === kv && previous.index === index) previous.end = layer;
+    else segments.push({ start: layer, end: layer, kv, index });
+  }
+  return segments;
+}
+
+export function cacheSourceSummary(layer: number) {
+  const p = cachePolicy(layer);
+  if (p.kv === null) return `第 ${layer} 层：仅本层 U，无全局 G 和选行 ID`;
+  const segments = cacheSharingSegments();
+  const kvEnd = segments.filter((s) => s.kv === p.kv).at(-1)!.end;
+  const indexEnd = segments.find((s) => s.index === p.index)!.end;
+  return `第 ${layer} 层 ${p.mode}：G 来自第 ${p.kv} 层（供 ${p.kv}–${kvEnd} 层）；ID 来自第 ${p.index} 层（供 ${p.index}–${indexEnd} 层）；U 始终本层计算`;
+}
+
+export function CacheSharingMap({ layer }: { layer: number }) {
+  const segments = cacheSharingSegments();
+  const cell = {
+    padding: "10px 12px",
+    border: "1px solid #c7d7d1",
+    textAlign: "left" as const,
+  };
+  return (
+    <section
+      data-cache-sharing-map
+      style={{ display: "grid", gap: 12, fontSize: 15, lineHeight: 1.65 }}
+    >
+      <strong data-sharing-current>{cacheSourceSummary(layer)}</strong>
+      <div>
+        沿层方向从上往下读；每行对应一段连续层。G 和索引 Key
+        共享一条来源链，选行 ID 另有来源链。
+      </div>
+      <table
+        style={{
+          width: "100%",
+          tableLayout: "fixed",
+          borderCollapse: "collapse",
+        }}
+      >
+        <thead>
+          <tr>
+            <th style={{ ...cell, width: "29%" }}>全局来源 Full → 共享范围</th>
+            <th style={{ ...cell, width: "33%" }}>
+              Indexer 本次计算 → 行号结果
+            </th>
+            <th style={cell}>后续 Reuse 层 → 直接读取</th>
+          </tr>
+        </thead>
+        <tbody>
+          {segments.map((s, i) => {
+            const group = segments.filter((item) => item.kv === s.kv);
+            const first = i === 0 || segments[i - 1].kv !== s.kv;
+            const active = layer >= s.start && layer <= s.end;
+            return (
+              <tr
+                key={s.start}
+                data-sharing-segment={`${s.start}-${s.end}`}
+                data-active-sharing={active || undefined}
+                style={{ background: active ? "#e4f0eb" : undefined }}
+              >
+                {first && (
+                  <td
+                    rowSpan={group.length}
+                    style={{
+                      ...cell,
+                      verticalAlign: "top",
+                      background: "#edf5f1",
+                    }}
+                    data-sharing-g={s.kv}
+                  >
+                    <strong>第 {s.kv} 层 Full</strong>
+                    <br />
+                    <M tex={`G_{${s.kv}}\\;\\text{与索引 Key}`} />
+                    <br />
+                    供第 {s.kv}–{group.at(-1)!.end} 层使用
+                    <br />
+                    自己保留历史，按压缩组追加新行
+                  </td>
+                )}
+                <td style={cell} data-sharing-index={s.index}>
+                  <strong>
+                    第 {s.index} 层 {s.index === s.kv ? "Full" : "Reindex"}
+                  </strong>
+                  <br />
+                  本层索引 Query 与权重重新打分
+                  <br />
+                  <M
+                    tex={`I_{${s.index},t}=\\operatorname{TopKIDs}(S_{${s.index},t})`}
+                  />
+                  <br />
+                  ID 指向 <M tex={`G_{${s.kv}}`} /> 的原行号
+                </td>
+                <td style={cell}>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {Array.from(
+                      { length: s.end - s.start },
+                      (_, j) => s.start + j + 1,
+                    ).map((target) => (
+                      <span
+                        key={target}
+                        data-sharing-consumer={target}
+                        style={{
+                          border: `1px solid ${target === layer ? "#307961" : "#9cb7c9"}`,
+                          borderRadius: 5,
+                          padding: "1px 8px",
+                          fontWeight: target === layer ? 800 : 500,
+                        }}
+                      >
+                        第 {target} 层
+                      </span>
+                    ))}
+                  </div>
+                  同读 <M tex={`G_{${s.kv}}\\;\\text{和}\\;I_{${s.index},t}`} />
+                  <br />
+                  不生成独立 G，不运行本层 Indexer
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div
+        data-sharing-local
+        style={{
+          border: "1px solid #9cb7c9",
+          borderRadius: 7,
+          padding: "9px 12px",
+        }}
+      >
+        <strong>
+          贯穿第 1–40 层的独立路径：本层输入 → 本层 U、主 Query → 本层 Attention
+          → FFN。
+        </strong>
+        <br />第 1、2 层仅 SWA。其余各层都读取自己的 U 窗口，加上所选 G 行；共享
+        ID 不等于共享主 Attention 权重或输出。
+      </div>
+      <div>
+        例如第 25 层仍读 G₂₁ 及其索引 Key，却重算 I₂₅,t；第 26–28
+        层直接沿用这组行号。索引 Key 是给 G 行打分的特征，不是 ID。
+      </div>
+      <div>
+        表内复用针对同一个 token t。下一个 token
+        到来，来源层会重新选行。到下一个 Full 时切换 G 来源，不删除前一个 Full
+        的历史缓存；旧来源层下次 Decode 仍会使用自己的历史。
+      </div>
+    </section>
+  );
+}
+
 export function cacheExplanation(layer: number) {
   const p = cachePolicy(layer);
   return [
@@ -30,6 +191,8 @@ export function cacheExplanation(layer: number) {
       : `第 ${layer} 层是 ${p.mode}：${p.mode === "Full" ? `维护自己的 $G_{${p.kv}}$，生成当前新增的全局行并计算本次选行结果` : `读取来源 Full 层的 $G_{${p.kv}}$，不生成独立的 $G_{${layer}}$；${p.mode === "Reindex" ? `读取源层索引 Key，用当前层输入重新打分，生成 $I_{${layer},t}$` : `同时沿用第 ${p.index} 层为当前 token 算出的 $I_{${p.index},t}$`}`}。主 Query、局部 KV、Attention 权重与输出仍由本层计算。`,
     "Full 不跨层借用别人的 G，但同样沿 token 复用自己的历史 G。Decode 保留旧行，只计算当前 token 的候选；组完成才追加新行，未完成只暂存，不重算全部历史。Full 表示完整全局生成与索引路径，仍按稀疏选行读取。Prefill 则为输入序列建立缓存并应用因果可见性。",
     "G 的来源与选行结果的来源分开追踪：第 3、9、15、21 层生成 G；第 25、29、33、37 层只重新选行，不生成新 G。后续 Reuse 读取最近来源 Full 的 G 和最近索引来源的行号。G、U 是 KV 表示；索引 Key、Top-K 行号及压缩暂存是不同对象。",
+    cacheSourceSummary(layer) +
+      "。主图的“40 层缓存共享”按完整共享区间列出每个消费者，不仅展示第 3、4 层。第 21–40 层一直读取 G₂₁；第 25、29、33、37 层分别更新选行 ID，其后 Reuse 层沿用最近一组 ID。切换到新 Full 不会销毁前一个 Full 留给下一 token 的历史缓存。",
   ];
 }
 
@@ -101,6 +264,8 @@ export function CacheModeLedger({ layer }: { layer: number }) {
         <div data-cache-source>
           当前 G 来源：第 {p.kv} 层 Full · 当前选行来源：第 {p.index} 层。
           只有来源 Full 层维护独立的 G。
+          <br />
+          {cacheSourceSummary(layer)}
         </div>
       )}
     </section>

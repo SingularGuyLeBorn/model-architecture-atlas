@@ -4,9 +4,59 @@ import {
   CacheModeLedger,
   GlobalCacheHistory,
   cachePolicy,
+  cacheSharingSegments,
+  cacheSourceSummary,
+  CacheSharingMap,
 } from "../src/components/CacheSemantics";
 import { rawConfigs } from "../src/data/models";
 import { explainModule } from "../src/components/ModuleInspector";
+import { buildGraph } from "../src/compositions/DeepSeekV41Layer";
+
+it("完整 40 层区间区分 G、索引来源和全部 Reuse 消费者", () => {
+  expect(cacheSharingSegments()).toEqual([
+    { start: 3, end: 8, kv: 3, index: 3 },
+    { start: 9, end: 14, kv: 9, index: 9 },
+    { start: 15, end: 20, kv: 15, index: 15 },
+    { start: 21, end: 24, kv: 21, index: 21 },
+    { start: 25, end: 28, kv: 21, index: 25 },
+    { start: 29, end: 32, kv: 21, index: 29 },
+    { start: 33, end: 36, kv: 21, index: 33 },
+    { start: 37, end: 40, kv: 21, index: 37 },
+  ]);
+  for (let layer = 1; layer <= 40; layer++) {
+    const root = document.createElement("div");
+    root.innerHTML = renderToStaticMarkup(<CacheSharingMap layer={layer} />);
+    expect(root.querySelectorAll("[data-sharing-g]")).toHaveLength(4);
+    expect(root.querySelectorAll("[data-sharing-index]")).toHaveLength(8);
+    expect(root.querySelectorAll("[data-sharing-consumer]")).toHaveLength(30);
+    expect(root.querySelectorAll("[data-active-sharing]")).toHaveLength(
+      layer > 2 ? 1 : 0,
+    );
+    expect(root.querySelector(".katex-error")).toBeNull();
+    expect(root.querySelector("[data-sharing-current]")?.textContent).toBe(
+      cacheSourceSummary(layer),
+    );
+    const graph = buildGraph(layer);
+    expect(graph.nodes.some((n) => n.id === "cache-sharing")).toBe(true);
+    expect(graph.nodes.find((n) => n.id === "compressor")?.data.mode).toBe(
+      layer < 3 ? undefined : cachePolicy(layer).mode.toLowerCase(),
+    );
+    expect(
+      explainModule({ kind: "cache-sharing", layer }).paragraphs.join(""),
+    ).toContain(cacheSourceSummary(layer));
+  }
+});
+
+it("共享总览实测增高时，同列的 Engram 和全局分支避让", () => {
+  for (const layer of [2, 3, 15, 26]) {
+    const graph = buildGraph(layer, new Map([["cache-sharing", 3000]]));
+    for (const node of graph.nodes.filter((n) =>
+      ["engram-lookup", "compressor"].includes(n.id),
+    )) {
+      expect(node.position.y).toBeGreaterThan(3000);
+    }
+  }
+});
 
 it("缓存所有者和索引所有者分别跟随配置，Reindex 不替换 G 来源", () => {
   const config = rawConfigs.v41.text_config;

@@ -3,6 +3,7 @@ import { BookOpen, X, ExternalLink } from "lucide-react";
 import { MathFormula } from "./diagram-primitives";
 import type { InternalSelection } from "./internal-selection";
 import { cacheExplanation, cachePolicy } from "./CacheSemantics";
+import { ENGRAM_PURPOSE } from "./EngramPurpose";
 
 export type InspectorState = {
   mode: "auto" | "open" | "closed";
@@ -95,6 +96,7 @@ const TITLES: Record<string, string> = {
   embedding: "输入链 · Embedding 与首层状态",
   "prior-layers": "输入链 · 前序层与当前状态",
   "execution-guide": "输入链 · Prefill 与 Decode",
+  "cache-sharing": "40 层缓存共享 · G 与选行 ID 的独立来源链",
 };
 const MODULE_GROUP: Record<string, keyof typeof PARAGRAPHS> = {
   "hc-mix": "mhc",
@@ -136,6 +138,7 @@ const MODULE_GROUP: Record<string, keyof typeof PARAGRAPHS> = {
   embedding: "input",
   "prior-layers": "input",
   "execution-guide": "input",
+  "cache-sharing": "kv",
 };
 // 旁注以完整段落讲解，变量和公式在其首次参与计算的位置解释，不另铺词条或步骤卡片。
 const PARAGRAPHS = {
@@ -197,6 +200,7 @@ const PARAGRAPHS = {
     "最后，各个被选中的专家输出分别乘自己的 $g_{t,i}$，再与共享专家输出一起汇入累加器，形成宽度为 5120 的 $O^{FFN}$。每个 token 使用自己的专家选择和权重。这个汇总结果随后进入 FFN 的 mHC 回写，与旧残差的混合结果会合。",
   ],
   engram: [
+    ...ENGRAM_PURPOSE,
     "Engram 位于第 2、15 层。它读取当前位置及最多三个历史 token ID，构成以当前位置结束的 2-gram、3-gram 和 4-gram，再用多个哈希表完成合计 24 次查表。查出的向量拼接后经过投影，产生四个各为 5120 维的 Key $\\mathbf k_c$，以及一个共享的 5120 维 Value $\\mathbf v$。",
     "每一路用自己的当前残差 $\\mathbf h_c$ 决定接收多少记忆。残差与对应 Key 分别做带可学习缩放的 RMSNorm，得到 $\\widehat{\\mathbf h}_c$ 和 $\\widehat{\\mathbf k}_c$，再点积并除以 $\\sqrt{5120}$，得到标量 $d_c$。随后取 $|d_c|$ 与 $10^{-6}$ 的较大值作为 $a_c$，开平方并恢复原点积的正负号，得到 $s_c$；对它做 sigmoid 才得到门控 $g_c$。四路分别用自己的门控对共享 Value 加权。",
     "把 $g_c$ 乘到共享 Value 的每个元素上，再与这一支原残差逐元素相加，得到 $\\mathbf h_c^E=\\mathbf h_c^{in}+g_c\\mathbf v$。图像位置的门控设为零，对应的 Value 加权结果为零。注入之后仍是四路残差，它们继续进入 Attention 前的 mHC 汇合；Engram 将检索到的信息加到原有状态中。",
