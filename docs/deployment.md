@@ -2,8 +2,8 @@
 
 ## 当前云端站点
 
-- 主站：https://e9ac03fc.pinme.dev
-- 备用：https://model-architecture-atlas.justfox32.chatgpt.site
+- 主站：https://697ca74c.pinme.dev
+- 旧版备用：https://model-architecture-atlas.justfox32.chatgpt.site（本次未更新）
 - 托管：PinMe 主站、Sites 备用；静态产物目录为 `dist/`。
 - 访问：两个网站均开放匿名访问；GitHub 仓库为公开仓库。
 - 源码：https://github.com/SingularGuyLeBorn/model-architecture-atlas
@@ -25,7 +25,9 @@ pinme upload dist
 
 发布者需要登录 PinMe，访问网站的读者不需要登录。凭据过期时重新执行 `pinme login`，不要把 AppKey 写入仓库。以每次上传输出的 URL 为准，不假定后续上传会更新原地址；域名绑定可能涉及余额，需单独确认。
 
-当前线上产物对应应用源码提交 `8eda776`。本地后续改动尚未发布，收到明确部署指令后再更新线上。该次发布以分叉连线和原行号对齐的 0/1 掩码展开共享与筛选，用具体 token 片段对照 Engram 的计算路径。大陆不同运营商的可用性尚未完成验证；本机请求成功不代表所有大陆网络均可直连。官方用法见 [PinMe 项目](https://github.com/glitternetwork/pinme)。
+2026-10-17 发布的线上产物对应应用源码提交 `8f840f9`：增加跨层变量查找，展开 Prefill 的 u→U 组成关系和 KV 拼接行内元素，并统一本地行与选中全局行的绿蓝来源色。发布核对入口为 `node scripts/verify-published.mjs https://697ca74c.pinme.dev`，检查线上脚本与本机构建一致，再实际操作搜索、Prefill 窗口、KV 拼接与 Decode 窗口并保存截图。该检查不等于全套浏览器测试或跨运营商可用性验证。
+
+大陆不同运营商的可用性尚未完成验证；本机请求成功不代表所有大陆网络均可直连。官方用法见 [PinMe 项目](https://github.com/glitternetwork/pinme)。
 
 ## 静态部署
 

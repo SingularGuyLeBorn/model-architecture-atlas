@@ -6,13 +6,17 @@
 
 ## 在线访问
 
-[打开在线站点](https://e9ac03fc.pinme.dev) · [token 1201、1202 缓存示例](https://e9ac03fc.pinme.dev/#model=v41&chapter=cache) · [直达 V4.1 逐层图](https://e9ac03fc.pinme.dev/#model=v41&chapter=layer) · [GitHub 源码](https://github.com/SingularGuyLeBorn/model-architecture-atlas)
+[打开在线站点](https://697ca74c.pinme.dev) · [token 1201、1202 缓存示例](https://697ca74c.pinme.dev/#model=v41&chapter=cache) · [直达 V4.1 逐层图](https://697ca74c.pinme.dev/#model=v41&chapter=layer) · [GitHub 源码](https://github.com/SingularGuyLeBorn/model-architecture-atlas)
 
-网站免登录，GitHub 仓库公开。主入口由 PinMe 托管，[Sites 备用入口](https://model-architecture-atlas.justfox32.chatgpt.site)也已开放匿名访问。大陆不同运营商的可用性尚未完成验证，不能据部署成功保证所有网络都可访问。也可以下载源码，在本机运行。
+网站免登录，GitHub 仓库公开。主入口由 PinMe 托管，[Sites 旧版备用入口](https://model-architecture-atlas.justfox32.chatgpt.site)也已开放匿名访问，本次未同步更新。大陆不同运营商的可用性尚未完成验证，不能据部署成功保证所有网络都可访问。也可以下载源码，在本机运行。
 
 推荐先选模型与机制章节，再进入 V4.1 逐层图查看具体层、Prefill 与 Decode。选中框或连线后，可在右侧解释中对照变量来源和去向。
 
-逐层图的“定位模块 → 40 层缓存共享”用分叉线连接 G 来源、选行层和全部复用层。下方用 20000 行的教学例展示块评分、候选 0/1 掩码，以及四个 Reindex 从同一 G₂₁ 中各自选行。第 2、15 层的“Engram 查表”以 I | love | New | York 对照有无 Engram 的路径，并列出保留的主干与新增运算。长解释放在旁注。PinMe 每次发布产生新地址，旧地址保留旧版本；以上链接对应当前发布。
+逐层图右上角支持按变量名跨 40 层查找，如 `U_1,t`、`KV₃,t`、`G_25`，也接受 LaTeX 写法；u 与 U 区分大小写。搜索结果标出层号和模块，点击跳转。查找第 4 层窗口更新时，先切 Decode，再搜索 `U_4,t`；查找本地与全局行拼接可搜索 `KV_3,t`。
+
+各层的 G、选行 ID 来源与消费关系融入本层模块。Prefill 展开 T 中选出的 u 行如何组成 U；Decode 展开旧窗口淘汰与新行追加。KV 拼接使用绿色本地行与蓝色全局选中行，左右保留相同元素。第 2、15 层包含 Engram 查表、反量化及注入路径，长解释放在旁注。PinMe 每次发布产生新地址，旧地址保留旧版本；以上链接对应当前发布。
+
+可分享的绘图规范位于 [model-architecture-viz](.agents/skills/model-architecture-viz/SKILL.md)，含图文反例册；独立使用见[分享说明](.agents/skills/model-architecture-viz/references/sharing.md)。运行 `node scripts/capture-modules.mjs` 可保存逐层图各模块及关键模式变体的双倍像素截图、索引页与版本清单。默认输出至 `artifacts/share-2026-10-17/modules`，可用第一个参数指定其他目录。
 
 ## 内容
 
