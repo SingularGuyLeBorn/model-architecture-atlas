@@ -2,7 +2,7 @@
 
 ## 当前云端站点
 
-- 主站：https://e3deacba.pinme.dev
+- 主站：https://e9ac03fc.pinme.dev
 - 备用：https://model-architecture-atlas.justfox32.chatgpt.site
 - 托管：PinMe 主站、Sites 备用；静态产物目录为 `dist/`。
 - 访问：两个网站均开放匿名访问；GitHub 仓库为公开仓库。
@@ -12,6 +12,8 @@
 GitHub 保存源码，PinMe 和 Sites 托管网站。推送 GitHub 不会自动更新这两个网站；修改页面后，需要单独发布。只修改 README 等不参与构建的文档，不改变已上线页面。
 
 ## PinMe 发布
+
+默认只改本地。只有用户明确要求部署或更新线上时，才执行发布；GitHub 提交与页面修改均不触发手动部署。
 
 本次使用 PinMe 2.0.12，上传已通过测试的 `dist/`，不上传源码、凭据或运行数据：
 
@@ -23,7 +25,7 @@ pinme upload dist
 
 发布者需要登录 PinMe，访问网站的读者不需要登录。凭据过期时重新执行 `pinme login`，不要把 AppKey 写入仓库。以每次上传输出的 URL 为准，不假定后续上传会更新原地址；域名绑定可能涉及余额，需单独确认。
 
-当前产物对应应用源码提交 `9e593c9`，后续提交仅更新发布文档。此次补齐 40 层 G 与选行 ID 的共享关系，并同步 Engram 图与旁注的收益、开销和参数身份说明。大陆不同运营商的可用性尚未完成验证；本机请求成功不代表所有大陆网络均可直连。官方用法见 [PinMe 项目](https://github.com/glitternetwork/pinme)。
+当前线上产物对应应用源码提交 `8eda776`。本地后续改动尚未发布，收到明确部署指令后再更新线上。该次发布以分叉连线和原行号对齐的 0/1 掩码展开共享与筛选，用具体 token 片段对照 Engram 的计算路径。大陆不同运营商的可用性尚未完成验证；本机请求成功不代表所有大陆网络均可直连。官方用法见 [PinMe 项目](https://github.com/glitternetwork/pinme)。
 
 ## 静态部署
 

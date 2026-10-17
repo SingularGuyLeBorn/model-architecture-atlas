@@ -13,14 +13,19 @@ it("主图与独立章节说明 Engram 收益、成本、参数身份，不引�
         <EngramLookup layer={layer} phase={phase} />,
       );
       const purpose = root.querySelector("[data-engram-purpose]")!;
-      expect(purpose.textContent).toContain("没有跳过这些模块");
       expect(purpose.textContent).toContain("24 行 × 256 维");
-      expect(purpose.textContent).toContain("独立参数，推理期间固定");
-      expect(purpose.textContent).toContain("6144 → 25600");
+      expect(purpose.textContent).toContain("W: 6144 × 25600");
       expect(purpose.textContent).toContain("I | love | New | York");
-      expect(purpose.textContent).toContain("40 次 Attention + 40 次 FFN");
-      expect(purpose.textContent).toContain("CKA");
-      expect(purpose.textContent).toContain("Logit Lens");
+      expect(purpose.textContent).not.toMatch(
+        /计算账本|教学值|Logit Lens|CKA|毫秒/,
+      );
+      expect(purpose.querySelectorAll("path").length).toBeGreaterThan(15);
+      expect(
+        purpose.getElementsByTagNameNS(
+          "http://www.w3.org/2000/svg",
+          "foreignObject",
+        ).length,
+      ).toBeGreaterThan(15);
       expect(purpose.querySelector("[data-engram-comparison]")).not.toBeNull();
       expect(root.querySelector(".katex-error")).toBeNull();
       const notes = explainModule({
@@ -29,6 +34,10 @@ it("主图与独立章节说明 Engram 收益、成本、参数身份，不引�
         phase,
       }).paragraphs.join("");
       expect(notes).toContain("不保证");
+      expect(notes).toContain("CKA");
+      expect(notes).toContain("Logit Lens");
+      expect(notes).toContain("40 层 Attention 与 FFN");
+      expect(notes).toContain("0.5,0.02,0.22,0.36");
       expect(notes).toContain("没有 Engram 因果卷积分支");
     }
   }

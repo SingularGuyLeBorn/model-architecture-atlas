@@ -104,9 +104,9 @@ test("逐层主图的完整共享区间、Engram 收益及旁注可读且无溢�
     await focus.selectOption("engram-lookup");
     await canvasSettled(page);
     const purpose = node.locator("[data-engram-purpose]");
-    await expect(purpose).toContainText("没有跳过这些模块");
+    await expect(purpose).toContainText("mHC · Attention");
     await expect(purpose).toContainText("I | love | New | York");
-    await expect(purpose).toContainText("40 次 Attention + 40 次 FFN");
+    await expect(purpose).not.toContainText("计算账本");
     await expect
       .poll(() =>
         node
