@@ -360,7 +360,7 @@ describe("mHC 与 Engram 的真实主路径", () => {
     const input = root.querySelector("[data-mhc-sublayer-input]")!;
     expect(input.querySelector('[aria-label="O_{15}"]')).not.toBeNull();
     expect(input.textContent).toContain("展开第 t 行");
-    expect((input as HTMLElement).style.maxWidth).toBe("420px");
+    expect((input as HTMLElement).style.maxWidth).toBe("720px");
     expect(
       (root.querySelector("[data-mhc-q-input]") as HTMLElement).style.maxWidth,
     ).toBe("420px");

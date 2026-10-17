@@ -812,11 +812,19 @@ menclose[notation="box"] {
   padding: 2px 3px;
 }
 
-/* Attention 的分数和共享分母沿用其来源的琥珀色。 */
-:is([data-attention-denominator], [data-attention-softmax])
-  menclose[notation="box"] {
-  border-color: #ad792a;
-  background: #f6e5c9;
+/* 指数变量和分母沿用源对象色；数值来自公共色板，不另维护近似色。 */
+[data-attention-denominator] menclose[notation="box"],
+[data-attention-softmax] msup menclose[notation="box"] {
+  border-color: var(--attention-score);
+  background: var(--attention-score-fill);
+}
+[data-attention-softmax] mfrac > menclose[notation="box"] {
+  border-color: var(--attention-denominator);
+  background: var(--attention-denominator-fill);
+}
+[data-attention-exponent="sink"] menclose[notation="box"] {
+  border-color: var(--attention-parameter);
+  background: var(--attention-parameter-fill);
 }
 .sum-structure {
   min-width: 0;

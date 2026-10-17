@@ -10,6 +10,7 @@ import {
 } from "../src/components/MhcCoefficientStages";
 import {
   tonePalette,
+  COLORS,
   type DiagramTone,
 } from "../src/components/diagram-primitives";
 
@@ -32,6 +33,16 @@ function color(tone: DiagramTone) {
   box.style.background = tonePalette(tone).background;
   return box.style.background;
 }
+
+it("公共色板至少十二个语义色系，填充与描边成对且各不相同", () => {
+  const tones = Object.keys(COLORS).filter((key) => key.endsWith("Soft"));
+  expect(tones.length).toBeGreaterThanOrEqual(12);
+  const colors = tones.map((key) =>
+    tonePalette(key.slice(0, -4) as DiagramTone),
+  );
+  expect(new Set(colors.map((c) => c.background)).size).toBe(colors.length);
+  expect(new Set(colors.map((c) => c.color)).size).toBe(colors.length);
+});
 
 it.each(["p", "q"] as const)(
   "%s 的 s、b、a 区分颜色，四个门控元素用等式计算",

@@ -21,44 +21,62 @@ test("Engram 参数表与本次读出横排，选中行使用不同填充色", a
       .getByRole("combobox", { name: "定位模块" })
       .selectOption("engram-lookup");
     const layout = page.locator("[data-engram-read-layout]");
-    await expect(layout.locator("[data-stage-transfer] path")).toHaveAttribute(
-      "d",
-      /^M /,
-    );
+    await expect(
+      layout.locator("[data-stage-transfer] path").first(),
+    ).toHaveAttribute("d", /^M /);
     const metrics = await layout.evaluate((root) => {
       const table = root.querySelector("[data-engram-table]")!;
       const result = root.querySelector("[data-engram-read-result]")!;
       const a = table.getBoundingClientRect(),
         b = result.getBoundingClientRect();
       const cells = [...table.querySelectorAll("[data-vector-cell]")];
-      const path = root.querySelector<SVGPathElement>(
-        "[data-stage-transfer] path",
-      )!;
-      const start = path
-        .getPointAtLength(0)
-        .matrixTransform(path.getScreenCTM()!);
-      const target = result
-        .querySelector("[data-expanded-tensor]")!
-        .getBoundingClientRect();
-      // 最后一段为开放箭翼；路径中间的第一个 M 后是连续数据线。
-      const segments = path.getAttribute("d")!.split(" M ");
-      const line = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "path",
-      );
-      line.setAttribute("d", segments[0]);
-      const end = line
-        .getPointAtLength(line.getTotalLength())
-        .matrixTransform(path.getScreenCTM()!);
+      const connections = [
+        ...root.querySelectorAll<SVGPathElement>("[data-stage-transfer] path"),
+      ].map((path, index) => {
+        const source = root
+          .querySelector(
+            [
+              "[data-engram-table]",
+              "[data-engram-scale-table]",
+              "[data-dequant-output] [data-expanded-tensor]",
+            ][index],
+          )!
+          .getBoundingClientRect();
+        const start = path
+          .getPointAtLength(0)
+          .matrixTransform(path.getScreenCTM()!);
+        const target = root
+          .querySelector(
+            [
+              "[data-dequant-values] [data-expanded-tensor]",
+              "[data-dequant-scales] [data-expanded-tensor]",
+              "[data-engram-read-result] [data-expanded-tensor]",
+            ][index],
+          )!
+          .getBoundingClientRect();
+        // 最后一段为开放箭翼；路径中间的第一个 M 后是连续数据线。
+        const segments = path.getAttribute("d")!.split(" M ");
+        const line = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "path",
+        );
+        line.setAttribute("d", segments[0]);
+        const end = line
+          .getPointAtLength(line.getTotalLength())
+          .matrixTransform(path.getScreenCTM()!);
+        return {
+          sourceGap: Math.hypot(
+            start.x - source.right,
+            start.y - source.top - source.height / 2,
+          ),
+          targetGap: Math.hypot(
+            end.x - target.left,
+            end.y - target.top - target.height / 2,
+          ),
+        };
+      });
       return {
-        sourceGap: Math.hypot(
-          start.x - a.right,
-          start.y - a.top - a.height / 2,
-        ),
-        targetGap: Math.hypot(
-          end.x - target.left,
-          end.y - target.top - target.height / 2,
-        ),
+        connections,
         sideBySide: b.left > a.right && b.top < a.bottom,
         selectedColors: [
           ...new Set(
@@ -83,14 +101,17 @@ test("Engram 参数表与本次读出横排，选中行使用不同填充色", a
       };
     });
     expect(metrics.sideBySide).toBe(true);
-    expect(metrics.sourceGap).toBeLessThan(2);
-    expect(metrics.targetGap).toBeLessThan(2);
+    expect(metrics.connections).toHaveLength(3);
+    for (const connection of metrics.connections) {
+      expect(connection.sourceGap).toBeLessThan(2);
+      expect(connection.targetGap).toBeLessThan(2);
+    }
     expect(metrics.selectedColors).toEqual(["rgb(246, 229, 201)"]);
     expect(metrics.unselectedColors).toEqual(["rgb(223, 228, 247)"]);
     expect(metrics.widthRange).toBeLessThan(1);
     expect(metrics.overflow).toBe(0);
     await expect(layout.locator("[data-matrix-ellipsis-column]")).toHaveCount(
-      3,
+      6,
     );
     await expect(layout.locator(".katex-error")).toHaveCount(0);
     await layout.screenshot({

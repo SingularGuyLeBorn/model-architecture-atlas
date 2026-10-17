@@ -44,6 +44,30 @@ it("主图与独立章节说明 Engram 收益、成本、参数身份，不引�
         );
       }
       expect(table.querySelector("small, strong")).toBeNull();
+      const scales = root.querySelector("[data-engram-scale-table]")!;
+      const selectedRows = (element: Element) =>
+        [...element.querySelectorAll("[data-vector-selected]")].map((row) =>
+          row.querySelector("[aria-label]")?.getAttribute("aria-label"),
+        );
+      expect(selectedRows(scales)).toEqual(selectedRows(table));
+      for (const [block, first, last] of [
+        [1, 1, 32],
+        [2, 33, 64],
+        [8, 225, 256],
+      ]) {
+        const tex = [
+          ...root.querySelectorAll(
+            `[data-dequant-block="${block}"] [aria-label]`,
+          ),
+        ].map((el) => el.getAttribute("aria-label"));
+        expect(tex).toContain(`s_{b,${block}}`);
+        expect(tex).toContain(`\\bar e_{b,${first}}`);
+        expect(tex).toContain(`\\bar e_{b,${last}}`);
+        expect(tex).toContain(`\\hat e_{n,h,${last}}`);
+      }
+      expect(
+        root.querySelectorAll("[data-dequant-output] [data-vector-cell]"),
+      ).toHaveLength(3);
       expect(
         root.querySelector(
           "[data-engram-read-layout] [data-engram-read-result]",

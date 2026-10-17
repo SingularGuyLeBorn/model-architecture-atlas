@@ -39,11 +39,17 @@ export function KvRowConcat({
   ) => (
     <div
       data-concat-rows={region}
-      style={{ display: "grid", gap: 6, marginTop: 8 }}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "max-content max-content",
+        justifyContent: "center",
+        gap: 6,
+        marginTop: 8,
+      }}
     >
       {values.map((value, i) =>
         value === null ? (
-          <div key="ellipsis" style={{ textAlign: "center" }}>
+          <div key="ellipsis" style={{ textAlign: "center", gridColumn: 2 }}>
             <MathFormula tex={"\\vdots"} />
           </div>
         ) : (
@@ -52,7 +58,8 @@ export function KvRowConcat({
             data-concat-row={value}
             style={{
               display: "grid",
-              gridTemplateColumns: "136px minmax(0,1fr)",
+              gridTemplateColumns: "subgrid",
+              gridColumn: "1 / -1",
               gap: 8,
               alignItems: "center",
             }}
@@ -66,14 +73,10 @@ export function KvRowConcat({
                 borderRadius: 5,
                 background: COLORS.greenSoft,
                 padding: "6px 10px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 8,
+                textAlign: "center",
               }}
             >
               <MathFormula tex={value} />
-              <span style={{ fontSize: 12 }}>512 维</span>
             </div>
           </div>
         ),

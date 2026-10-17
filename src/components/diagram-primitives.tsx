@@ -21,6 +21,10 @@ export type DiagramTone =
   | "rose"
   | "plum"
   | "indigo"
+  | "orange"
+  | "olive"
+  | "slate"
+  | "ochre"
   | "cyan";
 export const COLORS = {
   paper: "#ffffff",
@@ -46,6 +50,15 @@ export const COLORS = {
   // [OM-FREEPLAY] 靛蓝用于学习到的投影参数，与琥珀色缩放系数区分。
   indigo: "#5266a2",
   indigoSoft: "#dfe4f7",
+  // [OM-FREEPLAY] 扩展语义色：Attention 概率、打分、归约量、反量化尺度。
+  orange: "#b76126",
+  orangeSoft: "#fae0ce",
+  olive: "#6d782f",
+  oliveSoft: "#e9edcf",
+  slate: "#526a7a",
+  slateSoft: "#dfe7eb",
+  ochre: "#927638",
+  ochreSoft: "#eee5c9",
 };
 
 export const MathFormula = memo(function MathFormula({

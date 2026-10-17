@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("mHC 标量不撑满宽栏，归一化与投影横向接续", async ({ page }) => {
+test("mHC 第一行拼接与归一化、第二行投影，标量不撑满宽栏", async ({ page }) => {
   await page.setViewportSize({ width: 2800, height: 2400 });
   await page.goto("/#model=v41&chapter=layer");
   const focus = page.getByRole("combobox", { name: "定位模块" });
@@ -35,6 +35,7 @@ test("mHC 标量不撑满宽栏，归一化与投影横向接续", async ({ page
         el.querySelector(selector)!.getBoundingClientRect();
       const norm = rect("[data-mhc-joint-norm]"),
         projection = rect("[data-mhc-projection]");
+      const flatten = rect("[data-mhc-flatten]");
       const p = rect('[data-mhc-gate="p"]'),
         q = rect('[data-mhc-gate="q"]');
       return {
@@ -43,11 +44,13 @@ test("mHC 标量不撑满宽栏，归一化与投影横向接续", async ({ page
           "[data-mhc-compact-column] [data-stacked-sum] > div:first-child > div > div",
         ),
         squareCells: widths("[data-mhc-square-element] > div"),
-        divisionCells: widths("[data-mhc-normalized-element] > div"),
+        divisionCells: widths("[data-mhc-normalized-vector] > div"),
         sigmoidWidth: widths("[data-mhc-sigmoid] > div")[0],
-        normBeforeProjection: norm.right < projection.left,
-        preparationOverlapsY:
-          norm.top < projection.bottom && projection.top < norm.bottom,
+        firstRow:
+          flatten.right < norm.left &&
+          flatten.top < norm.bottom &&
+          norm.top < flatten.bottom,
+        secondRow: projection.top > Math.max(flatten.bottom, norm.bottom),
         pqSameY: Math.abs(p.y - q.y) < 1,
         overflow: [...el.querySelectorAll<HTMLElement>("div,section")]
           .filter(
@@ -80,8 +83,8 @@ test("mHC 标量不撑满宽栏，归一化与投影横向接续", async ({ page
       );
     expect(gateFormulas).toHaveLength(16);
     expect(gateFormulas.some((tex) => tex?.includes("arrow"))).toBe(false);
-    expect(measurements.normBeforeProjection).toBe(true);
-    expect(measurements.preparationOverlapsY).toBe(true);
+    expect(measurements.firstRow).toBe(true);
+    expect(measurements.secondRow).toBe(true);
     expect(measurements.pqSameY).toBe(true);
     expect(measurements.overflow).toEqual([]);
     console.log(`mHC ${layer} 紧凑尺寸`, measurements);

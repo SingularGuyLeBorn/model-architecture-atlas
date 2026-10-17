@@ -52,5 +52,11 @@ describe("KV 行拼接保留来源和行位置", () => {
       `(\\mathrm{KV}_{${layer},t})_{m_t+j,d}=g_{${layer},i_{${layer},t,j},d},\\quad 1\\le j\\le K_{${layer},t},\\quad d=1,\\ldots,512`,
     );
     expect(root.textContent).not.toContain("÷");
+    for (const row of root.querySelectorAll("[data-concat-row]")) {
+      expect(row.lastElementChild!.textContent).not.toContain("维");
+      expect(
+        row.lastElementChild!.querySelectorAll("[aria-label]"),
+      ).toHaveLength(1);
+    }
   });
 });

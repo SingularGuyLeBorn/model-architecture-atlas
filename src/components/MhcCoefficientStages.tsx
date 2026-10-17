@@ -190,39 +190,32 @@ export function MhcJointNorm() {
             </Box>
           </div>
           <div style={{ ...row, justifyContent: "center" }}>
-            <MathFormula tex="m_t" />
-            <Operator tex="+" />
-            <MathFormula tex="\varepsilon" />
-            <Operator tex="\xrightarrow{\sqrt{\ \ }}" />
             <Box tone="cyan">
-              <MathFormula tex="r_t" />
+              <MathFormula tex="r_t=\sqrt{m_t+\varepsilon}" />
             </Box>
           </div>
         </div>
         <Operator tex="\to" />
         <div style={{ display: "grid", gap: 10 }}>
-          <strong>同一个分母，分别用于 20480 个除法</strong>
-          {columns.map((d) => (
-            <div
-              key={d}
-              data-mhc-normalized-element
-              style={{
-                display: "grid",
-                gridTemplateColumns: "max-content 20px max-content",
-                gap: 6,
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <Box tone="blue">
-                <MathFormula tex={`\\frac{f_{t,${d}}}{r_t}`} />
-              </Box>
-              <Operator tex="=" />
-              <Box tone="blue">
-                <MathFormula tex={`\\bar f_{t,${d}}`} />
-              </Box>
-            </div>
-          ))}
+          <strong>整行除以同一个 rₜ</strong>
+          <div
+            data-mhc-normalized-vector
+            style={{
+              display: "grid",
+              gridTemplateColumns: "max-content 20px max-content",
+              gap: 6,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Box tone="blue">
+              <MathFormula tex="\frac{\mathbf f_t}{r_t}" />
+            </Box>
+            <Operator tex="=" />
+            <Box tone="blue">
+              <MathFormula tex="\bar{\mathbf f}_t" />
+            </Box>
+          </div>
           <TensorHeading name="\bar{\mathbf f}_t" shape="1\times20480" />
           <VectorStrip
             name=""
@@ -246,8 +239,19 @@ export function MhcProjection({
   sub: "A" | "F";
 }) {
   return (
-    <section data-mhc-projection style={group}>
-      <ModuleHeading>③ 归一化后的整行 × 本子层参数 → 24 个控制数</ModuleHeading>
+    <section
+      data-mhc-projection
+      style={{
+        ...group,
+        gridTemplateColumns: "minmax(0,1.3fr) minmax(0,1fr)",
+        alignItems: "start",
+      }}
+    >
+      <div style={{ gridColumn: "1 / -1" }}>
+        <ModuleHeading>
+          ③ 归一化后的整行 × 本子层参数 → 24 个控制数
+        </ModuleHeading>
+      </div>
       <div data-notation-alias style={{ display: "grid", gap: 4 }}>
         <span>
           wⱼ 表示参数矩阵第 j 列（20480 个元素）；uⱼ 表示本次投影结果的第 j
@@ -258,8 +262,11 @@ export function MhcProjection({
         />
       </div>
       <div
+        data-mhc-projection-product
         style={{
           display: "grid",
+          gridColumn: 1,
+          gridRow: 3,
           gridTemplateColumns:
             "minmax(0,1fr) 24px minmax(0,1fr) 24px minmax(0,1fr)",
           gap: 8,
@@ -306,6 +313,7 @@ export function MhcProjection({
         data-mhc-u-segments
         style={{
           display: "grid",
+          gridColumn: 1,
           gridTemplateColumns: "repeat(3,minmax(0,1fr))",
           gap: 12,
         }}
@@ -345,7 +353,10 @@ export function MhcProjection({
           </div>
         ))}
       </div>
-      <section data-mhc-parameter-origin style={{ ...group, gap: 8 }}>
+      <section
+        data-mhc-parameter-origin
+        style={{ ...group, gap: 8, gridColumn: 2, gridRow: "2 / 5" }}
+      >
         <ModuleHeading>
           本层{sub === "A" ? " Attention" : " FFN"} 的可学习参数 · s 与 b
         </ModuleHeading>
@@ -396,7 +407,10 @@ export function MhcProjection({
           b 是加载的参数。
         </small>
       </section>
-      <div data-mhc-affine-legend style={{ ...row, flexWrap: "wrap" }}>
+      <div
+        data-mhc-affine-legend
+        style={{ ...row, flexWrap: "wrap", gridColumn: "1 / -1" }}
+      >
         {(
           [
             ["scale", "s", "缩放参数"],
@@ -427,19 +441,23 @@ export function MhcGate({
       data-mhc-gate={kind}
       style={{
         ...group,
+        gridTemplateColumns: "max-content max-content",
+        justifyContent: "center",
         borderColor: kind === "p" ? COLORS.green : COLORS.rose,
       }}
     >
-      <ModuleHeading>
-        {kind === "p"
-          ? "p · 第 1–4 个数，供下一子层汇合"
-          : "q · 第 5–8 个数，控制本子层输出写回多少"}
-      </ModuleHeading>
-      <span data-mhc-gate-parameter-source>
+      <div style={{ gridColumn: "1 / -1" }}>
+        <ModuleHeading>
+          {kind === "p"
+            ? "p · 第 1–4 个数，供下一子层汇合"
+            : "q · 第 5–8 个数，控制本子层输出写回多少"}
+        </ModuleHeading>
+      </div>
+      <span data-mhc-gate-parameter-source style={{ gridColumn: "1 / -1" }}>
         下列 s{s}、b{offset + 1}–b{offset + 4} 取自上方本子层的可学习参数；u
         来自当前输入的投影。
       </span>
-      <div style={{ display: "grid", gap: 7 }}>
+      <div style={{ display: "grid", gap: 7, gridColumn: 1, gridRow: 3 }}>
         {copies.map((j) => (
           <div
             key={j}
@@ -471,10 +489,23 @@ export function MhcGate({
           </div>
         ))}
       </div>
-      <span>a 是缩放、加偏置后的中间值，上标 p、q 分别标识两个分支。</span>
-      <div data-mhc-gate-equations style={{ ...grid4, gap: 6 }}>
+      <span style={{ gridColumn: "1 / -1" }}>
+        a 是缩放、加偏置后的中间值，上标 p、q 分别标识两个分支。
+      </span>
+      <div
+        data-mhc-gate-equations
+        style={{ display: "grid", gap: 7, gridColumn: 2, gridRow: 3 }}
+      >
         {copies.map((j) => (
-          <div key={j} style={{ display: "grid", gap: 6, textAlign: "center" }}>
+          <div
+            key={j}
+            style={{
+              display: "flex",
+              gap: 6,
+              alignItems: "center",
+              textAlign: "center",
+            }}
+          >
             <Box tone="cyan">
               <MathFormula tex={`v^{${kind}}_${j}=\\sigma(a^{${kind}}_${j})`} />
             </Box>
@@ -490,12 +521,14 @@ export function MhcGate({
           </div>
         ))}
       </div>
-      <span>
+      <span style={{ gridColumn: "1 / -1" }}>
         {kind === "p"
           ? "每个 sigmoid 结果加 10⁻⁶，保持正值。"
           : "每个 sigmoid 结果乘以 2，结果范围为 (0, 2)。"}
       </span>
-      {children}
+      <div style={{ gridColumn: "1 / -1", justifySelf: "center" }}>
+        {children}
+      </div>
     </section>
   );
 }
@@ -551,45 +584,60 @@ function Grid4({
 export function MhcSinkhorn({ children }: { children: ReactNode }) {
   // [OM-FREEPLAY] 指数项用激活绿、分母用缩放琥珀、T 用归一化青、首轮 C 用蓝；最终 C 保留混合紫。
   return (
-    <section data-mhc-sinkhorn style={{ ...group, borderColor: COLORS.violet }}>
-      <ModuleHeading>C · u 的第 9–24 个数，按顺序每四个排成一行</ModuleHeading>
-      <span>
-        s₃ 和偏置 b₉–b₂₄ 来自上方本子层的可学习参数；此处将偏置按行排为 Bᶜ。
-      </span>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 25px 55px 25px 1fr 25px 1fr",
-          gap: 8,
-          alignItems: "center",
-        }}
-      >
-        <Grid4
-          name="U^C"
-          cell={(k, j) => `u_{${8 + 4 * (k - 1) + j}}`}
-          tone="green"
-        />
-        <Operator tex="\times" />
-        <Box tone={MHC_AFFINE_TONES.scale}>
-          <MathFormula tex="s_3" />
-        </Box>
-        <Operator tex="+" />
-        <Grid4
-          name="B^C"
-          cell={(k, j) => `b_{${8 + 4 * (k - 1) + j}}`}
-          tone={MHC_AFFINE_TONES.bias}
-        />
-        <Operator tex="=" />
-        <Grid4
-          name="A^C"
-          cell={(k, j) => `a^C_{${k}${j}}`}
-          tone={MHC_AFFINE_TONES.result}
-        />
+    <section
+      data-mhc-sinkhorn
+      style={{
+        ...group,
+        borderColor: COLORS.violet,
+        gridColumn: "1 / -1",
+        gridTemplateColumns: "minmax(0,1fr) minmax(0,1.6fr)",
+        alignItems: "start",
+      }}
+    >
+      <div style={{ gridColumn: "1 / -1" }}>
+        <ModuleHeading>
+          C · u 的第 9–24 个数，按顺序每四个排成一行
+        </ModuleHeading>
       </div>
-      <span>
-        Uᶜ、Bᶜ 是这 16 个数及对应偏置的 4×4 排列；aᶜₖⱼ = s₃·u₈₊₄₍ₖ₋₁₎₊ⱼ +
-        b₈₊₄₍ₖ₋₁₎₊ⱼ。行 k 是来源路，列 j 是目标路。
-      </span>
+      <div style={{ display: "grid", gap: 10 }}>
+        <span>
+          s₃ 和偏置 b₉–b₂₄ 来自上方本子层的可学习参数；此处将偏置按行排为 Bᶜ。
+        </span>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 25px 55px 25px 1fr 25px 1fr",
+            gap: 8,
+            alignItems: "center",
+          }}
+        >
+          <Grid4
+            name="U^C"
+            cell={(k, j) => `u_{${8 + 4 * (k - 1) + j}}`}
+            tone="green"
+          />
+          <Operator tex="\times" />
+          <Box tone={MHC_AFFINE_TONES.scale}>
+            <MathFormula tex="s_3" />
+          </Box>
+          <Operator tex="+" />
+          <Grid4
+            name="B^C"
+            cell={(k, j) => `b_{${8 + 4 * (k - 1) + j}}`}
+            tone={MHC_AFFINE_TONES.bias}
+          />
+          <Operator tex="=" />
+          <Grid4
+            name="A^C"
+            cell={(k, j) => `a^C_{${k}${j}}`}
+            tone={MHC_AFFINE_TONES.result}
+          />
+        </div>
+        <span>
+          Uᶜ、Bᶜ 是这 16 个数及对应偏置的 4×4 排列；aᶜₖⱼ = s₃·u₈₊₄₍ₖ₋₁₎₊ⱼ +
+          b₈₊₄₍ₖ₋₁₎₊ⱼ。行 k 是来源路，列 j 是目标路。
+        </span>
+      </div>
       <div
         style={{
           display: "grid",
@@ -701,6 +749,7 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
         data-mhc-sinkhorn-loop
         style={{
           ...group,
+          gridColumn: "1 / -1",
           borderStyle: "dashed",
           gridTemplateColumns: "max-content minmax(0,1fr) max-content",
           alignItems: "center",

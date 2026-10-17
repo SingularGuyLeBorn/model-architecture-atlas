@@ -17,6 +17,7 @@ import {
   cacheSourceSummary,
 } from "../components/CacheSemantics";
 import { EngramPurpose } from "../components/EngramPurpose";
+import { EngramDequantization } from "../components/EngramDequantization";
 import {
   CandidateFilter,
   CANDIDATE_SOURCE,
@@ -1278,20 +1279,21 @@ export function MhcMix({
           tex={`p_j:=(\\mathbf p_{${layer},t}^{${sublayer}})_j,\\quad q_j:=(\\mathbf q_{${layer},t}^{${sublayer}})_j,\\quad c_{kj}:=(C_{${layer},t}^{${sublayer}})_{kj}`}
         />
       </div>
-      <MhcFlatten layer={layer} stage={source} />
       <div
         data-mhc-preparation
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0,1fr) 52px minmax(0,1.15fr)",
+          gridTemplateColumns: "max-content 32px minmax(0,1fr)",
           gap: 12,
           alignItems: "center",
         }}
       >
+        <MhcFlatten layer={layer} stage={source} />
+        <Operator tex="\to" />
         <MhcJointNorm />
-        <Operator tex="\xrightarrow{\bar{\mathbf f}_t}" />
-        <MhcProjection layer={layer} sub={sublayer} />
       </div>
+      <Operator tex="\downarrow" />
+      <MhcProjection layer={layer} sub={sublayer} />
       <div
         data-mhc-gate-branches
         style={{
@@ -1301,7 +1303,14 @@ export function MhcMix({
           alignItems: "start",
         }}
       >
-        <div style={{ display: "grid", gap: 12, minWidth: 0 }}>
+        <div
+          style={{
+            display: "grid",
+            gap: 12,
+            minWidth: 0,
+            gridColumn: "1 / -1",
+          }}
+        >
           <SigmoidDefinition />
           <div
             data-mhc-pq-parallel
@@ -1582,7 +1591,8 @@ export function MhcPost({
         data-mhc-parallel-inputs
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(2,minmax(0,1fr))",
+          gridTemplateColumns: "max-content max-content",
+          justifyContent: "center",
           gap: 24,
           alignItems: "start",
         }}
@@ -1590,7 +1600,7 @@ export function MhcPost({
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0,320px) minmax(0,1fr)",
+            gridTemplateColumns: "max-content max-content",
             border: `1px solid ${frameColor(COLORS.violet)}`,
             borderRadius: 12,
             padding: 12,
@@ -1677,7 +1687,7 @@ export function MhcPost({
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0,420px) minmax(0,1fr)",
+            gridTemplateColumns: "max-content max-content",
             border: `1px solid ${frameColor(COLORS.green)}`,
             borderRadius: 12,
             padding: 12,
@@ -1689,9 +1699,11 @@ export function MhcPost({
             data-mhc-sublayer-input
             style={{
               position: "relative",
-              width: "100%",
-              maxWidth: 420,
+              width: "max-content",
+              maxWidth: 720,
               display: "grid",
+              gridTemplateColumns: "max-content max-content",
+              alignItems: "center",
               gap: 6,
             }}
           >
@@ -1721,14 +1733,19 @@ export function MhcPost({
                 `o_{${layer},${rows[i]},${d}}${sublayer === "F" ? "^{\\mathrm{FFN}}" : ""}`
               }
             />
-            <span>
-              来自本层{" "}
-              {sublayer === "A" ? "Attention 输出投影" : "FFN 专家加权汇总"}
-            </span>
-            <FlowStep>
-              展开第 t 行 · 同一个输出向量 o 分给四路，各路乘自己的 q
-            </FlowStep>
-            <FeatureVector name={output} scalar={outputScalar} tone="green" />
+            <div
+              data-mhc-current-output
+              style={{ display: "grid", gap: 8, maxWidth: 240 }}
+            >
+              <span>
+                来自本层{" "}
+                {sublayer === "A" ? "Attention 输出投影" : "FFN 专家加权汇总"}
+              </span>
+              <FlowStep>
+                展开第 t 行 · 同一个输出向量 o 分给四路，各路乘自己的 q
+              </FlowStep>
+              <FeatureVector name={output} scalar={outputScalar} tone="green" />
+            </div>
           </div>
           <div style={{ display: "grid", gap: 12 }}>
             <div
@@ -1736,7 +1753,7 @@ export function MhcPost({
               data-expanded-tensor
               style={{
                 position: "relative",
-                width: "100%",
+                width: "max-content",
                 maxWidth: 420,
                 border: `1px solid ${frameColor(COLORS.rose)}`,
                 background: "transparent",
@@ -2497,117 +2514,7 @@ export function EngramLookup({
         哈希乘数 a、素数模数 p 与桶偏移 o
         是固定地址规则；不由当前隐藏状态预测，也不是注意力权重。
       </div>
-      <div
-        data-engram-read-layout
-        style={{
-          position: "relative",
-          display: "grid",
-          gridTemplateColumns: "max-content 72px max-content",
-          justifyContent: "center",
-          alignItems: "center",
-          gap: 14,
-        }}
-      >
-        <div style={{ display: "grid", gap: 4 }}>
-          <strong style={{ textAlign: "center" }}>本层独立参数表</strong>
-          <div
-            data-engram-table
-            style={{
-              width: "max-content",
-              maxWidth: "100%",
-              justifySelf: "center",
-              border: `1px solid ${frameColor(COLORS.indigo)}`,
-              borderRadius: 8,
-              padding: 9,
-              display: "grid",
-              gap: 5,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 8,
-              }}
-            >
-              <MathFormula tex={`E_{${layer}}^{\\mathrm{Engram}}`} />
-              <MathFormula tex={`${rows}\\times256`} />
-            </div>
-            <div
-              data-uniform-matrix
-              style={{
-                display: "grid",
-                gridTemplateColumns: matrixColumnTracks(
-                  ["1", "2", "\\cdots", "256"],
-                  "88px",
-                ),
-                gap: 4,
-              }}
-            >
-              {[
-                "0",
-                "b_{2,1}",
-                "b_{2,2}",
-                "\\vdots",
-                "b_{4,8}",
-                String(rows - 1),
-              ].map((index, i) =>
-                index === "\\vdots" ? (
-                  <MatrixEllipsis
-                    key={index}
-                    columns={["1", "2", "\\cdots", "256"]}
-                  />
-                ) : (
-                  <VectorStrip
-                    key={index}
-                    name={index}
-                    nameWidth={88}
-                    length="256"
-                    elementTex={(j) => `e_{${index},${j}}`}
-                    selected={i === 1 || i === 2 || i === 4}
-                    tone="indigo"
-                    uniformCells
-                    columnSubgrid
-                    compact
-                  />
-                ),
-              )}
-            </div>
-          </div>
-          <small style={{ textAlign: "center" }}>
-            推理固定 · 桶地址从 0 开始
-          </small>
-        </div>
-        <div
-          style={{
-            display: "grid",
-            gap: 4,
-            textAlign: "center",
-            transform: "translateY(-30px)",
-          }}
-        >
-          <small>
-            取 24 行<br />
-            反量化
-          </small>
-        </div>
-        <div data-engram-read-result style={{ display: "grid", gap: 4 }}>
-          <strong style={{ textAlign: "center" }}>本次查表结果</strong>
-          <RowMatrix
-            tex={`\\mathcal E_{${layer},t}`}
-            shape="3\times8\times256"
-            rows={["2\\text{-gram}", "3\\text{-gram}", "4\\text{-gram}"]}
-            rowLength="8"
-            elementTex={(i, h) => `\\mathbf e_{${i + 2},${h}}^{(256)}`}
-            elementColumns={["1", "2", "\\cdots", "8"]}
-            headerLineHeight={2.4}
-          />
-        </div>
-        <HorizontalTransfer
-          sourceSelector="[data-engram-table]"
-          targetSelector="[data-engram-read-result] [data-expanded-tensor]"
-        />
-      </div>
+      <EngramDequantization layer={layer} rows={rows} />
       <FlowStep>
         <MathFormula
           tex={`\\mathbf e_{${layer},t}\\in\\mathbb R^{1\\times6144}`}
@@ -3456,12 +3363,17 @@ export function IndexScoreProcess({
         data-index-result-flow
         style={{
           display: "grid",
+          gridTemplateColumns: "max-content 36px max-content",
+          justifyContent: "center",
           alignItems: "center",
           justifyItems: "center",
           gap: 7,
         }}
       >
-        <div data-index-score-definition style={{ textAlign: "center" }}>
+        <div
+          data-index-score-definition
+          style={{ textAlign: "center", gridColumn: "1 / -1" }}
+        >
           <MathFormula
             tex={`s_{${layer},t,i}=\\sum_{h=1}^{32}\\eta_{${layer},t,h}\\cdot a^I_{h,t,i}`}
           />
@@ -3486,43 +3398,58 @@ export function IndexScoreProcess({
             ；A 随 Query 改变，不能让所有 token 共用同一份 A。
           </div>
         </div>
-        <RowMatrix
-          tex={`S_{${layer}}`}
-          contentWidth
-          shape={`${count}\\times M`}
-          columnLabels={[
-            "\\text{缓存行 }1",
-            "\\text{缓存行 }2",
-            "\\cdots",
-            "\\text{缓存行 }M",
-          ]}
-          rows={
-            count === "1"
-              ? [`\\mathbf s_{${layer},t}`]
-              : [
-                  `\\mathbf s_{${layer},1}`,
-                  `\\mathbf s_{${layer},2}`,
-                  "\\vdots",
-                  `\\mathbf s_{${layer},t}`,
-                  "\\vdots",
-                  `\\mathbf s_{${layer},N}`,
-                ]
-          }
-          selected={count === "1" ? 0 : 3}
-          rowLength="M"
-          elementTex={(r, i) =>
-            `s_{${layer},${count === "1" ? "t" : ["1", "2", "", "t", "", "N"][r]},${i}}`
-          }
-        />
-        <div data-index-score-axes style={{ textAlign: "center" }}>
-          行 t ↓：发起查询的 token；列 i
-          →：被评分的压缩缓存行。上方三个结果填入第 t 行的第 1、2、M
-          列；每一行独立选 Top-K。
+        <div
+          data-index-score-summary
+          style={{
+            display: "grid",
+            justifyItems: "center",
+            gap: 8,
+            maxWidth: 400,
+          }}
+        >
+          <RowMatrix
+            tex={`S_{${layer}}`}
+            contentWidth
+            shape={`${count}\\times M`}
+            columnLabels={[
+              "\\text{缓存行 }1",
+              "\\text{缓存行 }2",
+              "\\cdots",
+              "\\text{缓存行 }M",
+            ]}
+            rows={
+              count === "1"
+                ? [`\\mathbf s_{${layer},t}`]
+                : [
+                    `\\mathbf s_{${layer},1}`,
+                    `\\mathbf s_{${layer},2}`,
+                    "\\vdots",
+                    `\\mathbf s_{${layer},t}`,
+                    "\\vdots",
+                    `\\mathbf s_{${layer},N}`,
+                  ]
+            }
+            selected={count === "1" ? 0 : 3}
+            rowLength="M"
+            elementTex={(r, i) =>
+              `s_{${layer},${count === "1" ? "t" : ["1", "2", "", "t", "", "N"][r]},${i}}`
+            }
+          />
+          <div data-index-score-axes style={{ textAlign: "center" }}>
+            行 t ↓：发起查询的 token；列 i
+            →：被评分的压缩缓存行。上方三个结果填入第 t 行的第 1、2、M
+            列；每一行独立选 Top-K。
+          </div>
         </div>
         {children && (
           <>
-            <Operator tex="\downarrow" />
-            {children}
+            <Operator tex="\to" />
+            <div
+              data-index-selection-stages
+              style={{ display: "grid", gap: 8, maxWidth: 780 }}
+            >
+              {children}
+            </div>
           </>
         )}
       </div>
@@ -3914,6 +3841,14 @@ function Head({ index, layer }: { index: number; layer: number }) {
     <div
       data-head-layout={index}
       style={{
+        ...({
+          "--attention-score": COLORS.olive,
+          "--attention-score-fill": COLORS.oliveSoft,
+          "--attention-denominator": COLORS.slate,
+          "--attention-denominator-fill": COLORS.slateSoft,
+          "--attention-parameter": COLORS.indigo,
+          "--attention-parameter-fill": COLORS.indigoSoft,
+        } as React.CSSProperties),
         position: "relative",
         minWidth: 0,
         border: `1.5px solid ${frameColor(COLORS.green)}`,
@@ -4022,7 +3957,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
                 tex={`\\frac{\\mathbf q'\\cdot\\mathbf k_{${row}}^{\\mathsf T}}{\\sqrt{d_k}}`}
               />
               <FlowStep />
-              <Box tone="amber">
+              <Box tone="olive">
                 <MathFormula tex={`z_{${row}}`} />
               </Box>
             </div>
@@ -4089,7 +4024,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
         >
           <MathFormula tex="\frac{\sum_{d=1}^{d_k}q'_d\,k_{i,d}}{\sqrt{d_k}}" />
           <Operator tex="=" />
-          <Box tone="amber">
+          <Box tone="olive">
             <MathFormula tex="z_i" />
           </Box>
         </div>
@@ -4100,7 +4035,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
         rows="1"
         columns="L_t"
         scalar={(_, column) => `z_{${column}}`}
-        tone="amber"
+        tone="olive"
       />
       <section
         data-attention-denominator
@@ -4122,6 +4057,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
           {["z_1", "z_2", "z_{L_t}", `b_{${layer},${index}}`].map((tex, i) => (
             <div
               key={tex}
+              data-attention-exponent={i === 3 ? "sink" : "score"}
               style={{ display: "grid", justifyItems: "center", gap: 4 }}
             >
               <MathFormula tex={exponentialTex(tex)} />
@@ -4137,7 +4073,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
         </div>
         <SumJunction count={4} />
         <div style={{ width: "fit-content", margin: "0 auto" }}>
-          <Box tone="amber">
+          <Box tone="slate">
             <MathFormula tex="D" />
           </Box>
         </div>
@@ -4154,7 +4090,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
       >
         <MathFormula tex={`\\frac{${exponentialTex("z_i")}}{\\boxed{D}}`} />
         <Operator tex="=" />
-        <Box tone="green">
+        <Box tone="orange">
           <MathFormula tex="a_i" />
         </Box>
       </div>
@@ -4166,6 +4102,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
         rows="1"
         columns="L_t"
         scalar={(_, column) => `a_{${column}}`}
+        tone="orange"
       />
       <FlowStep>③ 每个权重乘对应的 V 行，再逐列相加</FlowStep>
       <div data-attention-value-sum>
@@ -4180,7 +4117,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
                 alignItems: "center",
               }}
             >
-              <Box tone="amber">
+              <Box tone="orange">
                 <MathFormula tex={`a_{${row}}`} />
               </Box>
               <Operator tex="\times" />
@@ -4199,7 +4136,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
         rows="1"
         columns="512"
         scalar={(_, column) => `\\widetilde o_{${column}}`}
-        tone="amber"
+        tone="cyan"
       />
       <div style={{ textAlign: "center", fontSize: 12 }}>
         <MathFormula tex="\widetilde o_d=\sum_{i=1}^{L_t}a_i\cdot v_{i,d},\quad d=1,\ldots,512" />
@@ -4229,7 +4166,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
               alignItems: "center",
             }}
           >
-            <Box tone="amber">
+            <Box tone="cyan">
               <MathFormula tex="(\widetilde o_{449+2j},\widetilde o_{450+2j})" />
             </Box>
             <Operator tex="\to" />
@@ -6157,7 +6094,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               <Handle
                 id="to-indexer"
                 type="source"
-                position={Position.Right}
+                position={Position.Left}
                 style={handle}
               />
             </div>
@@ -6797,7 +6734,12 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   {index === 2 && <Operator tex="\cdots" />}
                   <div
                     data-output-group={group}
-                    style={{ minWidth: 0, display: "grid", gap: 6 }}
+                    style={{
+                      minWidth: 0,
+                      display: "grid",
+                      gap: 6,
+                      justifyItems: "center",
+                    }}
                   >
                     <strong style={{ fontSize: 12, color: COLORS.green }}>
                       组 {group} · Head {(group - 1) * 8 + 1}–{group * 8}{" "}
@@ -6808,14 +6750,42 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                       group={group}
                       count={count}
                     />
-                    <AttentionTensor
-                      tex={`C_{${group}}`}
-                      rows={count}
-                      columns="4096"
-                      scalar={(row, column) =>
-                        `c^{(${group})}_{${row},${column}}`
-                      }
-                    />
+                    <div
+                      data-output-group-product={group}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "max-content 24px max-content 24px max-content",
+                        gap: 6,
+                        alignItems: "center",
+                      }}
+                    >
+                      <AttentionTensor
+                        tex={`C_{${group}}`}
+                        rows={count}
+                        columns="4096"
+                        scalar={(row, column) =>
+                          `c^{(${group})}_{${row},${column}}`
+                        }
+                      />
+                      <Operator tex="\times" />
+                      <AttentionTensor
+                        tex={`W^{O\\!,\\mathrm{A}}_{${layer},${group}}`}
+                        rows="4096"
+                        columns="1024"
+                        scalar={(row, column) => `w^A_{${row},${column}}`}
+                        tone="indigo"
+                      />
+                      <Operator tex="=" />
+                      <AttentionTensor
+                        tex={`B_{${group}}`}
+                        rows={count}
+                        columns="1024"
+                        scalar={(row, column) =>
+                          `b^{(${group})}_{${row},${column}}`
+                        }
+                      />
+                    </div>
                     <div
                       data-head-concat-map={group}
                       style={{
@@ -6831,23 +6801,6 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                       <MathFormula tex="j=1,\ldots,8,\quad d=1,\ldots,d_k" />
                       <span>只改列索引，不改变元素值；8dₖ = 4096 列</span>
                     </div>
-                    <Operator tex="\times" />
-                    <AttentionTensor
-                      tex={`W^{O\\!,\\mathrm{A}}_{${layer},${group}}`}
-                      rows="4096"
-                      columns="1024"
-                      scalar={(row, column) => `w^A_{${row},${column}}`}
-                      tone="indigo"
-                    />
-                    <Operator tex="=" />
-                    <AttentionTensor
-                      tex={`B_{${group}}`}
-                      rows={count}
-                      columns="1024"
-                      scalar={(row, column) =>
-                        `b^{(${group})}_{${row},${column}}`
-                      }
-                    />
                   </div>
                 </React.Fragment>
               ))}
@@ -6898,9 +6851,12 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             </div>
             <FlowStep />
             <div
+              data-output-final-product
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 26px 1fr 26px 1fr",
+                gridTemplateColumns:
+                  "max-content 26px max-content 26px max-content",
+                justifyContent: "center",
                 gap: 8,
                 alignItems: "center",
               }}
@@ -8382,7 +8338,7 @@ export function buildGraph(
     ),
     // [OM-FREEPLAY] 三个 Head 按内部代表矩阵的内容宽度预留 2400px。
     node("heads", "heads", layer, mode, 40, headsY, 2400, headsHeight),
-    node("concat", "concat", layer, mode, 150, concatY, 1320, concatHeight),
+    node("concat", "concat", layer, mode, 150, concatY, 3200, concatHeight),
     // [OM-FREEPLAY] 四路各含两个并行过程；2800px 容纳分侧输入、独立输出通道和完整长下标。
     node("add1", "add1", layer, mode, 300, add1Y, 2800, add1Height),
     node("state1", "state1", layer, mode, 300, state1Y, 1200, state1Height),
@@ -8494,7 +8450,7 @@ export function buildGraph(
         mode,
         2100,
         engramLookupY,
-        1000,
+        1600,
         1100,
       ),
     );

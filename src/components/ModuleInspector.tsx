@@ -205,6 +205,7 @@ const PARAGRAPHS = {
   engram: [
     ...ENGRAM_PURPOSE,
     "Engram 位于第 2、15 层。它读取当前位置及最多三个历史 token ID，构成以当前位置结束的 2-gram、3-gram 和 4-gram，再用多个哈希表完成合计 24 次查表。查出的向量拼接后经过投影，产生四个各为 5120 维的 Key $\\mathbf k_c$，以及一个共享的 5120 维 Value $\\mathbf v$。",
+    "查表同时读取两份存储：FP8 数值表 $E_{@L}^{\\mathrm{FP8}}$ 与对应缩放系数表 $S_{@L}^E$，两者使用相同的 24 个哈希行号。每行有 256 个数值和 8 个系数，每连续 32 列共用一个系数。图中固定本层，令 $b=b_{n,h}$：$\\hat e_{n,h,d}=\\operatorname{FP32}(\\bar e_{b,d})\\operatorname{FP32}(s_{b,\\lceil d/32\\rceil})$，再令 $e_{n,h,d}=\\operatorname{BF16}(\\hat e_{n,h,d})$。第 1 块覆盖 1–32 列，第 2 块覆盖 33–64 列，第 8 块覆盖 225–256 列；按原列序组成 256 维向量。缩放系数随量化权重保存，描述数值尺度；图中没有将其当作 Attention 权重或当前输入生成的门控。反量化只近似恢复数值，无法找回量化损失的精度。24 条向量沿特征轴拼成 6144 维，随后才乘投影矩阵。",
     "每一路用自己的当前残差 $\\mathbf h_c$ 决定接收多少记忆。残差与对应 Key 分别做带可学习缩放的 RMSNorm，得到 $\\widehat{\\mathbf h}_c$ 和 $\\widehat{\\mathbf k}_c$，再点积并除以 $\\sqrt{5120}$，得到标量 $d_c$。随后取 $|d_c|$ 与 $10^{-6}$ 的较大值作为 $a_c$，开平方并恢复原点积的正负号，得到 $s_c$；对它做 sigmoid 才得到门控 $g_c$。四路分别用自己的门控对共享 Value 加权。",
     "把 $g_c$ 乘到共享 Value 的每个元素上，再与这一支原残差逐元素相加，得到 $\\mathbf h_c^E=\\mathbf h_c^{in}+g_c\\mathbf v$。图像位置的门控设为零，对应的 Value 加权结果为零。注入之后仍是四路残差，它们继续进入 Attention 前的 mHC 汇合；Engram 将检索到的信息加到原有状态中。",
   ],

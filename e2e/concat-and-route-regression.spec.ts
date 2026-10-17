@@ -48,7 +48,7 @@ test("MoE 结果框公式与说明增大两号且保持在框内", async ({ page
 });
 
 test("K/V 来源、特征省略、拼接代表块保留来源元素且无溢出", async ({ page }) => {
-  await page.setViewportSize({ width: 2400, height: 1600 });
+  await page.setViewportSize({ width: 4200, height: 1800 });
   await page.goto("/#model=v41&chapter=layer");
   const focus = page.getByRole("combobox", { name: "定位模块" });
   for (const layer of [1, 15]) {
@@ -58,6 +58,50 @@ test("K/V 来源、特征省略、拼接代表块保留来源元素且无溢出"
     await focus.selectOption("concat");
     const projection = page.locator("[data-output-projection]");
     await expect(projection).toBeVisible();
+    for (const group of [1, 2, 8]) {
+      const product = projection.locator(
+        `[data-output-group-product="${group}"]`,
+      );
+      const horizontal = await product.evaluate((el) => {
+        const [c, w, b] = [
+          ...el.querySelectorAll("[data-attention-tensor]"),
+        ].map((tensor) => tensor.getBoundingClientRect());
+        return (
+          c.right < w.left &&
+          w.right < b.left &&
+          Math.abs(c.top + c.height / 2 - w.top - w.height / 2) < 1 &&
+          Math.abs(w.top + w.height / 2 - b.top - b.height / 2) < 1
+        );
+      });
+      expect(horizontal).toBe(true);
+    }
+    const geometry = await projection.evaluate((root) => {
+      const groups = [...root.querySelectorAll("[data-output-group]")].map(
+        (g) => g.getBoundingClientRect(),
+      );
+      const products = [
+        ...root.querySelectorAll<HTMLElement>("[data-output-group-product]"),
+      ];
+      return {
+        overflow: products.filter((p) => {
+          const r = p.getBoundingClientRect(),
+            parent = p.parentElement!.getBoundingClientRect();
+          return (
+            p.scrollWidth > p.clientWidth + 2 ||
+            r.left < parent.left - 1 ||
+            r.right > parent.right + 1
+          );
+        }).length,
+        separated:
+          groups[0].right < groups[1].left && groups[1].right < groups[2].left,
+        ratio:
+          root.getBoundingClientRect().width /
+          root.getBoundingClientRect().height,
+      };
+    });
+    expect(geometry.overflow).toBe(0);
+    expect(geometry.separated).toBe(true);
+    expect(geometry.ratio).toBeGreaterThan(2);
     await expect(
       projection.locator("[data-b-concat-blocks] [data-attention-tensor]"),
     ).toHaveCount(3);
@@ -74,7 +118,9 @@ test("K/V 来源、特征省略、拼接代表块保留来源元素且无溢出"
     }
     for (const group of [1, 2, 8])
       await expect(
-        projection.locator(`[data-head-concat-sources="${group}"] > div`),
+        projection.locator(
+          `[data-head-concat-sources="${group}"] [data-original-head]`,
+        ),
       ).toHaveCount(3);
     const overflows = await projection.evaluate((root) =>
       [

@@ -13,6 +13,8 @@
 
 V4.1 的 mHC 参数来自同版本[官方推理实现](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/5254448103b6254fc646dacbca1cbbf20e9216c1/inference/model.py)：`hc_attn_scale`、`hc_ffn_scale` 各含 3 个可学习缩放值，`hc_attn_base`、`hc_ffn_base` 各含 24 个可学习偏置。图中的 s、b 对应这些参数，u 则来自当前输入的投影。
 
+V4.1 的 Engram 反量化对应同一实现中的 `ParallelEngramEmbedding`：`weight` 保存 FP8 E4M3 数值，`scale` 按行保存每 32 列的缩放系数。两张表使用相同行号读取，转为 FP32 相乘，再转为 BF16；每条 256 维向量有 8 个系数。图中的缩放表表示权重的量化存储信息，完整参数值由数值表与缩放表共同表示。
+
 ## 不能混用的机制
 
 - R1 页面对应原始 R1，不是 R1-Distill，也不是 R1-0528。训练产生推理能力，推理主干仍是 V3 系列结构。
