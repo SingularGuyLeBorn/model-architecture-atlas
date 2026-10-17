@@ -72,18 +72,20 @@ test("局部紧凑布局、Attention 同对象同色与左侧复用出口", asyn
     await focus.selectOption("kv-merge");
     const rows = page.locator("[data-concat-row]");
     expect(await rows.count()).toBe(12);
-    const metrics = await rows.evaluateAll((items) =>
-      items.map((row) => {
-        const box = row.lastElementChild as HTMLElement;
-        const formula = box.querySelector("[aria-label]")!;
-        return {
-          text: box.textContent,
-          slack:
-            box.getBoundingClientRect().width -
-            formula.getBoundingClientRect().width,
-        };
-      }),
-    );
+    const metrics = await rows
+      .locator("[data-concat-element]")
+      .evaluateAll((items) =>
+        items.map((row) => {
+          const box = row as HTMLElement;
+          const formula = box.querySelector("[aria-label]")!;
+          return {
+            text: box.textContent,
+            slack:
+              box.getBoundingClientRect().width -
+              formula.getBoundingClientRect().width,
+          };
+        }),
+      );
     expect(metrics.every((m) => !m.text?.includes("维") && m.slack < 50)).toBe(
       true,
     );

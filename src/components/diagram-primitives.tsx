@@ -294,6 +294,7 @@ export function VectorStrip({
   tone = "neutral",
   compact = false,
   selected = false,
+  selectedTone = "amber",
   columns: displayedColumns,
   nameWidth,
   nameLineHeight,
@@ -309,6 +310,7 @@ export function VectorStrip({
   tone?: DiagramTone;
   compact?: boolean;
   selected?: boolean;
+  selectedTone?: DiagramTone;
   columns?: string[];
   nameWidth?: number;
   nameLineHeight?: number;
@@ -318,7 +320,7 @@ export function VectorStrip({
   uniformCells?: boolean;
   cellPadding?: number;
 }) {
-  const palette = tonePalette(selected ? "amber" : tone);
+  const palette = tonePalette(selected ? selectedTone : tone);
   const columns = displayedColumns ?? ["1", "2", "\\cdots", length];
   return (
     <div
@@ -342,7 +344,7 @@ export function VectorStrip({
         lineHeight: 1.2,
         outline:
           selected && outlineSelection
-            ? `1px dashed ${COLORS.amber}`
+            ? `1px dashed ${palette.color}`
             : undefined,
         borderRadius: 4,
       }}

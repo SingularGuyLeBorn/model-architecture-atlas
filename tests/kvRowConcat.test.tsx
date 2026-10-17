@@ -56,7 +56,29 @@ describe("KV 行拼接保留来源和行位置", () => {
       expect(row.lastElementChild!.textContent).not.toContain("维");
       expect(
         row.lastElementChild!.querySelectorAll("[aria-label]"),
-      ).toHaveLength(1);
+      ).toHaveLength(5);
+      expect(row.querySelectorAll("[data-concat-element]")).toHaveLength(3);
     }
+    for (const kind of ["local", "global"]) {
+      const elements = (side: string) =>
+        [
+          ...root.querySelectorAll(
+            `[data-concat-rows="${kind}-${side}"] [data-concat-element] [aria-label]`,
+          ),
+        ].map((el) => el.getAttribute("aria-label"));
+      expect(elements("output")).toEqual(elements("input"));
+      expect(elements("input")).toHaveLength(9);
+    }
+    expect(tex).toContain(`u_{${layer},r,512}`);
+    expect(tex).toContain(`g_{${layer},i_{${layer},t,K_{${layer},t}},512}`);
+    const fill = (region: string) =>
+      (
+        root.querySelector(
+          `[data-concat-rows="${region}"] [data-concat-element]`,
+        ) as HTMLElement
+      ).style.backgroundColor;
+    expect(fill("local-input")).toBe(fill("local-output"));
+    expect(fill("global-input")).toBe(fill("global-output"));
+    expect(fill("local-input")).not.toBe(fill("global-input"));
   });
 });

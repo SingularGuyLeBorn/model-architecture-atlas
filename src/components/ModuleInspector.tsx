@@ -263,6 +263,11 @@ export function explainModule(data: ExplainedModule): ModuleExplanation {
             "每组先把 8 个 Head 的 O 沿特征列拼接。中间结构保留原来的 O 标题和 o 行向量，第 1、2、8 个块分别对应列 1–512、513–1024、3585–4096。token 行位置不变，也没有乘法或相加。随后才将同一拼接结果命名为 C：c 的列号只是把 Head 号与 Head 内的特征号合成一个列号，数值不变。",
           ]
         : []),
+      ...(data.kind === "kv-merge"
+        ? [
+            "拼接区每条展示的 u、g 行都展开第 1、2、…、512 个元素。右侧保留左侧相同的元素和原下标：局部窗口放上段，全局选中行接在下段。KV 是整体矩阵的名字，拼接只改变行位置，元素值保持原样。",
+          ]
+        : []),
       ...paragraphs,
     ].map((paragraph, index) =>
       (index === 0 ? phase + paragraph : paragraph)

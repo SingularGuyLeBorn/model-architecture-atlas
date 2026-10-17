@@ -30,65 +30,105 @@ export function KvRowConcat({
     border: `1.5px solid ${frameColor(COLORS.green)}`,
     borderRadius: 8,
     padding: 12,
-    minWidth: 0,
+    minWidth: "max-content",
   };
   const rows = (
     values: (string | null)[],
     positions: string[],
     region: string,
-  ) => (
-    <div
-      data-concat-rows={region}
-      style={{
-        display: "grid",
-        gridTemplateColumns: "max-content max-content",
-        justifyContent: "center",
-        gap: 6,
-        marginTop: 8,
-      }}
-    >
-      {values.map((value, i) =>
-        value === null ? (
-          <div key="ellipsis" style={{ textAlign: "center", gridColumn: 2 }}>
-            <MathFormula tex={"\\vdots"} />
-          </div>
-        ) : (
-          <div
-            key={value}
-            data-concat-row={value}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "subgrid",
-              gridColumn: "1 / -1",
-              gap: 8,
-              alignItems: "center",
-            }}
-          >
-            <span style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-              第 <MathFormula tex={positions[i]} /> 行
-            </span>
+  ) => {
+    const color = region.startsWith("global") ? COLORS.blue : COLORS.green;
+    const fill = region.startsWith("global")
+      ? COLORS.blueSoft
+      : COLORS.greenSoft;
+    return (
+      <div
+        data-concat-rows={region}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "max-content max-content",
+          justifyContent: "center",
+          gap: 6,
+          marginTop: 8,
+        }}
+      >
+        {values.map((value, i) =>
+          value === null ? (
+            <div key="ellipsis" style={{ textAlign: "center", gridColumn: 2 }}>
+              <MathFormula tex={"\\vdots"} />
+            </div>
+          ) : (
             <div
+              key={value}
+              data-concat-row={value}
               style={{
-                border: `1px solid ${frameColor(COLORS.green)}`,
-                borderRadius: 5,
-                background: COLORS.greenSoft,
-                padding: "6px 10px",
-                textAlign: "center",
+                display: "grid",
+                gridTemplateColumns: "subgrid",
+                gridColumn: "1 / -1",
+                gap: 8,
+                alignItems: "center",
               }}
             >
-              <MathFormula tex={value} />
+              <span style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                第 <MathFormula tex={positions[i]} /> 行
+              </span>
+              <div
+                style={{
+                  border: `1px solid ${frameColor(color)}`,
+                  borderRadius: 5,
+                  padding: "6px 10px",
+                  textAlign: "center",
+                  display: "grid",
+                  gap: 5,
+                }}
+              >
+                <MathFormula tex={value} />
+                <div
+                  data-concat-elements
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "minmax(max-content,1fr) minmax(max-content,1fr) 16px minmax(max-content,1fr)",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  {["1", "2", "\\cdots", "512"].map((column) =>
+                    column === "\\cdots" ? (
+                      <MathFormula key={column} tex={column} />
+                    ) : (
+                      <span
+                        key={column}
+                        data-concat-element
+                        style={{
+                          padding: "3px 5px",
+                          border: `1px solid ${frameColor(color)}`,
+                          borderRadius: 4,
+                          background: fill,
+                        }}
+                      >
+                        <MathFormula
+                          tex={value
+                            .replace(/^\\mathbf\s+/, "")
+                            .replace(/}$/, `,${column}}`)}
+                        />
+                      </span>
+                    ),
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        ),
-      )}
-    </div>
-  );
-  const transfer = (label: string) => (
+          ),
+        )}
+      </div>
+    );
+  };
+  const transfer = (label: string, color: string = COLORS.green) => (
     <div
       style={{
         alignSelf: "center",
         textAlign: "center",
-        color: COLORS.green,
+        color,
         fontSize: 12,
       }}
     >
@@ -108,17 +148,23 @@ export function KvRowConcat({
       data-kv-row-concat
       data-kv-source={kvSource}
       data-id-source={indexSource}
-      style={{ padding: 14, fontSize: 14 }}
+      style={{ padding: 14, fontSize: 14, minWidth: "max-content" }}
     >
       <div style={{ marginBottom: 12 }}>
         固定当前查询位置 t：
         <MathFormula tex={"m_t=\\min(128,t),\\quad r=\\max(1,t-127)"} />。
         每个小框是一条完整的 512 维行向量。
+        <div data-kv-source-legend style={{ marginTop: 5 }}>
+          <span style={{ color: COLORS.green }}>绿色：本地 U</span>
+          {" · "}
+          <span style={{ color: COLORS.blue }}>蓝色：选中的全局 G 行</span>
+        </div>
       </div>
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0,1fr) 88px minmax(0,1.1fr)",
+          gridTemplateColumns:
+            "minmax(max-content,1fr) 64px minmax(max-content,1fr)",
           gap: "12px 0",
         }}
       >
@@ -128,11 +174,12 @@ export function KvRowConcat({
           <div>本地窗口 · t−127 到 t（窗口已满）</div>
           {rows(localRows, ["1", "2", "", "m_t"], "local-input")}
         </div>
-        {transfer("整行原样放入")}
+        {transfer("原样放入")}
         <div
           data-concat-output
           style={{
             ...frame,
+            borderColor: COLORS.line,
             padding: 0,
             gridColumn: 3,
             gridRow: "1 / 3",
@@ -155,7 +202,7 @@ export function KvRowConcat({
             data-concat-output-global
             style={{
               padding: 12,
-              borderTop: `1.5px solid ${frameColor(COLORS.green)}`,
+              borderTop: `1.5px solid ${frameColor(COLORS.blue)}`,
             }}
           >
             <div style={{ fontWeight: 600 }}>下段 · 紧接选中的全局行</div>
@@ -168,7 +215,10 @@ export function KvRowConcat({
           </div>
           {outputPort}
         </div>
-        <div data-concat-global style={frame}>
+        <div
+          data-concat-global
+          style={{ ...frame, borderColor: frameColor(COLORS.blue) }}
+        >
           {globalPort}
           <TensorHeading
             name={`G_{${layer},t}^{\\mathrm{selected}}`}
@@ -179,7 +229,7 @@ export function KvRowConcat({
           </div>
           {rows(globalRows, ["1", "2", "", k], "global-input")}
         </div>
-        {transfer("接在下方")}
+        {transfer("接在下方", COLORS.blue)}
       </div>
       <div
         data-concat-mapping

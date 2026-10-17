@@ -4701,7 +4701,7 @@ function SelectedGlobalRows({
             <span
               key={`${row.label}-${index}`}
               style={{
-                color: row.selected ? COLORS.amber : COLORS.muted,
+                color: row.selected ? COLORS.blue : COLORS.muted,
                 fontWeight: row.selected ? 800 : 500,
               }}
             >
@@ -4755,6 +4755,7 @@ function SelectedGlobalRows({
                   }
                   tone="green"
                   selected={row.selected}
+                  selectedTone="blue"
                   columnSubgrid
                   uniformCells
                   compact
@@ -4775,13 +4776,13 @@ function SelectedGlobalRows({
       <div
         style={{
           paddingLeft: 52,
-          color: COLORS.amber,
+          color: COLORS.blue,
           fontSize: 10.5,
           fontWeight: 800,
           textAlign: "center",
         }}
       >
-        虚线范围内的整行元素共同选中
+        蓝色虚线行被选中；蓝色沿取行结果进入下方拼接
       </div>
     </div>
   );
@@ -6507,7 +6508,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           id="selected"
           type="source"
           position={Position.Bottom}
-          style={handle}
+          style={{ ...handle, background: COLORS.blue }}
         />
         <Title>
           把 <MathFormula tex={`I_{${layer},t}`} /> 中的{" "}
@@ -6528,7 +6529,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           <SelectedGlobalRows kvSource={layer} indexSource={layer} />
           <Arrow />
           <div style={{ minWidth: 0, display: "grid", gap: 9 }}>
-            <Box tone="green">
+            <Box tone="blue">
               <MathFormula tex={`G_{${layer},t}^{\\mathrm{selected}}`} />
               <span style={{ display: "block", fontSize: 10 }}>
                 <MathFormula tex={`K_{${layer},t}\\times512`} />
@@ -6561,6 +6562,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     elementTex={(column) => `g_{${layer},${row},${column}}`}
                     tone="green"
                     selected
+                    selectedTone="blue"
                     columnSubgrid
                     uniformCells
                     compact
@@ -6646,7 +6648,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               id="global"
               type="target"
               position={Position.Left}
-              style={handle}
+              style={{ ...handle, background: COLORS.blue }}
             />
           }
           outputPort={
@@ -8047,6 +8049,7 @@ function DiagramNodeView({ id, data, selected }: NodeProps<DiagramNode>) {
                 "state1",
                 "output",
                 "next-inputs",
+                "kv-merge",
               ].includes(data.kind)
                 ? "minmax(min-content,1fr)"
                 : "minmax(0,1fr)",
@@ -8097,9 +8100,14 @@ function node(
       // [OM-FREEPLAY] 权重行、四路矩阵、输出行与运算符按内容排列，840px 留出完整下标和必要间距。
       ...(kind === "hc-pre" ? { minWidth: 840 } : {}),
       // 四路矩阵保持同排；由内部实际内容决定最小宽度，旧保存尺寸也不能压破外框。
-      ...(["tensor", "state1", "output", "next-inputs", "swa-window"].includes(
-        kind,
-      )
+      ...([
+        "tensor",
+        "state1",
+        "output",
+        "next-inputs",
+        "swa-window",
+        "kv-merge",
+      ].includes(kind)
         ? { minWidth: "min-content" }
         : {}),
     },
@@ -9262,7 +9270,13 @@ export function buildGraph(
         "global-select",
         "kv-merge",
         `G_{${layer},t}^{\\mathrm{selected}}`,
-        { sourceHandle: "selected", targetHandle: "global" },
+        {
+          sourceHandle: "selected",
+          targetHandle: "global",
+          style: { stroke: COLORS.blue },
+          data: { color: COLORS.blue },
+          markerEnd: architectureArrowMarker(COLORS.blue),
+        },
       ),
     );
   }

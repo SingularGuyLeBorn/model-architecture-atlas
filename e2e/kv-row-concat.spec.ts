@@ -24,6 +24,19 @@ test("KV 拼接过程、来源、内部端口和下游间距", async ({ page }) 
       .click();
     const focus = page.getByRole("combobox", { name: "定位模块" });
     await focus.selectOption("concat");
+    let selectedFill = "";
+    if (kvSource !== null) {
+      await focus.selectOption("global-select");
+      const selectedCell = page
+        .locator(
+          '[data-selected-global-rows] [data-vector-selected="true"] [data-vector-cell]',
+        )
+        .first();
+      await expect(selectedCell).toBeVisible();
+      selectedFill = await selectedCell.evaluate(
+        (el) => getComputedStyle(el).backgroundColor,
+      );
+    }
     await focus.selectOption("kv-merge");
     const node = page.locator('.react-flow__node[data-id="kv-merge"]');
     await expect(node.locator(".katex-error")).toHaveCount(0);
@@ -33,6 +46,22 @@ test("KV 拼接过程、来源、内部端口和下游间距", async ({ page }) 
       continue;
     }
     await expect(node.locator("[data-concat-row]")).toHaveCount(12);
+    await expect(node.locator("[data-concat-element]")).toHaveCount(36);
+    const fills = await node
+      .locator("[data-concat-rows]")
+      .evaluateAll((regions) =>
+        Object.fromEntries(
+          regions.map((region) => [
+            region.getAttribute("data-concat-rows"),
+            getComputedStyle(region.querySelector("[data-concat-element]")!)
+              .backgroundColor,
+          ]),
+        ),
+      );
+    expect(fills["local-input"]).toBe(fills["local-output"]);
+    expect(fills["global-input"]).toBe(fills["global-output"]);
+    expect(fills["local-input"]).not.toBe(fills["global-input"]);
+    expect(fills["global-input"]).toBe(selectedFill);
     const tex = await node
       .locator("[aria-label]")
       .evaluateAll((els) => els.map((el) => el.getAttribute("aria-label")));
