@@ -101,6 +101,7 @@ import {
   EditableConnectionLine,
   ConnectionGestureControl,
   EditHistoryProvider,
+  applyInteractiveNodeChanges,
   EightConnectionPorts,
   EightResizeHandles,
   findBoundaryConnection,
@@ -9961,7 +9962,7 @@ function DiagramCanvas({
         resizeHistoryActiveRef.current = true;
         beginHistory();
       }
-      onNodesChange(changes);
+      applyInteractiveNodeChanges(changes, onNodesChange);
       if (resizeFinished && resizeHistoryActiveRef.current) {
         resizeHistoryActiveRef.current = false;
         commitHistory();
@@ -10044,8 +10045,8 @@ function DiagramCanvas({
   const canUndo = historyRevision >= 0 && pastRef.current.length > 0;
   const canRedo = historyRevision >= 0 && futureRef.current.length > 0;
   const historyContext = useMemo(
-    () => ({ beginHistory, commitHistory }),
-    [beginHistory, commitHistory],
+    () => ({ beginHistory, commitHistory, setEdges }),
+    [beginHistory, commitHistory, setEdges],
   );
 
   const pointerInCanvas = useCallback((clientX: number, clientY: number) => {

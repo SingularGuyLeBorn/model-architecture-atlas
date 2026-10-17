@@ -1,6 +1,7 @@
 import React, {
   createContext,
   memo,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -11,7 +12,10 @@ import React, {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type RefObject,
+  type Dispatch,
+  type SetStateAction,
 } from "react";
+import { flushSync } from "react-dom";
 import katex from "katex";
 import { MathMarkup } from "./MathMarkup";
 import { DATA_WIRE_WIDTH } from "./diagram-appearance";
@@ -38,6 +42,7 @@ import {
   type ConnectionLineComponentProps,
   type Node,
   type InternalNode,
+  type NodeChange,
   type XYPosition,
 } from "@xyflow/react";
 
@@ -155,7 +160,24 @@ export type EditableEdge = Edge<EditableEdgeData, "editable-orthogonal">;
 type EditHistoryContextValue = {
   beginHistory: () => void;
   commitHistory: () => void;
+  setEdges: Dispatch<SetStateAction<EditableEdge[]>>;
 };
+
+/** 原生拖动回调在本次输入内提交受控坐标，避免经过被动 effect 多等一帧。
+ * 普通测量、初始化及程序化改图仍走批处理，不能在 React 生命周期内 flush。
+ */
+export function applyInteractiveNodeChanges<N extends Node>(
+  changes: NodeChange<N>[],
+  apply: (changes: NodeChange<N>[]) => void,
+) {
+  const gesture = changes.some(
+    (change) =>
+      (change.type === "position" && change.dragging !== undefined) ||
+      (change.type === "dimensions" && change.resizing !== undefined),
+  );
+  if (gesture) flushSync(() => apply(changes));
+  else apply(changes);
+}
 
 const EditHistoryContext = createContext<EditHistoryContextValue | null>(null);
 
@@ -1578,8 +1600,10 @@ function EditableOrthogonalEdgeView({
   data,
   style,
 }: EdgeProps<EditableEdge>) {
-  const { screenToFlowPosition, getZoom, setEdges, getInternalNode } =
-    useReactFlow<Node, EditableEdge>();
+  const { screenToFlowPosition, getZoom, getInternalNode } = useReactFlow<
+    Node,
+    EditableEdge
+  >();
   const store = useStoreApi();
   const routes = useStore((state) => {
     let routes = routingSnapshots.get(state);
@@ -1614,7 +1638,15 @@ function EditableOrthogonalEdgeView({
     observer.observe(label);
     return () => observer.disconnect();
   }, [data?.labelTex, id, registry]);
-  const history = useContext(EditHistoryContext);
+  const history = useContext(EditHistoryContext)!;
+  const updateEdges = history.setEdges;
+  // 手势直接写受控图的唯一状态；不再经过实例队列 → diff → onEdgesChange 往返。
+  // 路径、标签、端点和撤销快照因此在同一次输入内看到相同的边数据。
+  const setEdges = useCallback(
+    (update: SetStateAction<EditableEdge[]>) =>
+      flushSync(() => updateEdges(update)),
+    [updateEdges],
+  );
   const anchorPoint = (
     nodeId: string,
     anchor: BoundaryAnchor | undefined,

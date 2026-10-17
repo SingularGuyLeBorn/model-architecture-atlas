@@ -18,6 +18,7 @@ import {
   EditableOrthogonalEdge,
   architectureArrowMarker,
   EditHistoryProvider,
+  applyInteractiveNodeChanges,
   EightResizeHandles,
   type EditableEdge,
 } from "../components/EditableArchitectureGraph";
@@ -254,7 +255,7 @@ export function RecipeCanvas({
   }, [undo, redo]);
   const onNodesChange: OnNodesChange<StageNode> = useCallback(
     (changes) => {
-      applyChanges(changes);
+      applyInteractiveNodeChanges(changes, applyChanges);
       if (
         !loaded.current &&
         changes.some((change) => change.type === "dimensions")
@@ -393,7 +394,7 @@ export function RecipeCanvas({
             {notice || "拖空白平移 · 滚轮缩放 · 点击左侧步骤定位"}
           </span>
         </div>
-        <EditHistoryProvider value={{ beginHistory, commitHistory }}>
+        <EditHistoryProvider value={{ beginHistory, commitHistory, setEdges }}>
           <ReactFlow
             className="atlas-flow"
             nodes={nodes}
