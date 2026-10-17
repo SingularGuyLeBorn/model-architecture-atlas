@@ -106,9 +106,9 @@ describe("真实依赖与模型身份", () => {
       tex: "q^{low}_{4,t}",
     });
     expect(recipe.links).toContainEqual({
-      source: "index",
+      source: "index-read",
       target: "attention",
-      tex: "I_{4,t}",
+      tex: "m^{read}_{4,t}",
     });
     expect(recipe.links).toContainEqual({
       source: "input",

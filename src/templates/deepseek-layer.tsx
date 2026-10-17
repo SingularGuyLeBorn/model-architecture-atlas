@@ -7,6 +7,7 @@ import {
 import type { Recipe, RecipeLink, Stage, Phase } from "./recipes";
 import { MathFormula as M } from "../components/diagram-primitives";
 import { RecipePort } from "./RecipePorts";
+import { ObjectConnections } from "../components/ObjectConnections";
 import { Down } from "./structure-blocks";
 import {
   Row,
@@ -20,6 +21,10 @@ import {
   SwiGlu,
 } from "./architecture-blocks";
 import "./architecture-blocks.css";
+import {
+  deepseekSelectionStages,
+  dsaSelectionShape,
+} from "./deepseek-selection";
 
 export type DeepSeekLayerId = Extract<
   ArchitectureModelId,
@@ -47,8 +52,7 @@ export function deepseekLayerRecipe(
     y = `y_{${l},t}`,
     z = `z_{${l},t}`,
     f = `f_{${l},t}`;
-  const I = `I_{${l},t}`,
-    qHeads = a.queryHeads,
+  const qHeads = a.queryHeads,
     d = p.hidden;
   const stages: Stage[] = [],
     links: RecipeLink[] = [];
@@ -69,6 +73,7 @@ export function deepseekLayerRecipe(
     width: number,
     direction: "in" | "out" | undefined,
     tone: "ocean" | "violet",
+    highlightCurrent = true,
   ) => (
     <Matrix
       name={name}
@@ -76,7 +81,7 @@ export function deepseekLayerRecipe(
       rows={["1", "2", "…", "t"]}
       columns={cols(width)}
       tone={tone}
-      selected="t"
+      selected={highlightCurrent ? "t" : undefined}
       direction={direction}
       element={(r, j) => `${stem}_{${l},${r},${j}}`}
     />
@@ -346,34 +351,28 @@ export function deepseekLayerRecipe(
           to={64}
         />
         <Operation
-          tex={`s_{${l},t,j}=\\sum_{h=1}^{64}\\frac{\\widetilde\\eta_{${l},t,h}}{\\sqrt{64}}\\operatorname{ReLU}\\!\\left(\\frac{q^I_{${l},h,t}\\cdot k^I_{${l},j}}{\\sqrt{128}}\\right)`}
+          tex={`s^I_{${l},t,j}=\\sum_{h=1}^{64}\\frac{\\widetilde\\eta_{${l},t,h}}{\\sqrt{64}}\\operatorname{ReLU}\\!\\left(\\frac{q^I_{${l},h,t}\\cdot k^I_{${l},j}}{\\sqrt{128}}\\right)`}
         />
-        <Flow>
-          {[
-            <Row key="s" name={`s_{${l},t}`} size="t" tone="plum" />,
-            <Operation
-              key="top"
-              tex={`\\operatorname{TopK}_{\\min(2048,t)}`}
-              label="因果范围 j ≤ t"
-            />,
-            <Row
-              key="i"
-              name={I}
-              size={`\\min(2048,t)`}
-              tone="amber"
-              direction="out"
-            />,
-          ]}
-        </Flow>
+        <Row
+          name={`s^I_{${l},t}`}
+          size={dsaSelectionShape(phase).length}
+          tone="plum"
+          direction="out"
+        />
         <p className="architecture-note">
           量化点积包含 Q/K 尺度恢复；行号指向同层 MLA 的原 token 缓存。
         </p>
       </>,
-      I,
+      `s^I_{${l},t}`,
       2400,
     );
     edge("query", "index", qr);
     edge("input", "index", x);
+    stages.push(...deepseekSelectionStages(phase, layer));
+    edge("index", "index-select", `s^I_{${l},t}`);
+    edge("index-select", "index-read", `m^I_{${l},t}`);
+    edge("kv", "index-read", C);
+    edge("kv", "index-read", K);
   }
 
   add(
@@ -383,19 +382,10 @@ export function deepseekLayerRecipe(
       <Columns>
         {[
           headMatrix(Q, "q", a.keyDim, "in"),
-          cache(C, "c^{KV}", 512, "in", "ocean"),
-          cache(K, "k^R", 64, "in", "violet"),
+          cache(C, "c^{KV}", 512, "in", "ocean", id !== "v32"),
+          cache(K, "k^R", 64, "in", "violet", id !== "v32"),
         ]}
       </Columns>
-      {id === "v32" && (
-        <Row
-          name={I}
-          size="\\min(2048,t)"
-          tone="amber"
-          direction="in"
-          title="本次可见 token 行号 · 对应列保留，其余列屏蔽"
-        />
-      )}
       <p className="architecture-note">
         <M tex={`h=1,2,\\ldots,${qHeads}\\quad j=1,2,\\ldots,t`} />
       </p>
@@ -429,34 +419,108 @@ export function deepseekLayerRecipe(
           />,
         ]}
       </Columns>
-      <Sum
-        inputs={[
-          <Row
-            key="c"
-            name={`z^C_{${l},h,t}`}
-            size="t"
-            tone="olive"
-            title="每列：吸收后的 Query · 缓存潜向量"
-          />,
-          <Row key="r" name={`z^R_{${l},h,t}`} size="t" tone="olive" />,
-        ]}
-        result={<Row name={`z_{${l},h,t}`} size="t" tone="plum" />}
-      />
-      <Flow>
-        {[
-          <Operation
-            key="scale"
-            tex={`s_j=\\tau\\,z_{${l},h,t,j}`}
-            label="配置的注意力缩放 · 因果/选择掩码"
-          />,
-          <Operation
-            key="softmax"
-            tex={`a_{${l},h,t,j}=\\frac{e^{s_j}}{\\sum_{k\\in\\mathcal V_t}e^{s_k}}`}
-            label="同一 Head、同一 Query 的可见列归一化"
-          />,
-          headMatrix(A, "a", "t", "out", "orange"),
-        ]}
-      </Flow>
+      <ObjectConnections
+        links={
+          id === "v32"
+            ? [
+                {
+                  from: "scaled-score",
+                  to: "score-with-mask",
+                  direction: "right",
+                },
+              ]
+            : []
+        }
+      >
+        <div className={id === "v32" ? "dsa-mla-tail" : undefined}>
+          <div>
+            <Sum
+              inputs={[
+                <Row
+                  key="c"
+                  name={`z^C_{${l},h,t}`}
+                  size="t"
+                  tone="olive"
+                  title="每列：吸收后的 Query · 缓存潜向量"
+                />,
+                <Row key="r" name={`z^R_{${l},h,t}`} size="t" tone="olive" />,
+              ]}
+              result={<Row name={`z_{${l},h,t}`} size="t" tone="plum" />}
+            />
+            {id === "v32" && (
+              <>
+                <Flow>
+                  {[
+                    <Operation
+                      key="scale"
+                      tex={`\\tau\\,z_{${l},h,t}`}
+                      label="主注意力缩放"
+                    />,
+                    <Row
+                      key="scaled"
+                      name={`z^{scaled}_{${l},h,t}`}
+                      size="t"
+                      tone="plum"
+                      trace="scaled-score"
+                    />,
+                  ]}
+                </Flow>
+              </>
+            )}
+          </div>
+          <div>
+            {id === "v32" && (
+              <>
+                <Sum
+                  inputs={[
+                    <Row
+                      key="z"
+                      name={`z^{scaled}_{${l},h,t}`}
+                      size="t"
+                      tone="plum"
+                      trace="score-with-mask"
+                    />,
+                    <Row
+                      key="mask"
+                      name={`m^{read}_{${l},t}`}
+                      size="t"
+                      tone="violet"
+                      direction="in"
+                      title="同一选择掩码用于每个 MLA Head"
+                      element={(j) => `m^I_{${l},t,${j}}`}
+                    />,
+                  ]}
+                  result={
+                    <Row name={`s^{MLA}_{${l},h,t}`} size="t" tone="plum" />
+                  }
+                />
+                <p className="architecture-note">
+                  <M tex={`s_j:=s^{MLA}_{${l},h,t,j},\\quad j=1,\\ldots,t`} />
+                </p>
+              </>
+            )}
+            <Flow>
+              {[
+                ...(id === "v32"
+                  ? []
+                  : [
+                      <Operation
+                        key="scale"
+                        tex={`s_j=\\tau\\,z_{${l},h,t,j}`}
+                        label="配置的注意力缩放 · 因果/选择掩码"
+                      />,
+                    ]),
+                <Operation
+                  key="softmax"
+                  tex={`a_{${l},h,t,j}=\\frac{e^{s_j}}{\\sum_{k\\in\\mathcal V_t}e^{s_k}}`}
+                  label="同一 Head、同一 Query 的可见列归一化"
+                />,
+                headMatrix(A, "a", "t", "out", "orange"),
+              ]}
+            </Flow>
+          </div>
+        </div>
+      </ObjectConnections>
       <p className="architecture-note">
         <M tex={`z^C_{${l},h,t,j}=\\bar q_{${l},h,t}\\cdot c^{KV}_{${l},j}`} />
         ；
@@ -472,7 +536,7 @@ export function deepseekLayerRecipe(
   edge("query", "attention", Q);
   edge("kv", "attention", C);
   edge("kv", "attention", K);
-  if (id === "v32") edge("index", "attention", I);
+  if (id === "v32") edge("index-read", "attention", `m^{read}_{${l},t}`);
   add(
     "values",
     "每个 Head · 概率乘潜向量 → 求和 → Value 升维",
@@ -480,11 +544,13 @@ export function deepseekLayerRecipe(
       <Columns>
         {[
           headMatrix(A, "a", "t", "in", "orange"),
-          cache(C, "c^{KV}", 512, "in", "ocean"),
+          cache(C, "c^{KV}", 512, "in", "ocean", id !== "v32"),
         ]}
       </Columns>
       <p className="architecture-note">
-        固定同一 Head h；下列三项代表首、次、末可见行，省略中间同构项。
+        {id === "v32"
+          ? "固定同一 Head h；展示原位置 1、2、t，未命中 Top-K 的行概率为 0，其余位置同构。"
+          : "固定同一 Head h；下列三项代表首、次、末可见行，省略中间同构项。"}
       </p>
       <Sum
         ellipsis

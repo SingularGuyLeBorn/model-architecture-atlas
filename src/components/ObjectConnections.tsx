@@ -49,7 +49,9 @@ export function ObjectConnections({
           corridorLeft: ((frame?.left ?? r.left) - outer.left) / scale - 8,
           corridorRight: ((frame?.right ?? r.right) - outer.left) / scale + 8,
           frameTop: ((frame?.top ?? r.top) - outer.top) / scale,
-          groupTop: ((projection?.top ?? r.top) - outer.top) / scale,
+          // 输入落到矩阵内部元素时，横向转折留在矩阵上方，不能贴着外框顶边走。
+          groupTop:
+            ((projection?.top ?? frame?.top ?? r.top) - outer.top) / scale,
           groupBottom: ((projection?.bottom ?? r.bottom) - outer.top) / scale,
         };
       };

@@ -62,6 +62,18 @@
 .architecture-columns > div {
   min-width: max-content;
 }
+.dsa-cache-map {
+  display: flex;
+  align-items: start;
+  gap: 60px;
+  padding-block: 12px;
+}
+.dsa-mla-tail {
+  display: flex;
+  align-items: start;
+  justify-content: center;
+  gap: 96px;
+}
 .architecture-sum {
   display: grid;
   justify-items: center;
