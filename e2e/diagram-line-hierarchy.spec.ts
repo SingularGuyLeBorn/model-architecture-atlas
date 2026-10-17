@@ -34,8 +34,8 @@ test("框线浅色细描边，导线深色加粗，透明矩阵与选择保持�
   const selectedRow = page.locator(
     '[data-index-result-flow] [data-vector-selected="true"]',
   );
-  await expect(selectedRow).toHaveAttribute("data-tone", "green");
-  await expect(selectedRow).toHaveCSS("outline-color", rgb(COLORS.green));
+  await expect(selectedRow).toHaveAttribute("data-tone", "plum");
+  await expect(selectedRow).toHaveCSS("outline-color", rgb(COLORS.plum));
   await page.setViewportSize({ width: 390, height: 844 });
   await focus.selectOption("indexer");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(

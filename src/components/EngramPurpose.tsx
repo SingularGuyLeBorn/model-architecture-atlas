@@ -1,5 +1,11 @@
 import { useId, type ReactNode } from "react";
-import { MathFormula as M } from "./diagram-primitives";
+import {
+  MathFormula as M,
+  tonePalette,
+  COLORS,
+  type DiagramTone,
+} from "./diagram-primitives";
+import { frameColor } from "./diagram-appearance";
 
 // 算子依固定 V4.1 实现；表示效率的解释依 Engram 论文 §6.1，二者分别陈述。
 export const ENGRAM_PURPOSE = [
@@ -23,14 +29,10 @@ function DiagramBox({
   y: number;
   w: number;
   h?: number;
-  tone?: "green" | "blue" | "indigo";
+  tone?: DiagramTone;
   children: ReactNode;
 }) {
-  const colors = {
-    green: ["#e1f0e8", "#579881"],
-    blue: ["#e4edf7", "#7f9fbf"],
-    indigo: ["#ece8f8", "#9889bc"],
-  };
+  const palette = tonePalette(tone);
   return (
     <foreignObject x={x} y={y} width={w} height={h}>
       <div
@@ -38,9 +40,9 @@ function DiagramBox({
           boxSizing: "border-box",
           width: "100%",
           height: "100%",
-          border: "1px solid " + colors[tone][1],
+          border: "1px solid " + frameColor(palette.color),
           borderRadius: 7,
-          background: colors[tone][0],
+          background: palette.background,
           display: "grid",
           placeContent: "center",
           textAlign: "center",
@@ -79,34 +81,34 @@ export function EngramPurpose({ layer }: { layer?: number }) {
             <path
               d="M1 1 L9 5 L1 9"
               fill="none"
-              stroke="#347f6c"
+              stroke="context-stroke"
               strokeWidth="1.5"
             />
           </marker>
         </defs>
         <g
           fill="none"
-          stroke="#347f6c"
+          stroke={COLORS.green}
           strokeWidth="1.5"
           markerEnd={"url(#" + marker + ")"}
         >
-          <path d="M140 65 H190" />
+          <path d="M140 65 H190" stroke={COLORS.blue} />
           <path d="M380 65 H430" />
           <path d="M550 65 H600" />
-          <path d="M260 180 H300" />
-          <path d="M560 180 H610" />
+          <path d="M260 180 H300" stroke={COLORS.blue} />
+          <path d="M560 180 H610" stroke={COLORS.blue} />
           <path d="M780 180 H825" />
           <path d="M900 202 V240" />
           <path d="M825 270 H780 V260 H730" />
           <path d="M780 270 V330 H730" />
-          <path d="M140 322 H250 V260 H300" />
+          <path d="M140 322 H250 V260 H300" stroke={COLORS.blue} />
           <path d="M600 260 H450" />
-          <path d="M375 284 V300 H335 V310" />
+          <path d="M375 284 V300 H335 V310" stroke={COLORS.amber} />
           <path d="M600 330 H370" />
-          <path d="M335 354 V390" />
-          <path d="M190 322 V412 H313" />
-          <path d="M357 412 H430" />
-          <path d="M610 412 H650" />
+          <path d="M335 354 V390" stroke={COLORS.cyan} />
+          <path d="M190 322 V412 H313" stroke={COLORS.blue} />
+          <path d="M357 412 H430" stroke={COLORS.blue} />
+          <path d="M610 412 H650" stroke={COLORS.blue} />
           <path d="M820 412 H860" />
         </g>
         <g fill="#183b36" fontSize="16" fontWeight="700">
@@ -157,10 +159,10 @@ export function EngramPurpose({ layer }: { layer?: number }) {
         <DiagramBox x={20} y={300} w={120} tone="blue">
           <M tex="h_c^{\mathrm{in}}" />
         </DiagramBox>
-        <DiagramBox x={300} y={240} w={150}>
+        <DiagramBox x={300} y={240} w={150} tone="amber">
           <M tex="g_c=f(h_c,k_c)" />
         </DiagramBox>
-        <DiagramBox x={300} y={310} w={70}>
+        <DiagramBox x={300} y={310} w={70} tone="neutral">
           <M tex="\times" />
         </DiagramBox>
         <rect
@@ -175,7 +177,7 @@ export function EngramPurpose({ layer }: { layer?: number }) {
         <text x="335" y="420" textAnchor="middle" fontSize="28">
           +
         </text>
-        <DiagramBox x={430} y={390} w={180}>
+        <DiagramBox x={430} y={390} w={180} tone="blue">
           <M tex="\mathcal H^E\quad4\times5120" />
         </DiagramBox>
         <DiagramBox x={650} y={390} w={170}>

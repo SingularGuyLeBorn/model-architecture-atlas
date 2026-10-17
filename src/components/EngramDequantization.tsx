@@ -35,7 +35,7 @@ function StoredTable({
         data-engram-scale-table={scale || undefined}
         style={{
           width: "max-content",
-          border: `1px solid ${frameColor(COLORS.indigo)}`,
+          border: `1px solid ${frameColor(scale ? COLORS.ochre : COLORS.indigo)}`,
           borderRadius: 8,
           padding: 9,
           display: "grid",

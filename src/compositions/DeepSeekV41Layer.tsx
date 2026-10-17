@@ -1,4 +1,5 @@
 import { frameColor } from "../components/diagram-appearance";
+import { layerEdgeTone } from "../components/layer-edge-colors";
 import { VariableSearch } from "../components/VariableSearch";
 import type { VariableLocation } from "../components/variable-search";
 import { CompressorProjections } from "../components/CompressorProjections";
@@ -58,6 +59,7 @@ import {
   SplitArrows,
   COLORS,
   COMPRESSION_TONES,
+  INDEX_TONES,
   type DiagramTone,
 } from "../components/diagram-primitives";
 import React, {
@@ -2021,7 +2023,7 @@ export function MhcPost({
             <FeatureVector
               name={result(j)}
               scalar={(d) => `h'_{${j},${d}}`}
-              tone="green"
+              tone="blue"
             />
             <div style={{ textAlign: "center", fontSize: 12, marginTop: 10 }}>
               <MathFormula
@@ -2182,6 +2184,7 @@ export function LayerHandoff({
             name=""
             nameWidth={0}
             length="4"
+            tone="green"
             columns={["1", "2", "3", "4"]}
             elementTex={(j) => `p_${j}`}
           />
@@ -2211,6 +2214,7 @@ export function LayerHandoff({
                   共享全局 KV · 来自 Layer {dependencies.kv}，下一层直接读取
                 </strong>
                 <RowMatrix
+                  tone="ocean"
                   tex={`G_{${dependencies.kv}}`}
                   shape="M\times512"
                   rows={[
@@ -2232,6 +2236,7 @@ export function LayerHandoff({
                   ，下一层复用选择结果
                 </strong>
                 <RowMatrix
+                  tone="amber"
                   tex={`I_{${dependencies.indices}}`}
                   shape={`${count}\\times K_t`}
                   rows={
@@ -2648,6 +2653,7 @@ export function EngramInject({
           rowCount="1"
           rowIndex="t"
           gamma={`\\boldsymbol\\gamma_{${layer},c}^{E,Q}`}
+          outputTone="blue"
           label="Engram 残差路"
           horizontal
         />
@@ -2790,7 +2796,7 @@ export function EngramInject({
                   tex={`\\mathbf h_{${layer},${c},t}^{\\mathrm{in}}`}
                 />
               </Box>
-              <Box tone="green">
+              <Box tone="cyan">
                 <MathFormula tex={`g_${c}\\cdot\\mathbf v_{${layer},t}^{E}`} />
               </Box>
             </div>
@@ -2801,13 +2807,13 @@ export function EngramInject({
             <FeatureVector
               name={`\\mathbf h_{${layer},${c},t}^{E}`}
               scalar={(j) => `h_{${c},${j}}^E`}
-              tone="green"
+              tone="blue"
             />
           </div>
         ))}
       </div>
       <FlowStep>4 路注入结果送入本层 mHC</FlowStep>
-      <Box tone="green">
+      <Box tone="blue">
         <MathFormula
           tex={`\\mathcal H_{${layer}}^E\\in\\mathbb R^{${count}\\times4\\times5120}`}
         />
@@ -2835,6 +2841,7 @@ function RotaryProcess({
   compact = false,
   inputTone = "blue",
   outputTone = "green",
+  companion,
 }: {
   input: string;
   output: string;
@@ -2845,6 +2852,7 @@ function RotaryProcess({
   compact?: boolean;
   inputTone?: DiagramTone;
   outputTone?: DiagramTone;
+  companion?: { input: string; output: string; tone: DiagramTone };
 }) {
   const compressed = modeForLayer(layer) !== "swa";
   const unchanged = dimension - 64;
@@ -2888,13 +2896,27 @@ function RotaryProcess({
           gap: 6,
         }}
       >
-        <Box tone={inputTone}>
-          <MathFormula tex={input} />
-        </Box>
+        <div style={{ display: "flex", justifyContent: "center", gap: 6 }}>
+          <Box tone={inputTone}>
+            <MathFormula tex={input} />
+          </Box>
+          {companion && (
+            <Box tone={companion.tone}>
+              <MathFormula tex={companion.input} />
+            </Box>
+          )}
+        </div>
         <Operator tex="\to" />
-        <Box tone={outputTone}>
-          <MathFormula tex={output} />
-        </Box>
+        <div style={{ display: "flex", justifyContent: "center", gap: 6 }}>
+          <Box tone={outputTone}>
+            <MathFormula tex={output} />
+          </Box>
+          {companion && (
+            <Box tone={companion.tone}>
+              <MathFormula tex={companion.output} />
+            </Box>
+          )}
+        </div>
       </div>
       <div
         style={{
@@ -3074,6 +3096,7 @@ function IndexProjection({
   sourceNote,
   rowIndex = "t",
   inputTone = "blue",
+  outputTone = "green",
 }: {
   title: string;
   input: string;
@@ -3089,6 +3112,7 @@ function IndexProjection({
   sourceNote?: ReactNode;
   rowIndex?: string;
   inputTone?: DiagramTone;
+  outputTone?: DiagramTone;
 }) {
   const indices = rows === "1" ? [rowIndex] : ["1", "2", "\\vdots", rows];
   return (
@@ -3165,6 +3189,7 @@ function IndexProjection({
         <Operator tex="=" />
         <RowMatrix
           tex={output}
+          tone={outputTone}
           shape={`${rows}\\times${outputWidth}`}
           rows={indices.map((i) =>
             i === "\\vdots"
@@ -3236,7 +3261,7 @@ export function IndexSelection({
                 }}
               >
                 <span>行 {i + 1}</span>
-                <Box tone="blue" selected={i === 0 || i === 2}>
+                <Box tone={INDEX_TONES.score} selected={i === 0 || i === 2}>
                   <MathFormula tex={i === 4 ? "-\\infty" : String(score)} />
                 </Box>
               </div>
@@ -3266,7 +3291,7 @@ export function IndexSelection({
             columns={["1", "3"]}
             contentWidth
             elementTex={(i) => i}
-            tone="green"
+            tone={INDEX_TONES.indices}
           />
         </div>
       </div>
@@ -3365,7 +3390,7 @@ export function IndexScoreProcess({
                 nameWidth={80}
                 length="M"
                 elementTex={(i) => `a^I_{${h},t,${i}}`}
-                tone="green"
+                tone={INDEX_TONES.headScore}
               />
               <span>ReLU：负分置 0，正分保留</span>
             </div>
@@ -3424,6 +3449,7 @@ export function IndexScoreProcess({
         >
           <RowMatrix
             tex={`S_{${layer}}`}
+            tone={INDEX_TONES.score}
             contentWidth
             shape={`${count}\\times M`}
             columnLabels={[
@@ -4268,9 +4294,11 @@ export function Expert({
     columns: string,
     weight = false,
     multiplyInput = false,
+    tone: DiagramTone = weight ? "indigo" : "green",
   ) => (
     <div
       data-expert-matrix={tex}
+      data-tone={tone}
       data-expanded-tensor
       style={{
         width: "max-content",
@@ -4278,7 +4306,7 @@ export function Expert({
         justifySelf: "center",
         minWidth: 0,
         padding: 5,
-        border: `1px solid ${frameColor(weight ? COLORS.indigo : scalar === "y" ? COLORS.blue : COLORS.green)}`,
+        border: `1px solid ${frameColor(tonePalette(tone).color)}`,
         borderRadius: 6,
         background: "transparent",
       }}
@@ -4323,16 +4351,12 @@ export function Expert({
                 border:
                   row === "\\vdots" || column === "\\cdots"
                     ? undefined
-                    : `1px solid ${frameColor(weight ? COLORS.indigo : scalar === "y" ? COLORS.blue : COLORS.green)}`,
+                    : `1px solid ${frameColor(tonePalette(tone).color)}`,
                 borderRadius: 2,
                 background:
                   row === "\\vdots" || column === "\\cdots"
                     ? "transparent"
-                    : weight
-                      ? COLORS.indigoSoft
-                      : scalar === "y"
-                        ? COLORS.blueSoft
-                        : COLORS.greenSoft,
+                    : tonePalette(tone).background,
               }}
             >
               <MathFormula
@@ -4356,13 +4380,19 @@ export function Expert({
   const connector = (
     kind: "split" | "merge" | "down" | "left",
     height = 28,
+    tone: DiagramTone = "neutral",
   ) => (
     <svg
       data-expert-connector={kind}
       aria-hidden
       viewBox={`0 0 100 ${height}`}
       preserveAspectRatio="none"
-      style={{ display: "block", width: "100%", height, color }}
+      style={{
+        display: "block",
+        width: "100%",
+        height,
+        color: tonePalette(tone).color,
+      }}
     >
       <g fill="none" stroke="currentColor" strokeWidth="1.5">
         <path
@@ -4436,8 +4466,8 @@ export function Expert({
         ；b、c、z 同理，t 表示当前 token 行。
       </div>
       <div data-expert-structure style={{ display: "grid", minWidth: 0 }}>
-        {matrix(`Y_{${layer}}`, "y", count, "5120")}
-        {connector("split")}
+        {matrix(`Y_{${layer}}`, "y", count, "5120", false, false, "blue")}
+        {connector("split", 28, "blue")}
         <div style={twoColumns}>
           {matrix(
             `W_{${layer},${weightIndex}}^{\\mathrm{gate}}`,
@@ -4458,9 +4488,17 @@ export function Expert({
         </div>
         <div style={{ ...twoColumns, alignItems: "stretch" }}>
           <div style={{ minWidth: 0, display: "grid" }}>
-            {connector("down")}
-            {matrix(`Z_{${layer},${expertIndex}}`, "z", count, "d_e")}
-            {connector("down")}
+            {connector("down", 28, "plum")}
+            {matrix(
+              `Z_{${layer},${expertIndex}}`,
+              "z",
+              count,
+              "d_e",
+              false,
+              false,
+              "plum",
+            )}
+            {connector("down", 28, "plum")}
             <div
               data-expert-activation
               style={{
@@ -4475,7 +4513,7 @@ export function Expert({
               <div data-silu-input style={{ marginTop: 8 }}>
                 <MathFormula tex="z" />
               </div>
-              {connector("split", 24)}
+              {connector("split", 24, "plum")}
               <div style={{ ...twoColumns, gap: 8, alignItems: "stretch" }}>
                 {["z", "\\sigma(z)=\\frac1{1+e^{-z}}"].map((tex) => (
                   <div
@@ -4483,10 +4521,10 @@ export function Expert({
                     data-silu-operand
                     style={{
                       background:
-                        tex === "z" ? COLORS.greenSoft : COLORS.cyanSoft,
+                        tex === "z" ? COLORS.plumSoft : COLORS.cyanSoft,
                       width: "fit-content",
                       justifySelf: "center",
-                      border: `1px solid ${frameColor(color)}`,
+                      border: `1px solid ${frameColor(tex === "z" ? COLORS.plum : COLORS.cyan)}`,
                       borderRadius: 4,
                       padding: "7px 6px",
                       display: "grid",
@@ -4516,16 +4554,19 @@ export function Expert({
                   <g fill="none" stroke={color} strokeWidth="1.5">
                     <path
                       data-silu-arrow="identity"
+                      stroke={COLORS.plum}
                       vectorEffect="non-scaling-stroke"
                       d="M25 0 V14 H44 M42 10 L44 14 L42 18"
                     />
                     <path
                       data-silu-arrow="sigmoid"
+                      stroke={COLORS.cyan}
                       vectorEffect="non-scaling-stroke"
                       d="M75 0 V14 H56 M58 10 L56 14 L58 18"
                     />
                     <path
                       data-silu-arrow="output"
+                      stroke={COLORS.mint}
                       vectorEffect="non-scaling-stroke"
                       d="M50 25 V44 M49 38 L50 44 L51 38"
                     />
@@ -4559,7 +4600,7 @@ export function Expert({
                 <MathFormula tex="z=2\;\Rightarrow\;a=2\times0.8808\approx1.7616" />
               </div>
             </div>
-            {connector("down")}
+            {connector("down", 28, "mint")}
           </div>
           <div
             data-expert-up-flow
@@ -4580,7 +4621,7 @@ export function Expert({
                 vectorEffect="non-scaling-stroke"
                 d="M50 0 V100 M49 98 L50 100 L51 98"
                 fill="none"
-                stroke={color}
+                stroke={COLORS.forest}
                 strokeWidth="1.5"
               />
             </svg>
@@ -4597,8 +4638,24 @@ export function Expert({
           </div>
         </div>
         <div style={twoColumns}>
-          {matrix(`A_{${layer},${expertIndex}}`, "a", count, "d_e")}
-          {matrix(`B_{${layer},${expertIndex}}`, "b", count, "d_e")}
+          {matrix(
+            `A_{${layer},${expertIndex}}`,
+            "a",
+            count,
+            "d_e",
+            false,
+            false,
+            "mint",
+          )}
+          {matrix(
+            `B_{${layer},${expertIndex}}`,
+            "b",
+            count,
+            "d_e",
+            false,
+            false,
+            "forest",
+          )}
         </div>
         {connector("merge")}
         <div data-expert-product style={{ textAlign: "center", fontSize: 12 }}>
@@ -4621,7 +4678,7 @@ export function Expert({
             ))}
           </div>
         </div>
-        {connector("left")}
+        {connector("left", 28, "teal")}
         <div
           data-expert-down-projection
           style={{
@@ -4631,7 +4688,15 @@ export function Expert({
             alignItems: "start",
           }}
         >
-          {matrix(`C_{${layer},${expertIndex}}`, "c", count, "d_e")}
+          {matrix(
+            `C_{${layer},${expertIndex}}`,
+            "c",
+            count,
+            "d_e",
+            false,
+            false,
+            "teal",
+          )}
           <div
             data-expert-down-multiply
             style={{
@@ -4976,7 +5041,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 fontSize: 12,
               }}
             >
-              <Box tone="amber">
+              <Box tone="blue">
                 <MathFormula tex={`v_{${s}}`} />
               </Box>
               <Operator tex="\to" />
@@ -5591,6 +5656,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           gamma={`\\boldsymbol\\gamma_{${layer},1}`}
           rowIndex={phase === "decode" ? token : undefined}
           label="Attention 输入"
+          inputTone="green"
           outputTone="blue"
           horizontal
         />
@@ -5609,6 +5675,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           rowCount={count}
           gamma={`\\boldsymbol\\gamma_{${layer},2}`}
           label="FFN 输入"
+          inputTone="green"
           outputTone="blue"
           horizontal
         />
@@ -6261,6 +6328,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   inputSymbol="q^r"
                   outputSymbol={"\\widetilde q^I"}
                   title="Query → 32 个索引 Head"
+                  outputTone={INDEX_TONES.query}
                   sourceNote={
                     <>
                       来源：本层 Query 低秩投影与归一化的输出。
@@ -6286,6 +6354,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   inputSymbol="x"
                   outputSymbol={"\\widehat\\eta"}
                   title="每个 Head 的加权系数"
+                  outputTone={INDEX_TONES.headWeight}
                   sourceNote={
                     <>
                       来源：四路残差经 mHC 汇合，再做 Attention 输入归一化。
@@ -6398,16 +6467,19 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 )}
                 <div style={{ display: "grid", gap: 8 }}>
                   <RotaryProcess
-                    input={
+                    input={`\\mathbf q^I_{${layer},h,t}`}
+                    inputTone={INDEX_TONES.query}
+                    outputTone={INDEX_TONES.query}
+                    companion={
                       mode === "full"
-                        ? `\\mathbf q^I_{${layer},h,t},\\;\\bar{\\mathbf k}^I_{${kvSource},i}`
-                        : `\\mathbf q^I_{${layer},h,t}`
+                        ? {
+                            input: `\\bar{\\mathbf k}^I_{${kvSource},i}`,
+                            output: `\\mathbf k^{I\\prime}_{${kvSource},i}`,
+                            tone: INDEX_TONES.key,
+                          }
+                        : undefined
                     }
-                    output={
-                      mode === "full"
-                        ? `\\mathbf q^{I\\prime}_{${layer},h,t},\\;\\mathbf k^{I\\prime}_{${kvSource},i}`
-                        : `\\mathbf q^{I\\prime}_{${layer},h,t}`
-                    }
+                    output={`\\mathbf q^{I\\prime}_{${layer},h,t}`}
                     position={
                       mode === "full"
                         ? `t-1\\;(Q),\\quad (i-1)\\cdot ${compressionRatioForLayer(kvSource)}\\;(K)`
@@ -6448,7 +6520,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                           ]}
                         />
                         <span>末尾追加</span>
-                        <Box tone="amber">
+                        <Box tone={INDEX_TONES.key}>
                           <MathFormula
                             tex={`\\mathbf k_{${layer},i}^{I\\prime}\\quad1\\times128`}
                           />
@@ -7147,9 +7219,9 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               display: "grid",
               placeItems: "center",
               padding: "18px 7px 7px",
-              border: `1.3px solid ${frameColor(COLORS.green)}`,
+              border: `1.3px solid ${frameColor(COLORS.olive)}`,
               borderRadius: 7,
-              background: COLORS.greenSoft,
+              background: COLORS.oliveSoft,
             }}
           >
             <span
@@ -7189,10 +7261,12 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             width: "100%",
             boxSizing: "border-box",
             padding: "5px 2px",
-            border: `1px solid ${frameColor(expert ? COLORS.amber : COLORS.blue)}`,
+            border: `1px solid ${frameColor(COLORS.olive)}`,
             borderRadius: 4,
-            background: expert ? COLORS.amberSoft : COLORS.blueSoft,
-            color: expert ? COLORS.amber : COLORS.muted,
+            background: expert
+              ? selectionPalette("olive").background
+              : COLORS.oliveSoft,
+            color: COLORS.ink,
             opacity: expert ? 1 : 0.4,
             fontWeight: expert ? 800 : 400,
           }}
@@ -7610,7 +7684,11 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
       return (
         <div
           data-expert-weighted={expert}
-          style={{ ...panel, height: "auto", borderColor: frameColor(color) }}
+          style={{
+            ...panel,
+            height: "auto",
+            borderColor: frameColor(COLORS.cyan),
+          }}
         >
           {both}
           <Title>
@@ -7627,7 +7705,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               nameWidth={110}
               length="5120"
               elementTex={(column) => `r_{${layer},${expert},t,${column}}`}
-              tone={shared ? "blue" : "amber"}
+              tone="cyan"
               compact
             />
           </div>
@@ -7637,7 +7715,11 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
     return (
       <div
         data-expert-output={expert}
-        style={{ ...panel, height: "auto", borderColor: frameColor(color) }}
+        style={{
+          ...panel,
+          height: "auto",
+          borderColor: frameColor(COLORS.green),
+        }}
       >
         {both}
         <Title>
@@ -8883,6 +8965,7 @@ export function buildGraph(
     labelTex?: string,
     extra?: Partial<EditableEdge>,
   ): EditableEdge => {
+    const identityColor = tonePalette(layerEdgeTone(id)).color;
     const base: EditableEdge = {
       id,
       source,
@@ -8891,16 +8974,20 @@ export function buildGraph(
       targetHandle: "main-in",
       type: "editable-orthogonal",
       reconnectable: true,
-      markerEnd: architectureArrowMarker(COLORS.green),
-      style: { stroke: COLORS.green, strokeWidth: 2.2 },
-      data: { labelTex },
+      markerEnd: architectureArrowMarker(identityColor),
+      style: { stroke: identityColor, strokeWidth: 2.2 },
+      data: { labelTex, color: identityColor },
     };
     return {
       ...base,
       ...extra,
       type: "editable-orthogonal",
       style: { ...base.style, ...extra?.style },
-      data: { ...base.data, ...extra?.data },
+      data: {
+        ...base.data,
+        color: extra?.style?.stroke ?? identityColor,
+        ...extra?.data,
+      },
     };
   };
   const mathEdge = (
@@ -9184,7 +9271,6 @@ export function buildGraph(
         `expert-output-${branch.key}`,
         undefined,
         {
-          ...branchStyle,
           sourceHandle:
             branch.expertId === undefined
               ? "shared-out"
@@ -9198,7 +9284,6 @@ export function buildGraph(
         `expert-output-${branch.key}`,
         `expert-scale-${branch.key}`,
         `\\mathbf e_{${layer},${expert},t}`,
-        branchStyle,
       ),
     );
     edges.push(
@@ -9220,7 +9305,6 @@ export function buildGraph(
         `expert-scale-${branch.key}`,
         `expert-weighted-${branch.key}`,
         undefined,
-        branchStyle,
       ),
     );
     edges.push(
@@ -9229,7 +9313,7 @@ export function buildGraph(
         `expert-weighted-${branch.key}`,
         "moe-sum",
         `\\mathbf r_{${layer},${expert},t}`,
-        { ...branchStyle, targetHandle: `term-${branch.key}` },
+        { targetHandle: `term-${branch.key}` },
       ),
     );
   }

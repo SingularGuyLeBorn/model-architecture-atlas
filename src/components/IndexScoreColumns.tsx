@@ -1,6 +1,7 @@
 import {
   Box,
   COLORS,
+  INDEX_TONES,
   MathFormula,
   Operator,
   RowMatrix,
@@ -65,6 +66,7 @@ export function IndexScoreMatrix({ layer }: { layer: number }) {
         <div data-index-matmul-scores>
           <RowMatrix
             tex={`A^I_{${layer},t}`}
+            tone={INDEX_TONES.headScore}
             shape="32\times M"
             rows={[
               "\\mathbf a^I_{1,t}",
@@ -80,6 +82,7 @@ export function IndexScoreMatrix({ layer }: { layer: number }) {
         <div data-index-matmul-result>
           <RowMatrix
             tex={`\\mathbf s_{${layer},t}`}
+            tone={INDEX_TONES.score}
             shape="1\times M"
             rows={[`\\mathbf s_{${layer},t}`]}
             rowLength="M"
@@ -147,7 +150,7 @@ export function IndexScoreColumns({ layer }: { layer: number }) {
                 ))}
               </StackedSum>
               <div data-index-score-cell={column}>
-                <Box tone="green">
+                <Box tone={INDEX_TONES.score}>
                   <MathFormula tex={`s_{${layer},t,${column}}`} />
                 </Box>
               </div>

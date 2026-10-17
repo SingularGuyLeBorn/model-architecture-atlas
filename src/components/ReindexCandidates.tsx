@@ -106,11 +106,11 @@ export function CandidateFilter({ layer }: { layer: number }) {
               gap: 8,
             }}
           >
-            <Box tone="green">
+            <Box tone="plum">
               <M tex="S_{21,t}\quad 1\times M" />
             </Box>
             <M tex="\longrightarrow" />
-            <Box tone="green">
+            <Box tone="plum">
               <M tex="\beta_b=\max_{8b-7\le i\le8b}s_{21,t,i}" />
               <br />每 8 行取最大分数
             </Box>
@@ -122,7 +122,7 @@ export function CandidateFilter({ layer }: { layer: number }) {
             </Box>
           </div>
           <Down label="入选块的 8 行标为 1，其余标为 0" />
-          <Box tone="amber">
+          <Box tone="violet">
             <M tex="B_{21,t}\in\{0,1\}^{1\times M}" />
             　B₂₁,t → 第 25、29、33、37 层
           </Box>
@@ -149,14 +149,14 @@ export function CandidateFilter({ layer }: { layer: number }) {
               }}
             >
               <span data-candidate-score-caption>本层分数</span>
-              <Box tone="green">
+              <Box tone="plum">
                 <M tex={"S_{" + layer + ",t}\\quad1\\times M"} />
               </Box>
             </div>
             <CacheReference layer={layer} source={CANDIDATE_SOURCE} kind="B" />
           </div>
           <MergeArrows count={2} />
-          <Box tone="amber">
+          <Box tone="plum">
             <M
               tex={`\\widetilde s_{${layer},t,i}=\\begin{cases}s_{${layer},t,i}&B_{${layer},t,i}=1\\\\-\\infty&B_{${layer},t,i}=0\\end{cases}`}
             />

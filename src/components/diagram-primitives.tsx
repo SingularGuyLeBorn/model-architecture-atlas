@@ -96,6 +96,17 @@ export const CACHE_TONES = {
   global: "ocean",
 } as const;
 
+// Indexer 的 Query / Key / Head 系数 / 分数 / 行号是不同对象，贯穿生成和消费。
+export const INDEX_TONES = {
+  query: "blue",
+  key: "green",
+  headWeight: "amber",
+  headScore: "olive",
+  score: "plum",
+  indices: "amber",
+  mask: "violet",
+} as const;
+
 export const COMPRESSION_TONES = {
   candidate: "forest",
   gateParameter: "lavender",
