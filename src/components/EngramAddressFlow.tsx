@@ -2,6 +2,10 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { COLORS } from "./diagram-primitives";
 import { EngramHash } from "./EngramHash";
 import {
+  ENGRAM_DEQUANT_ROW,
+  ENGRAM_DEQUANT_BLOCKS,
+} from "./EngramRowDequantization";
+import {
   EngramDequantization,
   ENGRAM_ADDRESS_ROWS,
 } from "./EngramDequantization";
@@ -51,16 +55,18 @@ export function EngramAddressFlow({
         d: string,
         x: number,
         y: number,
-        direction: "left" | "right" | "down",
+        direction: "left" | "right" | "down" | "up",
         color = COLORS.amber,
       ) => {
         // [OM-FREEPLAY] 箭翼沿用内部导线的 5×4px，方向由目标端口确定。
         const tip =
           direction === "down"
             ? `M${x - 4} ${y - 5} L${x} ${y} L${x + 4} ${y - 5}`
-            : direction === "left"
-              ? `M${x + 5} ${y - 4} L${x} ${y} L${x + 5} ${y + 4}`
-              : `M${x - 5} ${y - 4} L${x} ${y} L${x - 5} ${y + 4}`;
+            : direction === "up"
+              ? `M${x - 4} ${y + 5} L${x} ${y} L${x + 4} ${y + 5}`
+              : direction === "left"
+                ? `M${x + 5} ${y - 4} L${x} ${y} L${x + 5} ${y + 4}`
+                : `M${x - 5} ${y - 4} L${x} ${y} L${x - 5} ${y + 4}`;
         next.push({ from, to, kind, d, tip, color });
       };
       const b = rect("[data-engram-addresses]"),
@@ -101,34 +107,94 @@ export function EngramAddressFlow({
           });
         },
       );
-      [
-        [
-          "[data-engram-table]",
-          "[data-dequant-values] [data-expanded-tensor]",
-          COLORS.indigo,
-        ],
-        [
-          "[data-engram-scale-table]",
-          "[data-dequant-scales] [data-expanded-tensor]",
-          COLORS.ochre,
-        ],
-      ].forEach(([from, to, color]) => {
+      ["fp8", "scale"].forEach((table) => {
+        const from = `[data-engram-row="${table}:${ENGRAM_DEQUANT_ROW}"] > [data-vector-elements]`;
+        const to = `[data-dequant-${table === "fp8" ? "values" : "scales"}] [data-expanded-tensor]`;
         const a = rect(from),
-          r = rect(to);
-        const y =
-          rect("[data-engram-table-pair]").bottom +
-          (color === COLORS.indigo ? 22 : 40);
+          r = rect(to),
+          left = table === "fp8";
+        const frame = rect(
+          left ? "[data-engram-table]" : "[data-engram-scale-table]",
+        );
+        const lane = left
+          ? Math.min(frame.left, r.left) - 24
+          : Math.max(frame.right, r.right) + 24;
         add(
           from,
           to,
           "read",
-          `M${a.x} ${a.bottom} V${y} H${r.x} V${r.top}`,
-          r.x,
-          r.top,
-          "down",
-          color,
+          `M${left ? a.left : a.right} ${a.y} H${lane} V${r.y} H${left ? r.left : r.right}`,
+          left ? r.left : r.right,
+          r.y,
+          left ? "right" : "left",
+          left ? COLORS.indigo : COLORS.ochre,
         );
       });
+      const inputs = rect("[data-dequant-inputs]"),
+        blocks = rect("[data-dequant-blocks]");
+      const outputSelector = "[data-dequant-output] [data-expanded-tensor]",
+        output = rect(outputSelector);
+      ENGRAM_DEQUANT_BLOCKS.forEach((k, i) => {
+        const fromValue = "[data-dequant-values] [data-expanded-tensor]";
+        const valueTarget = `[data-dequant-value-block="${k}"] [data-expanded-tensor]`;
+        const a = rect(fromValue),
+          v = rect(valueTarget),
+          lane = a.left - 20;
+        add(
+          fromValue,
+          valueTarget,
+          "split",
+          `M${a.left} ${a.y} H${lane} V${v.y} H${v.left}`,
+          v.left,
+          v.y,
+          "right",
+          COLORS.indigo,
+        );
+        const fromScale = `[data-dequant-scales] [data-vector-cell]:nth-child(${i === 2 ? 4 : i + 1})`;
+        const scaleTarget = `[data-dequant-scale-block="${k}"] > div`;
+        const s = rect(fromScale),
+          t = rect(scaleTarget);
+        const sx = blocks.right + 40 + i * 20,
+          sy = inputs.bottom + 12 + (2 - i) * 12;
+        const ty = t.top - 10;
+        add(
+          fromScale,
+          scaleTarget,
+          "scale",
+          `M${s.x} ${s.bottom} V${sy} H${sx} V${ty} H${t.x} V${t.top}`,
+          t.x,
+          t.top,
+          "down",
+          COLORS.ochre,
+        );
+        const result = `[data-dequant-result-block="${k}"] [data-expanded-tensor]`,
+          q = rect(result);
+        const ox = output.left + ((3 - i) * (output.right - output.left)) / 4;
+        const oy = blocks.bottom + 12 + (2 - i) * 12;
+        add(
+          result,
+          outputSelector,
+          "assemble",
+          `M${q.right} ${q.y} H${blocks.right + 18 - i * 6} V${oy} H${ox} V${output.top}`,
+          ox,
+          output.top,
+          "down",
+          COLORS.green,
+        );
+      });
+      const resultTarget =
+          "[data-engram-read-result] [data-vector-elements]:last-child [data-vector-cell]:last-child",
+        target = rect(resultTarget);
+      add(
+        outputSelector,
+        resultTarget,
+        "result",
+        `M${output.right} ${output.y} H${target.x} V${target.bottom}`,
+        target.x,
+        target.bottom,
+        "up",
+        COLORS.green,
+      );
       setWires((current) =>
         JSON.stringify(current) === JSON.stringify(next) ? current : next,
       );
@@ -137,7 +203,7 @@ export function EngramAddressFlow({
     [
       root,
       ...root.querySelectorAll<HTMLElement>(
-        "[data-engram-address-vector], [data-engram-index], [data-engram-row], [data-engram-table-pair], [data-expanded-tensor]",
+        "[data-engram-address-vector], [data-engram-index], [data-engram-row], [data-engram-table-pair], [data-expanded-tensor], [data-dequant-block], [data-dequant-footer]",
       ),
     ].forEach((el) => observer.observe(el));
     return () => observer.disconnect();

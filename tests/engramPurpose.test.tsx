@@ -63,7 +63,7 @@ it("主图与独立章节说明 Engram 收益、成本、参数身份，不引�
         expect(tex).toContain(`s_{b,${block}}`);
         expect(tex).toContain(`\\bar e_{b,${first}}`);
         expect(tex).toContain(`\\bar e_{b,${last}}`);
-        expect(tex).toContain(`\\hat e_{n,h,${last}}`);
+        expect(tex).toContain(`\\hat e_{4,8,${last}}`);
       }
       expect(
         root.querySelectorAll("[data-dequant-output] [data-vector-cell]"),

@@ -4,13 +4,11 @@ import {
   COLORS,
   MathFormula as M,
   MatrixEllipsis,
-  Operator,
-  RowMatrix,
   TensorHeading,
   VectorStrip,
   matrixColumnTracks,
 } from "./diagram-primitives";
-import { HorizontalTransfer } from "./HorizontalTransfer";
+import { EngramRowDequantization } from "./EngramRowDequantization";
 
 export const ENGRAM_ADDRESS_ROWS = [
   "0",
@@ -124,7 +122,7 @@ export function EngramDequantization({
       style={{
         position: "relative",
         display: "grid",
-        gap: 80,
+        gap: 36,
         justifyContent: "center",
       }}
     >
@@ -194,163 +192,7 @@ export function EngramDequantization({
         <div />
         <StoredTable layer={layer} rows={rows} scale />
       </div>
-      <div
-        style={{
-          position: "relative",
-          display: "grid",
-          gridTemplateColumns: "max-content 72px max-content",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div
-          data-engram-dequantization
-          style={{ display: "grid", gap: 8, justifyItems: "center" }}
-        >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "max-content max-content",
-              gap: "4px 24px",
-              justifyItems: "start",
-              width: "100%",
-            }}
-          >
-            <small style={{ gridRow: 2, gridColumn: 1 }}>
-              同一行号 b · 读取数值
-            </small>
-            <small style={{ gridRow: 2, gridColumn: 2 }}>
-              同一行号 b · 读取系数
-            </small>
-            <div data-dequant-values>
-              <Box tone="indigo" expanded>
-                <TensorHeading name="\bar{\mathbf e}_b" shape="1\times256" />
-                <VectorStrip
-                  name=""
-                  nameWidth={0}
-                  length="256"
-                  elementTex={(d) => `\\bar e_{b,${d}}`}
-                  tone="indigo"
-                  uniformCells
-                  compact
-                />
-              </Box>
-            </div>
-            <div data-dequant-scales>
-              <Box tone="ochre" expanded>
-                <TensorHeading name="\mathbf s_b" shape="1\times8" />
-                <VectorStrip
-                  name=""
-                  nameWidth={0}
-                  length="8"
-                  elementTex={(k) => `s_{b,${k}}`}
-                  tone="ochre"
-                  uniformCells
-                  compact
-                />
-              </Box>
-            </div>
-          </div>
-          <strong>反量化 · 24 行分别执行</strong>
-          <M tex="b=b_{n,h},\quad n\in\{2,3,4\},\ h=1,\ldots,8" />
-          <small>转为 FP32 · 每块 32 个数乘同一个系数</small>
-          <div style={{ display: "grid", gap: 6 }}>
-            {[1, 2, 8].map((k) => (
-              <div key={k}>
-                {k === 8 && (
-                  <div style={{ textAlign: "center" }}>
-                    <M tex="\vdots" />
-                  </div>
-                )}
-                <div
-                  data-dequant-block={k}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                      "max-content 20px max-content 20px max-content",
-                    gap: 4,
-                    alignItems: "center",
-                  }}
-                >
-                  <Box tone="ochre">
-                    <M tex={`s_{b,${k}}`} />
-                  </Box>
-                  <Operator tex="\times" />
-                  <Box tone="indigo" expanded>
-                    <VectorStrip
-                      name=""
-                      nameWidth={0}
-                      length={String(k * 32)}
-                      columns={[
-                        String((k - 1) * 32 + 1),
-                        String((k - 1) * 32 + 2),
-                        "\\cdots",
-                        String(k * 32),
-                      ]}
-                      elementTex={(d) => `\\bar e_{b,${d}}`}
-                      tone="indigo"
-                      uniformCells
-                      compact
-                    />
-                  </Box>
-                  <Operator tex="=" />
-                  <Box tone="green" expanded>
-                    <VectorStrip
-                      name=""
-                      nameWidth={0}
-                      length={String(k * 32)}
-                      columns={[
-                        String((k - 1) * 32 + 1),
-                        String((k - 1) * 32 + 2),
-                        "\\cdots",
-                        String(k * 32),
-                      ]}
-                      elementTex={(d) => `\\hat e_{n,h,${d}}`}
-                      tone="green"
-                      uniformCells
-                      compact
-                    />
-                  </Box>
-                </div>
-              </div>
-            ))}
-          </div>
-          <small>8 块按原列序组成一行 · 转为 BF16</small>
-          <div data-dequant-output>
-            <Box tone="green" expanded>
-              <TensorHeading name="\mathbf e_{n,h}" shape="1\times256" />
-              <VectorStrip
-                name=""
-                nameWidth={0}
-                length="256"
-                elementTex={(d) => `e_{n,h,${d}}`}
-                tone="green"
-                uniformCells
-                compact
-              />
-            </Box>
-          </div>
-        </div>
-        <div />
-        <div data-engram-read-result style={{ display: "grid", gap: 4 }}>
-          <strong style={{ textAlign: "center" }}>24 行结果 · BF16</strong>
-          <RowMatrix
-            tex={`\\mathcal E_{${layer},t}`}
-            shape="3\times8\times256"
-            rows={["2\\text{-gram}", "3\\text{-gram}", "4\\text{-gram}"]}
-            rowLength="8"
-            elementTex={(i, h) => `\\mathbf e_{${i + 2},${h}}^{(256)}`}
-            elementColumns={["1", "2", "\\cdots", "8"]}
-            headerLineHeight={2.4}
-          />
-        </div>
-        <HorizontalTransfer
-          sourceSelector="[data-dequant-output] [data-expanded-tensor]"
-          targetSelector="[data-engram-read-result] [data-expanded-tensor]"
-          leftSelector="[data-engram-dequantization]"
-          rightSelector="[data-engram-read-result]"
-        />
-      </div>
+      <EngramRowDequantization layer={layer} />
     </div>
   );
 }

@@ -24,8 +24,8 @@ test("Engram 双表横排，选中行使用不同填充色，反量化接入结�
       .selectOption("engram-lookup");
     const layout = page.locator("[data-engram-read-layout]");
     await expect(
-      layout.locator("[data-stage-transfer] path").first(),
-    ).toHaveAttribute("d", /^M /);
+      page.locator("[data-engram-address-link=result]"),
+    ).toHaveAttribute("d", /^M/);
     const metrics = await layout.evaluate((root) => {
       const table = root.querySelector("[data-engram-table]")!;
       const result = root.querySelector("[data-engram-scale-table]")!;
@@ -33,7 +33,11 @@ test("Engram 双表横排，选中行使用不同填充色，反量化接入结�
         b = result.getBoundingClientRect();
       const cells = [...table.querySelectorAll("[data-vector-cell]")];
       const connections = [
-        ...root.querySelectorAll<SVGPathElement>("[data-stage-transfer] path"),
+        ...root
+          .closest("[data-engram-address-flow]")!
+          .querySelectorAll<SVGPathElement>(
+            "[data-engram-address-link=result]",
+          ),
       ].map((path) => {
         const source = root
           .querySelector("[data-dequant-output] [data-expanded-tensor]")!
@@ -42,17 +46,13 @@ test("Engram 双表横排，选中行使用不同填充色，反量化接入结�
           .getPointAtLength(0)
           .matrixTransform(path.getScreenCTM()!);
         const target = root
-          .querySelector("[data-engram-read-result] [data-expanded-tensor]")!
+          .querySelector(
+            "[data-engram-read-result] [data-vector-elements]:last-child [data-vector-cell]:last-child",
+          )!
           .getBoundingClientRect();
-        // 最后一段为开放箭翼；路径中间的第一个 M 后是连续数据线。
-        const segments = path.getAttribute("d")!.split(" M ");
-        const line = document.createElementNS(
-          "http://www.w3.org/2000/svg",
-          "path",
-        );
-        line.setAttribute("d", segments[0]);
-        const end = line
-          .getPointAtLength(line.getTotalLength())
+        // 开放箭翼是独立 path；数据线末端必须落在实际输出元素上。
+        const end = path
+          .getPointAtLength(path.getTotalLength())
           .matrixTransform(path.getScreenCTM()!);
         return {
           sourceGap: Math.hypot(
@@ -60,8 +60,8 @@ test("Engram 双表横排，选中行使用不同填充色，反量化接入结�
             start.y - source.top - source.height / 2,
           ),
           targetGap: Math.hypot(
-            end.x - target.left,
-            end.y - target.top - target.height / 2,
+            end.x - target.left - target.width / 2,
+            end.y - target.bottom,
           ),
         };
       });

@@ -27,7 +27,7 @@ test("24 个地址接入双表：同号双分支、真实行端点、无穿字�
       .getByRole("combobox", { name: "定位模块" })
       .selectOption("engram-lookup");
     const flow = page.locator("[data-engram-address-flow]");
-    await expect(flow.locator("[data-engram-address-link]")).toHaveCount(23);
+    await expect(flow.locator("[data-engram-address-link]")).toHaveCount(33);
     const failures = await flow.evaluate((root) => {
       const failures: string[] = [];
       for (const path of root.querySelectorAll<SVGPathElement>(
@@ -77,6 +77,21 @@ test("24 个地址接入双表：同号双分支、真实行端点、无穿字�
           )
             failures.push(`错行 ${index}`);
         }
+        if (
+          path.dataset.engramAddressLink === "read" &&
+          !path.dataset.source!.includes("b_{4,8}")
+        )
+          failures.push("读出未从具体同号行起线");
+        if (path.dataset.engramAddressLink === "scale") {
+          const sourceTex = source
+            .querySelector("[aria-label]")!
+            .getAttribute("aria-label");
+          const targetTex = target
+            .querySelector("[aria-label]")!
+            .getAttribute("aria-label");
+          if (sourceTex !== targetTex)
+            failures.push(`系数错配 ${sourceTex} → ${targetTex}`);
+        }
         const obstacles = [
           ...root.querySelectorAll(
             "[data-vector-cell], [data-engram-index], [data-engram-address-vector], [data-hash-port], strong, small, [data-engram-dequantization] > [aria-label]",
@@ -121,6 +136,10 @@ test("24 个地址接入双表：同号双分支、真实行端点、无穿字�
     await expect(flow.locator("[data-engram-address-link=select]")).toHaveCount(
       18,
     );
+    for (const kind of ["split", "scale", "assemble"])
+      await expect(
+        flow.locator(`[data-engram-address-link=${kind}]`),
+      ).toHaveCount(3);
     await expect(flow.locator(".katex-error")).toHaveCount(0);
     // 宽截图保留可读文字；几何已在上面的宽/窄实际画布逐一验收。
     await page.setViewportSize({ width: 4000, height: 3400 });
@@ -141,6 +160,9 @@ test("24 个地址接入双表：同号双分支、真实行端点、无穿字�
       .toBe(true);
     await flow.screenshot({
       path: `artifacts/engram-addresses-${layer}-${phase}.png`,
+    });
+    await flow.locator("[data-engram-dequantization]").screenshot({
+      path: `artifacts/engram-dequantization-${layer}-${phase}.png`,
     });
   }
   expect(errors).toEqual([]);

@@ -33,3 +33,39 @@ it.each([2, 15])("Layer %i 三组地址与两表同号选中行一一对应", (l
     }
   expect(root.querySelector(".katex-error")).toBeNull();
 });
+
+it.each([2, 15])("Layer %i 同一个 b 的系数逐块对应 32 个数值", (layer) => {
+  const root = document.createElement("div");
+  root.innerHTML = renderToStaticMarkup(
+    <EngramAddressFlow layer={layer} rows={384006168} />,
+  );
+  const dequant = root.querySelector("[data-engram-dequantization]")!;
+  expect(dequant.querySelector('[aria-label="b:=b_{4,8}"]')).not.toBeNull();
+  for (const k of [1, 2, 8]) {
+    const block = dequant.querySelector(`[data-dequant-block="${k}"]`)!;
+    expect(block.textContent).toContain(`列 ${(k - 1) * 32 + 1}–${k * 32}`);
+    expect(
+      block.querySelector(
+        `[data-dequant-scale-block] [aria-label="s_{b,${k}}"]`,
+      ),
+    ).not.toBeNull();
+    for (const d of [(k - 1) * 32 + 1, (k - 1) * 32 + 2, k * 32]) {
+      expect(
+        block.querySelector(
+          `[data-dequant-value-block] [aria-label="\\\\bar e_{b,${d}}"]`,
+        ),
+      ).not.toBeNull();
+      expect(
+        block.querySelector(
+          `[data-dequant-result-block] [aria-label="\\\\hat e_{4,8,${d}}"]`,
+        ),
+      ).not.toBeNull();
+    }
+  }
+  expect(dequant.textContent).toContain("转为 BF16");
+  expect(
+    dequant.querySelector(
+      '[data-engram-read-result] [aria-label="\\\\mathbf e_{4,8}^{(256)}"]',
+    ),
+  ).not.toBeNull();
+});
