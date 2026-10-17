@@ -10,6 +10,26 @@ import { buildGraph, MhcMix } from "../src/compositions/DeepSeekV41Layer";
 import { createElement } from "react";
 
 describe("模块解释的显式开关", () => {
+  it("第 2 层生成、窗口与 Attention 旁注讲清同一 token129 路径", () => {
+    for (const kind of [
+      "projection-kv",
+      "swa-window",
+      "kv-merge",
+      "heads",
+      "projection-q",
+    ]) {
+      const text = explainModule({
+        kind,
+        layer: 2,
+        phase: "decode",
+      }).paragraphs.join("\n");
+      expect(text).toContain("token1–128");
+      expect(text).toContain("token2–128 原样保留");
+      expect(text).toContain("第 1 层的本地 KV 不拼进第 2 层缓存");
+      expect(text).toContain("只是本地 KV 分支的参数标记");
+      expect(text).toContain("token2、3、129");
+    }
+  });
   it("初始化与系数旁注明确完整复制、单次子层计算和动态权重", () => {
     const init = explainModule({
       kind: "hc-expand",

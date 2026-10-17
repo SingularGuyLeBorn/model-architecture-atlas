@@ -20,10 +20,21 @@ describe("Token 来源与 Prefill / Decode 粒度", () => {
   });
   it("Prefill 保留整个序列，Decode 只算全局位置 t 的一行", () => {
     expect(executionAxis("prefill")).toEqual({
+      token: "t",
       count: "N",
       rows: ["1", "2", "\\vdots", "t", "\\vdots", "N"],
     });
-    expect(executionAxis("decode")).toEqual({ count: "1", rows: ["t"] });
+    expect(executionAxis("decode")).toEqual({
+      token: "t",
+      count: "1",
+      rows: ["t"],
+    });
+    expect(executionAxis("decode", 2)).toEqual({
+      token: "129",
+      count: "1",
+      rows: ["129"],
+    });
+    expect(executionAxis("prefill", 2)).toEqual(executionAxis("prefill"));
     for (const phase of ["prefill", "decode"] as const) {
       const graph = buildGraph(1, new Map(), phase);
       const matrix = graph.nodes.find((node) => node.id === "q-wide-matrix")!;

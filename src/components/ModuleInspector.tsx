@@ -247,6 +247,13 @@ export function explainModule(data: ExplainedModule): ModuleExplanation {
         ? `全局 KV · ${cachePolicy(data.layer).mode} · G 来源第 ${cachePolicy(data.layer).kv} 层`
         : (TITLES[data.kind] ?? data.title ?? "模块内的矩阵与运算"),
     paragraphs: [
+      ...(data.layer === 2 && ["kv", "attention", "query"].includes(group ?? "")
+        ? [
+            "第 2 层 Decode 图固定 $t=129$。token129 的第 1 层输出进入第 2 层，经本层残差汇合与归一化成为输入 $\\mathbf x_{2,129}$；它乘本层独立参数 $W_2^{KV,\\mathrm{SWA}}$，再经 KV 的 RMSNorm 和 RoPE，生成一条 512 维新行 $\\mathbf u_{2,129}$。第 1 层的本地 KV 不拼进第 2 层缓存。",
+            "W 上的 SWA 只是本地 KV 分支的参数标记，不是取窗口的运算。进入本步前 $U_{2,128}$ 保存 token1–128 在第 2 层各自生成的 KV。更新时 token1 退出，token2–128 原样保留，追加 $\\mathbf u_{2,129}$ 后得到 $U_{2,129}$：128 行、每行 512 维。历史行不再乘 W，不重新归一化或旋转。图按 token 时间顺序排列，不表示物理存储槽位。",
+            "当前 token129 的 Query 由同一份第 2 层输入经独立 Query 参数生成。每个 Head 的 Query 与窗口 token2–129 的 K 行打分，经含 sink 项的 softmax 得到权重，再用这些权重加权同一窗口的 V 行，输出 token129 的本层 Attention 结果。窗口位置 i=1、2、128 分别对应 token2、3、129。第 2 层没有 G、Indexer 或跨层 KV 拼接；SWA 指 Attention 只读取这个局部范围。",
+          ]
+        : []),
       ...(group === "kv" ? cacheExplanation(data.layer) : []),
       ...cacheExample,
       ...paragraphs,

@@ -116,16 +116,20 @@ type LayerMode = "swa" | "full" | "reindex" | "reuse";
 type ExecutionPhase = "prefill" | "decode";
 const ExecutionContext = createContext<ExecutionPhase>("prefill");
 // 当前计算的 token 轴与缓存的历史轴分别建模，Decode 的一行仍使用全局位置 t。
-export function executionAxis(phase: ExecutionPhase) {
+export function executionAxis(phase: ExecutionPhase, layer?: number) {
+  const token = phase === "decode" && layer === 2 ? "129" : "t";
   return {
+    token,
     count: phase === "prefill" ? "N" : "1",
     rows:
-      phase === "prefill" ? ["1", "2", "\\vdots", "t", "\\vdots", "N"] : ["t"],
+      phase === "prefill"
+        ? ["1", "2", "\\vdots", "t", "\\vdots", "N"]
+        : [token],
   };
 }
-function useExecutionAxis() {
+function useExecutionAxis(layer?: number) {
   const phase = useContext(ExecutionContext);
-  return { phase, ...executionAxis(phase) };
+  return { phase, ...executionAxis(phase, layer) };
 }
 type NodeKind =
   | "tokenizer"
@@ -327,6 +331,7 @@ const CONTENT_SIZED_KINDS = new Set<NodeKind>([
   "norm2",
   "query-norm",
   "projection-kv",
+  "swa-window",
   "heads",
   "kv-merge",
   "concat",
@@ -445,13 +450,15 @@ function QueryProjection({
   layer: number;
   normHeight?: number;
 }) {
-  const { phase } = useExecutionAxis();
+  const { phase, token } = useExecutionAxis(layer);
   const layout = queryProjectionLayout(phase, normHeight);
   return (
     <div style={panel}>
       <Title>
         Layer {layer} · Query ·{" "}
-        {phase === "prefill" ? "Prefill 整段投影" : "Decode 当前一行投影"}
+        {phase === "prefill"
+          ? "Prefill 整段投影"
+          : `Decode · token ${token} 一行投影`}
       </Title>
       <div
         style={{
@@ -3519,7 +3526,7 @@ export function IndexScoreProcess({
 }
 
 function LocalKvProjection({ layer }: { layer: number }) {
-  const { phase, count, rows } = useExecutionAxis();
+  const { phase, count, rows, token } = useExecutionAxis(layer);
   const rowNames = (prefix: string) =>
     rows.map((s) => (s === "\\vdots" ? s : `${prefix}_{${layer},${s}}`));
   return (
@@ -3530,13 +3537,10 @@ function LocalKvProjection({ layer }: { layer: number }) {
         position={Position.Top}
         style={handle}
       />
-      <Handle
-        id="swa"
-        type="source"
-        position={Position.Bottom}
-        style={handle}
-      />
-      <Title>Layer {layer} · 本层独立 KV</Title>
+      <Title>
+        Layer {layer} · 本层独立 KV
+        {token === "129" ? " · token129 新算一行" : ""}
+      </Title>
       <div data-local-kv-flow style={{ padding: 12 }}>
         <div
           data-local-cache-meaning
@@ -3545,10 +3549,18 @@ function LocalKvProjection({ layer }: { layer: number }) {
           <strong>T · 本批新算 KV；U · 当前局部窗口缓存</strong>
           <div>
             <MathFormula
-              tex={`${phase === "decode" ? `\\mathbf u_{${layer},t}` : `T_{${layer}}`}\\;\\longrightarrow\\;U_{${layer},t}`}
+              tex={`${phase === "decode" ? `\\mathbf u_{${layer},${token}}` : `T_{${layer}}`}\\;\\longrightarrow\\;U_{${layer},${token}}`}
             />{" "}
             · 新行写入窗口；每层独立计算，不跨层复用 U
           </div>
+          <div data-local-parameter-meaning>
+            W 的 SWA 上标只标记本地 KV 参数；窗口追加、淘汰在下方完成。
+          </div>
+          {token === "129" && (
+            <div>
+              本层输入来自第 1 层输出，经本层汇合与归一化；不接入第 1 层 KV。
+            </div>
+          )}
         </div>
         <SerialFlow returnColumn>
           {[
@@ -3626,6 +3638,7 @@ function LocalKvProjection({ layer }: { layer: number }) {
                 dimension={512}
                 rowCount={count}
                 gamma={`\\boldsymbol\\gamma_{${layer}}^{KV}`}
+                rowIndex={phase === "decode" ? token : undefined}
                 label="本地 KV"
                 horizontal
               />
@@ -3633,9 +3646,9 @@ function LocalKvProjection({ layer }: { layer: number }) {
             <React.Fragment key="rotation">
               <strong>③ 位置旋转 · 读取②的归一化结果</strong>
               <RotaryProcess
-                input={`\\bar{\\mathbf u}_{${layer},${phase === "prefill" ? "s" : "t"}}`}
-                output={`\\mathbf u_{${layer},${phase === "prefill" ? "s" : "t"}}`}
-                position={phase === "prefill" ? "s-1" : "t-1"}
+                input={`\\bar{\\mathbf u}_{${layer},${phase === "prefill" ? "s" : token}}`}
+                output={`\\mathbf u_{${layer},${phase === "prefill" ? "s" : token}}`}
+                position={phase === "prefill" ? "s-1" : `${token}-1`}
                 layer={layer}
                 compact
               />
@@ -3645,18 +3658,33 @@ function LocalKvProjection({ layer }: { layer: number }) {
               <div>
                 {phase === "prefill"
                   ? "s = 1, 2, …, N：每行按自己的位置生成 KV"
-                  : "仅生成当前位置 t 的新 KV；下方写入历史窗口"}
+                  : `仅生成当前位置 ${token} 的新 KV；下方写入历史窗口`}
               </div>
-              <RowMatrix
-                tex={`T_{${layer}}`}
-                shape={`${count}\\times512`}
-                rows={rowNames("\\mathbf u")}
-                rowLength="512"
-                elementColumns={["1", "2", "3", "4", "\\cdots", "512"]}
-                elementTex={(row, column) =>
-                  `u_{${layer},${rows[row]},${column}}`
-                }
-              />
+              <div
+                data-local-kv-result
+                style={{
+                  position: "relative",
+                  width: "fit-content",
+                  margin: "0 auto",
+                }}
+              >
+                <RowMatrix
+                  tex={`T_{${layer}}`}
+                  shape={`${count}\\times512`}
+                  rows={rowNames("\\mathbf u")}
+                  rowLength="512"
+                  elementColumns={["1", "2", "3", "4", "\\cdots", "512"]}
+                  elementTex={(row, column) =>
+                    `u_{${layer},${rows[row]},${column}}`
+                  }
+                />
+                <Handle
+                  id="swa"
+                  type="source"
+                  position={Position.Bottom}
+                  style={handle}
+                />
+              </div>
             </React.Fragment>,
           ]}
         </SerialFlow>
@@ -3817,7 +3845,11 @@ function SwaSelectionConnector({ layer }: { layer: number }) {
       const channelX =
           phase === "decode" ? x1 - 24 : Math.max(x1 + 24, x2 + 24),
         channelY = y2 - 18;
-      setPath(`M ${x1} ${y1} H ${channelX} V ${channelY} H ${x2} V ${y2}`);
+      setPath(
+        layer === 2 && phase === "decode"
+          ? `M ${(from.left + from.width / 2 - root.left) * sx} ${(from.bottom - root.top) * sy} V ${channelY} H ${x2} V ${y2}`
+          : `M ${x1} ${y1} H ${channelX} V ${channelY} H ${x2} V ${y2}`,
+      );
     };
     // 在浏览器完成布局后的尺寸通知中读几何；挂载阶段同步读取会让整图反复强制排版。
     const resize = new ResizeObserver(measure);
@@ -3867,9 +3899,9 @@ function SwaSelectionConnector({ layer }: { layer: number }) {
 }
 
 function Head({ index, layer }: { index: number; layer: number }) {
-  const { phase, count, rows } = useExecutionAxis();
-  const queryRow = `\\mathbf q_{${layer},${index},t}`;
-  const rotatedQuery = `\\mathbf q'_{${layer},${index},t}`;
+  const { phase, count, rows, token } = useExecutionAxis(layer);
+  const queryRow = `\\mathbf q_{${layer},${index},${token}}`;
+  const rotatedQuery = `\\mathbf q'_{${layer},${index},${token}}`;
   return (
     <div
       data-head-layout={index}
@@ -3897,12 +3929,12 @@ function Head({ index, layer }: { index: number; layer: number }) {
         style={{ color: COLORS.green, textAlign: "center", fontSize: 22 }}
       >
         Layer {layer} · Head {index} ·{" "}
-        {phase === "prefill" ? "放大第 t 行" : "当前唯一 Query · 位置 t"}
+        {phase === "prefill" ? "放大第 t 行" : `当前唯一 Query · 位置 ${token}`}
       </strong>
       <RotaryProcess
         input={queryRow}
         output={rotatedQuery}
-        position="t-1"
+        position={`${token}-1`}
         layer={layer}
       />
       <FlowStep>① 用旋转后的 Q，逐行与 K 做点积</FlowStep>
@@ -3922,19 +3954,30 @@ function Head({ index, layer }: { index: number; layer: number }) {
         }}
       >
         <AttentionTensor
-          tex={`K=\\mathrm{KV}_{${layer},t}`}
+          tex={`K=\\mathrm{KV}_{${layer},${token}}`}
           rows="L_t"
           columns="512"
           scalar={(row, column) => `k_{${row},${column}}`}
         />
         <Operator tex="=" />
         <AttentionTensor
-          tex={`V=\\mathrm{KV}_{${layer},t}`}
+          tex={`V=\\mathrm{KV}_{${layer},${token}}`}
           rows="L_t"
           columns="512"
           scalar={(row, column) => `v_{${row},${column}}`}
         />
       </div>
+      {token === "129" && (
+        <div
+          data-attention-window-map
+          style={{ display: "grid", gap: 5, textAlign: "center" }}
+        >
+          <MathFormula tex="L_t=128,\quad K=V=U_{2,129}" />
+          <MathFormula tex="\mathbf k_1=\mathbf v_1=\mathbf u_{2,2},\quad\mathbf k_2=\mathbf v_2=\mathbf u_{2,3}" />
+          <MathFormula tex="\ldots,\quad\mathbf k_{128}=\mathbf v_{128}=\mathbf u_{2,129}" />
+          <span>窗口第 i 行 ↔ token i+1；以下 i = 1,…,128</span>
+        </div>
+      )}
       <span style={{ color: COLORS.muted }}>
         同一份已旋转 KV：K 用于打分，V 用于加权；
         <MathFormula tex="L_t" /> 为当前可见 KV 行数；
@@ -4138,7 +4181,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
         </StackedSum>
       </div>
       <AttentionTensor
-        tex={`\\widetilde{\\mathbf o}_{${layer},${index},t}`}
+        tex={`\\widetilde{\\mathbf o}_{${layer},${index},${token}}`}
         rows="1"
         columns="512"
         scalar={(_, column) => `\\widetilde o_{${column}}`}
@@ -4180,7 +4223,9 @@ function Head({ index, layer }: { index: number; layer: number }) {
               <MathFormula tex="(o_{449+2j},o_{450+2j})" />
             </Box>
           </div>
-          <MathFormula tex="R(-(t-1)\omega_j),\quad j=0,1,\ldots,31" />
+          <MathFormula
+            tex={`R(-(${token}-1)\\omega_j),\\quad j=0,1,\\ldots,31`}
+          />
           <span>沿用上方 2×2 旋转矩阵，把角度取负。</span>
           {/* [OM-FREEPLAY] 仅用三行 KV 的玩具数值说明 sink 与逐列加权。 */}
           <div
@@ -4216,7 +4261,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
             rows={rows.map((s) =>
               s === "\\vdots" ? s : `\\mathbf o_{${layer},${index},${s}}`,
             )}
-            selected={rows.indexOf("t")}
+            selected={rows.indexOf(token)}
             rowLength="512"
             elementTex={(row, column) =>
               `o_{${layer},${index},${rows[row]},${column}}`
@@ -4789,7 +4834,7 @@ function SelectedGlobalRows({
 
 function DiagramNodeContent({ data }: { data: DiagramData }) {
   const { kind, layer, mode } = data;
-  const { phase, count, rows: tokenRows } = useExecutionAxis();
+  const { phase, count, rows: tokenRows, token } = useExecutionAxis(layer);
   const both = (
     <>
       <Handle
@@ -5166,16 +5211,16 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         <Title>
           {phase === "prefill"
             ? "③ 展开完整矩阵中的第 t 行"
-            : "③ 当前唯一一行 · 全局位置 t"}
+            : `③ 当前唯一一行 · 位置 ${token}`}
           <span style={{ float: "right", fontSize: 11 }}>
             <MathFormula tex="1\times(64\cdot512)" />
           </span>
         </Title>
         <div style={{ padding: 12, display: "grid", gap: 8 }}>
           <VectorStrip
-            name={`\\widetilde{\\mathbf q}_{${layer},t}`}
+            name={`\\widetilde{\\mathbf q}_{${layer},${token}}`}
             length="32768"
-            elementTex={(c) => `\\widetilde q_{${layer},t,${c}}`}
+            elementTex={(c) => `\\widetilde q_{${layer},${token},${c}}`}
             tone="green"
             selected
           />
@@ -5574,6 +5619,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           dimension={5120}
           rowCount={count}
           gamma={`\\boldsymbol\\gamma_{${layer},1}`}
+          rowIndex={phase === "decode" ? token : undefined}
           label="Attention 输入"
           horizontal
         />
@@ -5608,6 +5654,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           dimension={1280}
           rowCount={count}
           gamma={`\\boldsymbol\\gamma_{${layer}}^Q`}
+          rowIndex={phase === "decode" ? token : undefined}
           label="Query 低秩投影"
           horizontal
         />
@@ -5620,13 +5667,22 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
 
   if (kind === "swa-window") {
     return (
-      <div style={{ ...panel, borderColor: frameColor(COLORS.green) }}>
-        <Handle
-          id="projected-kv"
-          type="target"
-          position={Position.Top}
-          style={{ ...handle, left: mode === "swa" ? "50%" : "90%" }}
-        />
+      <div
+        style={{
+          ...panel,
+          height: "auto",
+          paddingBottom: 112,
+          borderColor: frameColor(COLORS.green),
+        }}
+      >
+        {token !== "129" && (
+          <Handle
+            id="projected-kv"
+            type="target"
+            position={Position.Top}
+            style={{ ...handle, left: mode === "swa" ? "50%" : "90%" }}
+          />
+        )}
         <Title>
           Layer {layer} ·{" "}
           {phase === "prefill"
@@ -5635,7 +5691,19 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         </Title>
         <div style={{ padding: 10, display: "grid", gap: 8, minWidth: 0 }}>
           {phase === "decode" ? (
-            <SlidingWindowRows layer={layer} />
+            <SlidingWindowRows
+              layer={layer}
+              newKvPort={
+                token === "129" ? (
+                  <Handle
+                    id="projected-kv"
+                    type="target"
+                    position={Position.Left}
+                    style={handle}
+                  />
+                ) : undefined
+              }
+            />
           ) : (
             <div
               style={{
@@ -5854,13 +5922,17 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             gap: 8,
           }}
         >
-          <MathFormula tex={`U_{${layer},t}`} />
+          <MathFormula tex={`U_{${layer},${token}}`} />
           <span style={{ fontSize: 10 }}>
-            <MathFormula tex="\min(128,t)\times512" />
+            <MathFormula
+              tex={token === "129" ? "128\\times512" : "\\min(128,t)\\times512"}
+            />
           </span>
         </div>
         <span style={{ fontSize: 11, color: COLORS.green }}>
-          窗口 KV · 送往下方 KV 拼接
+          {mode === "swa"
+            ? "本层窗口 → Attention 的 K 和 V"
+            : "窗口 KV · 送往下方 KV 拼接"}
         </span>
       </div>
     );
@@ -6675,20 +6747,31 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             position={Position.Bottom}
             style={handle}
           />
-          <Title>SWA-only · 窗口 KV</Title>
+          <Title>SWA-only · 窗口直接作为 K 和 V</Title>
           <div style={{ padding: 8 }}>
             <RowMatrix
-              tex={`\\mathrm{KV}_{${layer},t}=U_{${layer},t}`}
-              shape="\min(128,t)\times512"
-              rows={[
-                `\\mathbf u_{${layer},r}`,
-                `\\mathbf u_{${layer},r+1}`,
-                "\\vdots",
-                `\\mathbf u_{${layer},t}`,
-              ]}
+              tex={`\\mathrm{KV}_{${layer},${token}}=U_{${layer},${token}}`}
+              shape={
+                token === "129" ? "128\\times512" : "\\min(128,t)\\times512"
+              }
+              rows={
+                token === "129"
+                  ? [
+                      "\\mathbf u_{2,2}",
+                      "\\mathbf u_{2,3}",
+                      "\\vdots",
+                      "\\mathbf u_{2,129}",
+                    ]
+                  : [
+                      `\\mathbf u_{${layer},r}`,
+                      `\\mathbf u_{${layer},r+1}`,
+                      "\\vdots",
+                      `\\mathbf u_{${layer},t}`,
+                    ]
+              }
               rowLength="512"
               elementTex={(row, column) =>
-                `u_{${layer},${["r", "r+1", "", "t"][row]},${column}}`
+                `u_{${layer},${(token === "129" ? ["2", "3", "", "129"] : ["r", "r+1", "", "t"])[row]},${column}}`
               }
             />
           </div>
@@ -6752,8 +6835,8 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           style={handle}
         />
         <Title>
-          Layer {layer} · 64 Heads · 第 t 行 Q → 位置旋转 → QK 打分 → softmax →
-          V 加权 → 逆旋转 → O
+          Layer {layer} · 64 Heads · 第 {token} 行 Q → 位置旋转 → QK 打分 →
+          softmax → V 加权 → 逆旋转 → O
         </Title>
         <p
           data-attention-single-pass
@@ -8241,7 +8324,7 @@ export function buildGraph(
   phase: ExecutionPhase = "prefill",
 ): { nodes: DiagramNode[]; edges: EditableEdge[] } {
   const mode = modeForLayer(layer);
-  const { count, rows } = executionAxis(phase);
+  const { count, rows, token } = executionAxis(phase, layer);
   const matrixRows = (prefix: string) =>
     (phase === "prefill" ? ["1", "2", "\\vdots", "N"] : rows).map((s) =>
       s === "\\vdots" ? s : `${prefix}_{${layer},${s}}`,
@@ -8287,7 +8370,7 @@ export function buildGraph(
     ) +
     20;
   const localKvProjectionHeight = contentHeights.get("kv") ?? 464;
-  const swaHeight = 530;
+  const swaHeight = contentHeights.get("swa-window") ?? 530;
   const compressorHeight =
     contentHeights.get("compressor") ??
     (mode === "full" && compressionRatioForLayer(layer) === 2 ? 720 : 450);
@@ -8633,7 +8716,7 @@ export function buildGraph(
         layer,
         mode,
         10,
-        414,
+        swaHeight - 100,
         (((hasGlobal ? 780 : 900) - 56) * 1.7) / 2.6,
         82,
       ),
@@ -8807,7 +8890,7 @@ export function buildGraph(
       matrixRows: rows.map((s) =>
         s === "\\vdots" ? s : `\\widetilde{\\mathbf q}_{${layer},${s}}`,
       ),
-      matrixSelectedRow: rows.indexOf("t"),
+      matrixSelectedRow: rows.indexOf(token),
     }),
     structureNode({
       id: "q-head-slice",
@@ -8818,8 +8901,8 @@ export function buildGraph(
       width: 800,
       height: querySplitHeight,
       kind: "structure-group",
-      tex: `\\widetilde{\\mathbf q}_{${layer},t}`,
-      title: "④ 沿特征轴分 64 块 · token 位置 t 不变",
+      tex: `\\widetilde{\\mathbf q}_{${layer},${token}}`,
+      title: `④ 沿特征轴分 64 块 · token 位置 ${token} 不变`,
       tone: "green",
     }),
     structureNode({
@@ -8832,7 +8915,7 @@ export function buildGraph(
       width: 210,
       height: 64,
       title: "Head 1 · 1–512",
-      tex: `\\mathbf q_{${layer},1,t}`,
+      tex: `\\mathbf q_{${layer},1,${token}}`,
       tone: "green",
     }),
     structureNode({
@@ -8845,7 +8928,7 @@ export function buildGraph(
       width: 210,
       height: 64,
       title: "Head 2 · 513–1024",
-      tex: `\\mathbf q_{${layer},2,t}`,
+      tex: `\\mathbf q_{${layer},2,${token}}`,
       tone: "green",
     }),
     structureNode({
@@ -8870,7 +8953,7 @@ export function buildGraph(
       width: 234,
       height: 64,
       title: "Head 64 · 32257–32768",
-      tex: `\\mathbf q_{${layer},64,t}`,
+      tex: `\\mathbf q_{${layer},64,${token}}`,
       tone: "green",
     }),
   );
@@ -9007,17 +9090,23 @@ export function buildGraph(
       "swa-window",
       phase === "prefill"
         ? `T_{${layer}}\\in\\mathbb{R}^{N\\times512}`
-        : `\\mathbf u_{${layer},t}\\in\\mathbb{R}^{1\\times512}`,
+        : `\\mathbf u_{${layer},${token}}\\in\\mathbb{R}^{1\\times512}`,
       { sourceHandle: "swa", targetHandle: "projected-kv" },
     ),
-    mathEdge("swa-merge", "swa-result", "kv-merge", `U_{${layer},t}`, {
+    mathEdge("swa-merge", "swa-result", "kv-merge", `U_{${layer},${token}}`, {
       sourceHandle: "local-window",
       targetHandle: "local",
     }),
-    mathEdge("merge-heads", "kv-merge", "heads", `\\mathrm{KV}_{${layer},t}`, {
-      sourceHandle: "kv",
-      targetHandle: "kv",
-    }),
+    mathEdge(
+      "merge-heads",
+      "kv-merge",
+      "heads",
+      `\\mathrm{KV}_{${layer},${token}}`,
+      {
+        sourceHandle: "kv",
+        targetHandle: "kv",
+      },
+    ),
     mathEdge(
       "heads-concat",
       "heads",
@@ -9177,7 +9266,7 @@ export function buildGraph(
         `query-head-${head}`,
         `q-head-${head}`,
         "heads",
-        `\\mathbf q_{${layer},${head},t}`,
+        `\\mathbf q_{${layer},${head},${token}}`,
         { sourceHandle: "port-bottom", targetHandle: `query-${head}` },
       ),
     );
@@ -10699,7 +10788,9 @@ export const DeepSeekV41Layer: React.FC<Props> = ({ initialLayer = 1 }) => {
           <span style={{ fontSize: 12, color: COLORS.muted }}>
             {phase === "prefill"
               ? "N 行并行 · t 是其中一个序列位置"
-              : "当前 1 行 · t=P+k · 历史 KV 来自缓存"}
+              : layer === 2
+                ? "本层示例 t=129 · 当前只算 1 行，历史 KV 直接读"
+                : "当前 1 行 · t=P+k · 历史 KV 来自缓存"}
           </span>
           {(layer === 3 || layer === 4) && (
             <span
