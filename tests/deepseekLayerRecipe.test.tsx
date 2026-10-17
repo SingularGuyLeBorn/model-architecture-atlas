@@ -102,7 +102,7 @@ describe("真实依赖与模型身份", () => {
     ).toBe(false);
     expect(recipe.links).toContainEqual({
       source: "query",
-      target: "index",
+      target: "index-query",
       tex: "q^{low}_{4,t}",
     });
     expect(recipe.links).toContainEqual({

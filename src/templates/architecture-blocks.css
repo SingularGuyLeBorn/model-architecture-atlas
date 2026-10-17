@@ -74,6 +74,27 @@
   justify-content: center;
   gap: 96px;
 }
+.dsa-index-branch {
+  border: 1px solid #b7c4c0;
+  border-radius: 8px;
+  padding: 12px;
+  width: max-content;
+}
+.dsa-index-branch h4 {
+  margin: 0 0 12px;
+  border-bottom: 1px solid #d6dfdb;
+  padding-bottom: 8px;
+}
+.dsa-quant-result {
+  margin-top: 48px;
+}
+.dsa-score-step + .dsa-score-step {
+  margin-top: 54px;
+}
+[data-dsa-layernorm] [data-trace-object] {
+  width: max-content;
+  margin-inline: auto;
+}
 .architecture-sum {
   display: grid;
   justify-items: center;

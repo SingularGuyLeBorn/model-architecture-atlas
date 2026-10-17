@@ -10,12 +10,12 @@
 
 完整配置保存在 `src/data/configs/`，提交 SHA、读取日期与实现链接在 `src/data/sources.json`。本轮新增三份配置逐字段与固定版本官方文件核对；不下载模型权重。
 
-| 模型 | 配置版本 | 本轮重点 |
-| --- | --- | --- |
-| MiMo-V2.5 | `63651580ca774f8504f676040460aed3e1244ac1` | 48 层 Hybrid SWA/GQA、首层 Dense、其余 MoE、视觉/音频入口 |
-| DeepSeek-V3.2 | `a7e62ac04ecb2c0a54d736dc46601c5606cf10a6` | MLA 主干、逐 token 的 DSA Indexer 与稀疏读取 |
-| Qwen3.8-Flash-Next | `de4b8e4d43b917e7706784d8bb445c9af86a3540` | GDN/QSA、门控残差、N-gram/PLE、MoE、视觉入口 |
-| V3 / R1 / V3.1 | 沿用来源表中各自独立 SHA | 完整层内 MLA/FFN/残差与训练差异 |
+| 模型               | 配置版本                                   | 本轮重点                                                  |
+| ------------------ | ------------------------------------------ | --------------------------------------------------------- |
+| MiMo-V2.5          | `63651580ca774f8504f676040460aed3e1244ac1` | 48 层 Hybrid SWA/GQA、首层 Dense、其余 MoE、视觉/音频入口 |
+| DeepSeek-V3.2      | `a7e62ac04ecb2c0a54d736dc46601c5606cf10a6` | MLA 主干、逐 token 的 DSA Indexer 与稀疏读取              |
+| Qwen3.8-Flash-Next | `de4b8e4d43b917e7706784d8bb445c9af86a3540` | GDN/QSA、门控残差、N-gram/PLE、MoE、视觉入口              |
+| V3 / R1 / V3.1     | 沿用来源表中各自独立 SHA                   | 完整层内 MLA/FFN/残差与训练差异                           |
 
 实现核对：MiMo 使用同一模型仓库的 `modeling_mimo_v2.py`；V3.2 使用 DeepSeek 官方 V3.2-Exp 仓库 `87e509a2e5a100d221c97df52c6e8be7835f0057` 的参考推理实现，正式 V3.2 的配置与报告独立列出；Qwen 使用 Transformers `d4804f9d76b8c071b993d813e9e87067b780cbee` 的 `qwen4_exp` 实现及 Qwen 官方模型卡。模型名保持 Qwen3.8-Flash-Next，代码中的 `qwen4_exp` 是实现类型名。
 
@@ -44,6 +44,7 @@
 - [x] Qwen 主路径并入逐层入口：第 1 层 ID 查表与四路复制，第 48 层末端只读 GR 与独立词表投影；补齐普通层间与 PLE 前状态的符号对应。
 - [x] 共用 RMSNorm 展开代表平方项、独立 Σ 入口、均方和分母；保持整行除法与逐元素缩放，Qwen 四路仍并排。
 - [x] 共用 SiLU 展开原值和 sigmoid 两支路、乘法汇合及完整输出行；接入 SwiGLU、Qwen 读门、GDN 短卷积和 PLE 卷积。
+- [x] V3.2 索引分支展开独立投影、Key LayerNorm、半段 RoPE、Hadamard、逐行 FP8、数值/scale 双缓存与逐 Head 打分，接入因果选行和 MLA。
 - [ ] 六个型号接入逐层与机制入口，保证内部来源和消费端可追踪。
 - [ ] 扩展共享 MLA、DSA、GQA/SWA、GDN/QSA、门控残差、N-gram、MoE 与多模态图。
 - [ ] 按 skill 逐项核对符号、同源色、选区、运算符净空、溢出、端口、路由和实际交互。
@@ -115,4 +116,16 @@ V3.2 的 DSA 选行新增两个独立模块：`index-select` 展示因果分数�
 
 本批类型检查、构建、478 项全量单测和 29 个浏览器场景通过；最后的 MLA 紧凑排版、读取高亮及反例断言另跑 37 项相关单测和 5 个浏览器场景通过。已打开选行、双缓存映射与 MLA 完整截图，包含第 61 层长下标。29 组、712 张 PNG 存于 `artifacts/model-expansion/2026-10-18-dsa/`，最终场景覆盖对应旧截图。这个数量包括跨模型回归截图，不代表逐张人工审图。
 
-DSA 的 Query/Key 变换、LayerNorm、Hadamard/FP8 与索引缓存写入仍需继续细化；MLA Prefill 先展开 K/V 的实际实现路径也需与 Decode 权重吸收分开呈现。其余模型首尾、多模态、内部对象解释、全路径避障、窄屏及交互性能仍在原目标范围内，目标保持进行中。
+### V3.2 索引分支展开
+
+DSA 现在分为 Query 投影、Key 投影及 LayerNorm、两条独立旋转路径、量化、双缓存写入、Head 权重和索引打分八个模块。Key LayerNorm 展开减均值、方差、分母、独立缩放与偏置；缩放后的整条向量和偏置分别进入 Σ。Query/Key 的前 64 维按第 1/33、2/34、…、32/64 维配对，后 64 维直通 RoPE，随后整条 128 维乘归一化 Hadamard。YaRN 保留原长度 4096、factor 40、βfast 32、βslow 1；频率基项与 ramp 并列生成。固定 ±1 矩阵遵循 [Hadamard 库的公开定义](https://github.com/Dao-AILab/fast-hadamard-transform/blob/e7706faf8d1c3b9f241e36860640ad1dac644ede/fast_hadamard_transform/fast_hadamard_transform_interface.py)。
+
+[固定版本量化内核](https://github.com/deepseek-ai/DeepSeek-V3.2-Exp/blob/87e509a2e5a100d221c97df52c6e8be7835f0057/inference/kernel.py) 中，每条 128 维行独立求绝对值最大值，下限为 10⁻⁴；除以 448 后向上取 2 的整数次幂，得到一个 scale。整行除以该 scale 后限幅并转为 E4M3FN。Query 每个 Head 一个系数；Key 每个 token 一个系数，FP8 数值缓存和 FP32 scale 缓存各有一条实际线路落到同一个 t 行。完整 Prefill 展示 N 行、Decode 展示保留历史并追加后的 t 行。
+
+Head 权重来自独立投影，可以为负；Query scale、1/√64 和 1/√128 合入该权重。FP8 点积先逐 Head 做 ReLU，再按 Head 加权归约，最后按原 token 列乘 Key scale。两次跨排消费分别从 A 矩阵、加权结果向量连到同名代理，随后接到已完成的因果掩码与 Top-K。图中保持这一实现顺序，未把 Head 权重画成概率。
+
+浏览器检查曾发现均值线路穿过输入元素、双旋转分支横排越界。连线组件现可按显式分组边界选择外部通道；两条旋转路径拆开，各自把输入矩阵/Head 行、变换结果/输出矩阵横向衔接。量化模块从 2450 收至 1900 宽，缓存从 1600 收至 1200，打分从 2000 收至 1550。局部检查覆盖第 4/61 层、Prefill/Decode，并注入“当前行误连到第一行”的反例；同一个缓存内落错 token 也会报错。
+
+本批通过类型检查、构建、484 项全量单测与 25 个浏览器场景（17 个跨模型、4 个索引分支、4 个选行/读取）。最后补上的 Head 权重投影结果连线另跑 43 项相关单测和 5 个浏览器场景通过。已打开第 4 层及第 61 层的投影、LayerNorm、两条旋转、量化、双缓存、权重及打分完整截图。25 组、777 张 PNG 保存于 `artifacts/model-expansion/2026-10-18-dsa-index/`，最终五组结果覆盖同名旧截图；该数量含跨模型回归截图，不代表逐张人工查看。构建仍有主 chunk 超过 500 kB 的提示，尚未据此完成运行时性能验收。
+
+MLA Prefill 先展开 K/V 的实际实现路径仍需与 Decode 权重吸收分开呈现；主 MLA 的旋转、潜缓存量化也需核对。其余模型首尾、多模态、内部对象解释、全路径避障、窄屏及交互性能仍在原目标范围内，目标保持进行中。

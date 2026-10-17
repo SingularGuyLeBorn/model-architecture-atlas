@@ -39,6 +39,10 @@ export function ObjectConnections({
         const projection = element
           .closest("[data-projection]")
           ?.getBoundingClientRect();
+        // 跨分组传递标量时，转弯通道按整个分组外沿计算，避开组内其余操作数。
+        const routeFrame = element
+          .closest("[data-route-frame]")
+          ?.getBoundingClientRect();
         return {
           x: (r.left + r.width / 2 - outer.left) / scale,
           top: (r.top - outer.top) / scale,
@@ -46,8 +50,13 @@ export function ObjectConnections({
           left: (r.left - outer.left) / scale,
           right: (r.right - outer.left) / scale,
           y: (r.top + r.height / 2 - outer.top) / scale,
-          corridorLeft: ((frame?.left ?? r.left) - outer.left) / scale - 8,
-          corridorRight: ((frame?.right ?? r.right) - outer.left) / scale + 8,
+          corridorLeft:
+            ((routeFrame?.left ?? frame?.left ?? r.left) - outer.left) / scale -
+            8,
+          corridorRight:
+            ((routeFrame?.right ?? frame?.right ?? r.right) - outer.left) /
+              scale +
+            8,
           frameTop: ((frame?.top ?? r.top) - outer.top) / scale,
           // 输入落到矩阵内部元素时，横向转折留在矩阵上方，不能贴着外框顶边走。
           groupTop:

@@ -21,10 +21,12 @@ import {
   SwiGlu,
 } from "./architecture-blocks";
 import "./architecture-blocks.css";
+import { deepseekSelectionStages } from "./deepseek-selection";
 import {
-  deepseekSelectionStages,
-  dsaSelectionShape,
-} from "./deepseek-selection";
+  deepseekIndexStages,
+  DSA_KERNEL,
+  DSA_HADAMARD,
+} from "./deepseek-index";
 
 export type DeepSeekLayerId = Extract<
   ArchitectureModelId,
@@ -287,87 +289,12 @@ export function deepseekLayerRecipe(
   edge("input", "kv", x);
 
   if (id === "v32") {
-    add(
-      "index",
-      "DSA · 本层 Indexer 对原 token 行打分",
-      <>
-        <Project
-          input={qr}
-          weight={`W^{IQ}_{${l}}`}
-          output={`\\widetilde q^I_{${l},t}`}
-          from={1536}
-          to={64 * 128}
-          inputPort
-        />
-        <Columns>
-          {[
-            <Flow key="q">
-              {[
-                <Row
-                  key="q"
-                  name={`\\widetilde q^I_{${l},h,t}`}
-                  size={128}
-                  tone="blue"
-                />,
-                <Operation
-                  key="process"
-                  tex={`R_t^{64}\\to H\\to\\mathrm{FP8}`}
-                  label="64 维 RoPE · Hadamard · 量化"
-                />,
-              ]}
-            </Flow>,
-            <div key="key">
-              <Project
-                input={x}
-                weight={`W^{IK}_{${l}}`}
-                output={`\\widetilde k^I_{${l},t}`}
-                from={d}
-                to={128}
-                inputPort
-              />
-              <Flow>
-                {[
-                  <Operation
-                    key="k"
-                    tex={`\\operatorname{LayerNorm}\\to R_t^{64}\\to H\\to\\mathrm{FP8}`}
-                  />,
-                  <Row
-                    key="cache"
-                    name={`k^I_{${l},t}`}
-                    size={128}
-                    tone="green"
-                    title="本步写入索引 Key 缓存"
-                  />,
-                ]}
-              </Flow>
-            </div>,
-          ]}
-        </Columns>
-        <Project
-          input={x}
-          weight={`W^{I\\eta}_{${l}}`}
-          output={`\\widetilde\\eta_{${l},t}`}
-          from={d}
-          to={64}
-        />
-        <Operation
-          tex={`s^I_{${l},t,j}=\\sum_{h=1}^{64}\\frac{\\widetilde\\eta_{${l},t,h}}{\\sqrt{64}}\\operatorname{ReLU}\\!\\left(\\frac{q^I_{${l},h,t}\\cdot k^I_{${l},j}}{\\sqrt{128}}\\right)`}
-        />
-        <Row
-          name={`s^I_{${l},t}`}
-          size={dsaSelectionShape(phase).length}
-          tone="plum"
-          direction="out"
-        />
-        <p className="architecture-note">
-          量化点积包含 Q/K 尺度恢复；行号指向同层 MLA 的原 token 缓存。
-        </p>
-      </>,
-      `s^I_{${l},t}`,
-      2400,
-    );
-    edge("query", "index", qr);
-    edge("input", "index", x);
+    const index = deepseekIndexStages(phase, layer);
+    stages.push(...index.stages);
+    links.push(...index.links);
+    edge("query", "index-query", qr);
+    edge("input", "index-key", x);
+    edge("input", "index-weights", x);
     stages.push(...deepseekSelectionStages(phase, layer));
     edge("index", "index-select", `s^I_{${l},t}`);
     edge("index-select", "index-read", `m^I_{${l},t}`);
@@ -846,6 +773,12 @@ export function deepseekLayerRecipe(
     links,
     references: [
       { title: "官方配置 · 固定版本", url: p.source.url },
+      ...(id === "v32"
+        ? [
+            { title: "官方 FP8 量化与索引内核 · 固定版本", url: DSA_KERNEL },
+            { title: "Hadamard 运算库 · 固定版本", url: DSA_HADAMARD },
+          ]
+        : []),
       {
         title: "官方实现",
         url:

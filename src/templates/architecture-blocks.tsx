@@ -656,6 +656,7 @@ export function HalfRoPE({
   size,
   rotary,
   theta,
+  frequency,
   position = "t-1",
   positionIndex = "t",
   inputTone = architectureTone(input),
@@ -666,6 +667,7 @@ export function HalfRoPE({
   size: number;
   rotary: number;
   theta: number;
+  frequency?: string;
   position?: string;
   positionIndex?: string;
   inputTone?: DiagramTone;
@@ -676,7 +678,7 @@ export function HalfRoPE({
     <div className="architecture-rope">
       <p className="architecture-note">
         <M
-          tex={`\\phi_{${positionIndex},j}=(${position})\\,${theta}^{-2(j-1)/${rotary}},\\quad j=1,\\ldots,${half}`}
+          tex={`\\phi_{${positionIndex},j}=(${position})\\,${frequency ?? `${theta}^{-2(j-1)/${rotary}}`},\\quad j=1,\\ldots,${half}`}
         />
       </p>
       <Columns>
