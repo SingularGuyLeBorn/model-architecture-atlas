@@ -985,6 +985,7 @@ export function automaticOrthogonalPoints(
   reserved: ReservedSegment[] = [],
   sourceFrames: Obstacle[] = [],
   targetFrames: Obstacle[] = [],
+  previous?: XYPosition[],
 ) {
   // 对齐且相向的端口无需转折；两端安全区只约束转折位置，不能制造窄 U 形绕路。
   const direct = [
@@ -1042,6 +1043,29 @@ export function automaticOrthogonalPoints(
     targetPosition,
     targetFrames,
   );
+  // 连续拖动先延用旧通道，只调整两端。仍逐段检查障碍、拥挤和端口方向；
+  // 通道失效才重新搜索，不能为每个像素枚举整张图的所有候选。
+  if (previous && previous.length > 2) {
+    const body = simplifyOrthogonalPoints(
+      pointsWithAnchoredEndpoints(
+        departure.x,
+        departure.y,
+        approach.x,
+        approach.y,
+        previous.slice(1, -1),
+      ),
+    );
+    const complete = simplifyOrthogonalPoints([
+      { x: sourceX, y: sourceY },
+      ...body,
+      { x: targetX, y: targetY },
+    ]);
+    if (
+      !hasRouteBacktrack(complete) &&
+      routeScore(body, obstacles, reserved) === routeScore(body, [], [])
+    )
+      return complete;
+  }
   const routedBody = defaultOrthogonalPoints(
     departure.x,
     departure.y,
@@ -1236,25 +1260,26 @@ export function moveSegment(
 }
 
 type RouteFrame = { bounds: Obstacle; parentId?: string };
-// [OM-FREEPLAY] 入口标签离外框 12px，路由预留框再加 10px，给文字描边和线间净空留余量。
+// [OM-FREEPLAY] 入口标签离外框 32px，容纳 24px 箭头线身及断口；路由预留框另加 10px 净空。
 function entranceLabelPoint(
   target: XYPosition & { side: Position },
   bounds: Obstacle,
   size: { width: number; height: number },
 ) {
   if (target.side === Position.Top)
-    return { x: target.x, y: bounds.top - size.height / 2 - 12 };
+    return { x: target.x, y: bounds.top - size.height / 2 - 32 };
   if (target.side === Position.Bottom)
-    return { x: target.x, y: bounds.bottom + size.height / 2 + 12 };
+    return { x: target.x, y: bounds.bottom + size.height / 2 + 32 };
   if (target.side === Position.Left)
-    return { x: bounds.left - size.width / 2 - 12, y: target.y };
-  return { x: bounds.right + size.width / 2 + 12, y: target.y };
+    return { x: bounds.left - size.width / 2 - 32, y: target.y };
+  return { x: bounds.right + size.width / 2 + 32, y: target.y };
 }
 type RoutePlan = {
   signature: string;
   routes: Map<string, XYPosition[]>;
   frames: Map<string, RouteFrame>;
   edgeKeys: Map<string, string>;
+  entrances: Map<string, Obstacle>;
 };
 const routingCache = new WeakMap<object, RoutePlan>();
 const routingHistory = new WeakMap<object, Map<string, RoutePlan>>();
@@ -1564,6 +1589,28 @@ export function planArchitectureRoutes(
     }),
   );
   const reserved: ReservedSegment[] = [];
+  const changedEntrances = new Set(
+    [...entrances]
+      .filter(([id, rect]) => {
+        const old = cached?.entrances.get(id);
+        return (
+          !old ||
+          old.left !== rect.left ||
+          old.right !== rect.right ||
+          old.top !== rect.top ||
+          old.bottom !== rect.bottom
+        );
+      })
+      .map(([id]) => id),
+  );
+  // 显式拖动只更新受影响通道；普通布局/字体测量重新校验全部入口，避免把初始化时的临时路线固化。
+  const localEdit =
+    nodes.some((node) => node.dragging) ||
+    items.some(
+      ({ edge }) =>
+        Boolean(edge.data?.waypoints?.length) &&
+        cached?.edgeKeys.get(edge.id) !== edgeKeys.get(edge.id),
+    );
   const reserve = (id: string, points: XYPosition[]) => {
     routes.set(id, points);
     for (let i = 1; i < points.length; i++)
@@ -1599,9 +1646,32 @@ export function planArchitectureRoutes(
       ]);
       if (changedFrames.some(([id]) => parentIds.has(id))) continue;
       const excluded = new Set([edge.source, edge.target, ...parentIds]);
+      // 其他局部尺寸变化可能释放旧路由的替代通道；只重试同一区域，拖动远端专家不重排上方整页。
+      const area = inflate(
+        {
+          left: Math.min(...previous.map((p) => p.x)),
+          right: Math.max(...previous.map((p) => p.x)),
+          top: Math.min(...previous.map((p) => p.y)),
+          bottom: Math.max(...previous.map((p) => p.y)),
+        },
+        EDGE_NODE_CLEARANCE,
+      );
+      const overlaps = (r: Obstacle) =>
+        r.left <= area.right &&
+        r.right >= area.left &&
+        r.top <= area.bottom &&
+        r.bottom >= area.top;
+      const nearbyChange = changedFrames.some(
+        ([id, frame]) =>
+          overlaps(frame.bounds) ||
+          Boolean(
+            cached?.frames.get(id) && overlaps(cached.frames.get(id)!.bounds),
+          ),
+      );
       const blockedByLabel = [...entrances].some(
         ([id, rect]) =>
           id !== edge.id &&
+          (!localEdit || nearbyChange || changedEntrances.has(id)) &&
           previous
             .slice(1)
             .some((point, i) =>
@@ -1653,15 +1723,15 @@ export function planArchitectureRoutes(
       };
       if (size && (id === edge.target || targetAncestors.has(id))) {
         if (target.side === Position.Left)
-          bounds.left = frame.bounds.left - Math.max(widthPad, size.width + 20);
+          bounds.left = frame.bounds.left - Math.max(widthPad, size.width + 40);
         if (target.side === Position.Right)
           bounds.right =
-            frame.bounds.right + Math.max(widthPad, size.width + 20);
+            frame.bounds.right + Math.max(widthPad, size.width + 40);
         if (target.side === Position.Top)
-          bounds.top = frame.bounds.top - Math.max(heightPad, size.height + 20);
+          bounds.top = frame.bounds.top - Math.max(heightPad, size.height + 40);
         if (target.side === Position.Bottom)
           bounds.bottom =
-            frame.bounds.bottom + Math.max(heightPad, size.height + 20);
+            frame.bounds.bottom + Math.max(heightPad, size.height + 40);
       }
       if (id === edge.source || sourceAncestors.has(id))
         sourceFrames.push(bounds);
@@ -1687,10 +1757,11 @@ export function planArchitectureRoutes(
         reserved,
         sourceFrames,
         targetFrames,
+        localEdit ? cached?.routes.get(edge.id) : undefined,
       ),
     );
   }
-  const plan = { signature, routes, frames, edgeKeys };
+  const plan = { signature, routes, frames, edgeKeys, entrances };
   routingCache.set(owner, plan);
   history.set(signature, plan);
   // [OM-FREEPLAY] 保留最近 64 份完整实测路由；层、模式、人工端点或障碍变化均由签名精确区分。

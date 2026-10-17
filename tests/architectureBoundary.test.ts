@@ -15,6 +15,57 @@ import {
 } from "../src/components/EditableArchitectureGraph";
 import { buildGraph } from "../src/compositions/DeepSeekV41Layer";
 
+it("拖动延用安全通道；新障碍挡住旧通道时重新避让", () => {
+  const previous = [
+    { x: 0, y: 0 },
+    { x: 0, y: 180 },
+    { x: 400, y: 180 },
+    { x: 400, y: 500 },
+  ];
+  const route = (
+    obstacles: { left: number; right: number; top: number; bottom: number }[],
+  ) =>
+    automaticOrthogonalPoints(
+      10,
+      0,
+      400,
+      500,
+      Position.Bottom,
+      Position.Top,
+      obstacles,
+      [],
+      [],
+      [],
+      previous,
+    );
+  expect(route([])).toEqual([
+    { x: 10, y: 0 },
+    { x: 10, y: 180 },
+    { x: 400, y: 180 },
+    { x: 400, y: 500 },
+  ]);
+  const blocked = route([{ left: 150, right: 250, top: 150, bottom: 210 }]);
+  expect(blocked).not.toEqual(route([]));
+  for (let i = 1; i < blocked.length; i++) {
+    const a = blocked[i - 1],
+      b = blocked[i];
+    expect(
+      a.y === b.y &&
+        a.y > 150 &&
+        a.y < 210 &&
+        Math.min(a.x, b.x) < 250 &&
+        Math.max(a.x, b.x) > 150,
+    ).toBe(false);
+    expect(
+      a.x === b.x &&
+        a.x > 150 &&
+        a.x < 250 &&
+        Math.min(a.y, b.y) < 210 &&
+        Math.max(a.y, b.y) > 150,
+    ).toBe(false);
+  }
+});
+
 it("保留起终点范围外、两个障碍之间的窄通道", () => {
   const source = { left: 356, right: 1184, top: 7987, bottom: 8658 };
   const target = { left: 1116, right: 2604, top: 10770, bottom: 13189 };

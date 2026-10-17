@@ -108,9 +108,16 @@ export function layoutEdgeLabels(
         (horizontal ? size.width : size.height) / 2 + LABEL_CLEARANCE;
       const crossHalf =
         (horizontal ? size.height : size.width) / 2 + LABEL_CLEARANCE;
-      // 不把标签跨放在折角或箭头上；直线中间为文字保留透明断口。
+      // 不把标签跨放在折角或箭头上；末段额外保留 24px 箭头线身，避免断口截短箭头。
       let intervals: [number, number][] = [
-        [Math.min(start, end) + half + 4, Math.max(start, end) - half - 4],
+        [
+          Math.min(start, end) +
+            half +
+            (i === points.length - 1 && end < start ? 24 : 4),
+          Math.max(start, end) -
+            half -
+            (i === points.length - 1 && end > start ? 24 : 4),
+        ],
       ];
       for (const rect of obstacles) {
         if (
@@ -120,16 +127,22 @@ export function layoutEdgeLabels(
           continue;
         const low = (horizontal ? rect.left : rect.top) - half,
           high = (horizontal ? rect.right : rect.bottom) + half;
-        intervals = intervals
-          .flatMap(([l, h]) =>
-            high <= l || low >= h
-              ? [[l, h]]
-              : [
-                  [l, Math.min(h, low)],
-                  [Math.max(l, high), h],
-                ],
-          )
-          .filter(([l, h]) => h >= l) as [number, number][];
+        // 只切真正相交的区间；远处障碍不再为每个候选复制数组。
+        // 保持原来的闭区间、排序及端点规则，减少连续拖动中的临时分配。
+        for (let j = intervals.length - 1; j >= 0; j--) {
+          const [l, h] = intervals[j];
+          if (h < l) {
+            intervals.splice(j, 1);
+          } else if (high > l && low < h) {
+            const leftEnd = Math.min(h, low),
+              rightStart = Math.max(l, high);
+            if (leftEnd >= l && rightStart <= h)
+              intervals.splice(j, 1, [l, leftEnd], [rightStart, h]);
+            else if (leftEnd >= l) intervals[j] = [l, leftEnd];
+            else if (rightStart <= h) intervals[j] = [rightStart, h];
+            else intervals.splice(j, 1);
+          }
+        }
         if (!intervals.length) break;
       }
       for (const [low, high] of intervals) {

@@ -16,6 +16,27 @@ const entry = (id = "a"): LabelEntry => ({
   preferred: { x: 0, y: 500 },
 });
 describe("整张画布统一放置变量标签", () => {
+  it("终端标签的透明断口给箭头保留至少 24px 线身", () => {
+    for (const direction of [1, -1]) {
+      const e = {
+        ...entry(),
+        points: [
+          { x: 0, y: 0 },
+          { x: direction * 1000, y: 0 },
+        ],
+        preferred: { x: direction * 500, y: 0 },
+      };
+      const placement = layoutEdgeLabels(
+        [e],
+        [],
+        new Map([[e.id, e.points]]),
+      ).get(e.id)!;
+      const gap = labelBounds(placement.terminal!, e.size, 3);
+      expect(
+        direction > 0 ? 1000 - gap.right : gap.left + 1000,
+      ).toBeGreaterThanOrEqual(24);
+    }
+  });
   it("终端标签可单独沿线拖动，仍避让框体，主标签偏好保持不变", () => {
     const e = { ...entry(), terminalPreferred: { x: 0, y: 830 } };
     const p = layoutEdgeLabels([e], [], new Map([[e.id, e.points]])).get(e.id)!;
