@@ -203,9 +203,11 @@ export function Operator({ tex }: { tex: string }) {
 export function ParameterColumn({
   tex,
   tone = "indigo",
+  compact = false,
 }: {
   tex: string;
   tone?: DiagramTone;
+  compact?: boolean;
 }) {
   const palette = tonePalette(tone);
   return (
@@ -219,7 +221,7 @@ export function ParameterColumn({
         placeSelf: "center",
         border: `1px solid ${frameColor(palette.color)}`,
         borderRadius: 4,
-        padding: "4px 8px",
+        padding: compact ? "4px" : "4px 8px",
         background: palette.background,
       }}
     >

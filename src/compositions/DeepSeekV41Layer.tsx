@@ -5444,7 +5444,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 style={{
                   display: "grid",
                   gridTemplateColumns: data.columnVectors
-                    ? "max-content max-content 24px max-content"
+                    ? "max-content max-content 12px max-content"
                     : "1fr 1fr .55fr 1fr",
                   justifyContent: data.columnVectors ? "center" : undefined,
                   alignItems: "center",
@@ -5461,7 +5461,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                       <MathFormula tex={cell} />
                     </span>
                   ) : data.columnVectors ? (
-                    <ParameterColumn key={index} tex={cell} />
+                    <ParameterColumn key={index} tex={cell} compact />
                   ) : (
                     <span
                       key={index}
