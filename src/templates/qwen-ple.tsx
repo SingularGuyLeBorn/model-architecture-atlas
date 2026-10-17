@@ -10,6 +10,7 @@ import {
   Sum,
   Scalar,
   Operation,
+  SiluRow,
 } from "./architecture-blocks";
 import { Down } from "./structure-blocks";
 import { ObjectConnections } from "../components/ObjectConnections";
@@ -646,7 +647,7 @@ export function qwenPleRecipe(phase: Phase): Recipe {
   add(
     "ple-conv",
     "深度卷积 · 每路每维独立，核 4、间隔 3",
-    <>
+    <ObjectConnections links={[{ from: "conv-sum", to: "silu-input" }]}>
       <p className="architecture-note">
         固定一路 j（1–4）；从四个位置各取第 j 路的 2560
         列。各维独立卷积，序列前补零，无偏置。
@@ -701,19 +702,25 @@ export function qwenPleRecipe(phase: Phase): Recipe {
                 </div>
               </div>
             ))}
-            result={<Row name="c^P_{2,j,t}" size={2560} tone="teal" />}
+            result={
+              <Row
+                name="c^P_{2,j,t}"
+                size={2560}
+                tone="teal"
+                trace="conv-sum"
+              />
+            }
           />
         </div>
       </ObjectConnections>
-      <Flow>
-        {[
-          <Operation
-            key="silu"
-            tex="y^P_{2,j,t}=c^P_{2,j,t}\odot\sigma(c^P_{2,j,t})"
-          />,
-          <Row key="y" name="y^P_{2,j,t}" size={2560} tone="coral" />,
-        ]}
-      </Flow>
+      <SiluRow
+        input="c^P_{2,j,t}"
+        compact
+        output="y^P_{2,j,t}"
+        size={2560}
+        inputTone="teal"
+        outputTone="coral"
+      />
       <Down label="四路同构计算，各路参数不同" />
       <PleMatrix name={conv} symbol="y^P" tone="coral" direction="out" />
       <p className="architecture-note">
@@ -722,7 +729,7 @@ export function qwenPleRecipe(phase: Phase): Recipe {
           : "Prefill：因果空洞卷积并行处理各位置；为下一次调用保存末尾 9 个归一化状态。"}{" "}
         无 padding 文本；批处理中 padding 位置的门控值和卷积输入均置零。
       </p>
-    </>,
+    </ObjectConnections>,
     conv,
     2900,
   );

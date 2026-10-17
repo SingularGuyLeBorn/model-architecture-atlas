@@ -14,6 +14,7 @@ import {
   Rms,
   Sum,
   Scalar,
+  SiluRow,
 } from "./architecture-blocks";
 import { qwenGdnRecipe } from "./qwen-gdn";
 import { qwenQsaRecipe } from "./qwen-qsa";
@@ -199,25 +200,30 @@ export function qwenResidualStages(layer: number, tag: "A" | "F" | "O") {
   add(
     "read-gates",
     "低秩 320 维生成四条逐元素读门",
-    <>
+    <ObjectConnections
+      links={[
+        { from: "read-low", to: "silu-input" },
+        { from: "silu-output", to: "read-activated" },
+      ]}
+    >
       <Project
         input={flat}
         weight={`W^{${tag},read,down}_{${l}}`}
         output={`a^${tag}_{${scope}}`}
         from={10240}
         to={320}
+        outputTrace="read-low"
         inputPort
         tone="teal"
       />
-      <Flow>
-        {[
-          <Operation
-            key="activation"
-            tex={`b^${tag}_{${scope}}=\\operatorname{SiLU}(a^${tag}_{${scope}}/4),\\quad \\operatorname{SiLU}(z)=z\\odot\\sigma(z)`}
-          />,
-          <Row key="b" name={`b^${tag}_{${scope}}`} size={320} tone="mint" />,
-        ]}
-      </Flow>
+      <SiluRow
+        input={`a^${tag}_{${scope}}`}
+        output={`b^${tag}_{${scope}}`}
+        size={320}
+        divisor={4}
+        compact
+        inputTone="teal"
+      />
       <Project
         input={`b^${tag}_{${scope}}`}
         weight={`W^{${tag},read,up}_{${l}}`}
@@ -226,6 +232,7 @@ export function qwenResidualStages(layer: number, tag: "A" | "F" | "O") {
         to={10240}
         tone="teal"
         inputTone="mint"
+        inputTrace="read-activated"
       />
       <Down label="逐元素 sigmoid 后按原路顺序重排 4 × 2560" />
       {gateMatrix("out")}
@@ -235,7 +242,7 @@ export function qwenResidualStages(layer: number, tag: "A" | "F" | "O") {
         />{" "}
         · 每个元素有自己的门值。
       </p>
-    </>,
+    </ObjectConnections>,
     gates,
     1250,
   );

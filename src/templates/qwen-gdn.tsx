@@ -14,6 +14,7 @@ import {
   Rms,
   Sum,
   Scalar,
+  SiluRow,
 } from "./architecture-blocks";
 import { layerArchitecture } from "../data/architecture-profiles";
 import { RecipePort } from "./RecipePorts";
@@ -137,7 +138,7 @@ export function qwenGdnRecipe(phase: Phase, layer: number): Recipe {
   add(
     "conv",
     "四个相邻位置 · 每个通道独立卷积",
-    <>
+    <ObjectConnections links={[{ from: "conv-sum", to: "silu-input" }]}>
       <ObjectConnections
         links={[{ from: "new-conv", to: "window-t", direction: "right" }]}
       >
@@ -184,27 +185,28 @@ export function qwenGdnRecipe(phase: Phase, layer: number): Recipe {
             element={(d) => `w^{conv}_{${l},${j},${d}}c_{${l},t-${3 - j},${d}}`}
           />
         ))}
-        result={<Row name={`s^{conv}_{${l},t}`} size={10240} tone="cyan" />}
-      />
-      <Flow>
-        {[
-          <Operation
-            key="silu"
-            tex={`\\operatorname{SiLU}(s^{conv}_{${l},t})=s^{conv}_{${l},t}\\odot\\sigma(s^{conv}_{${l},t})`}
-          />,
+        result={
           <Row
-            key="out"
-            name={conv}
+            name={`s^{conv}_{${l},t}`}
             size={10240}
-            direction="out"
-            tone="green"
-          />,
-        ]}
-      </Flow>
+            tone="cyan"
+            trace="conv-sum"
+          />
+        }
+      />
+      <SiluRow
+        input={`s^{conv}_{${l},t}`}
+        compact
+        output={conv}
+        size={10240}
+        inputTone="cyan"
+        outputTone="green"
+        outputPort
+      />
       <p className="architecture-note">
         本图展开计算所需的四个位置；缓存后端的实际存储布局不等于这里的四行示意。
       </p>
-    </>,
+    </ObjectConnections>,
     conv,
     2400,
   );

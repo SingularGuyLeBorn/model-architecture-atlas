@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 type Connection = {
   from: string;
   to: string;
-  direction?: "down" | "right" | "down-left";
+  direction?: "down" | "right" | "down-left" | "join-left" | "join-right";
 };
 type Path = Connection & { d: string; tip: string };
 
@@ -36,6 +36,9 @@ export function ObjectConnections({
         const frame = element
           .closest("[data-expanded-tensor], .architecture-fraction")
           ?.getBoundingClientRect();
+        const projection = element
+          .closest("[data-projection]")
+          ?.getBoundingClientRect();
         return {
           x: (r.left + r.width / 2 - outer.left) / scale,
           top: (r.top - outer.top) / scale,
@@ -46,12 +49,27 @@ export function ObjectConnections({
           corridorLeft: ((frame?.left ?? r.left) - outer.left) / scale - 8,
           corridorRight: ((frame?.right ?? r.right) - outer.left) / scale + 8,
           frameTop: ((frame?.top ?? r.top) - outer.top) / scale,
+          groupTop: ((projection?.top ?? r.top) - outer.top) / scale,
+          groupBottom: ((projection?.bottom ?? r.bottom) - outer.top) / scale,
         };
       };
       const next = connections.flatMap((link, index) => {
         const from = box(link.from),
           to = box(link.to);
         if (!from || !to) return [];
+        if (link.direction === "join-left" || link.direction === "join-right") {
+          // 先向下，再从目标左右侧接入；操作数与运算输出各用自己的通道。
+          const left = link.direction === "join-left";
+          const x = left ? to.left : to.right;
+          const wing = left ? x - 6 : x + 6;
+          return [
+            {
+              ...link,
+              d: `M${from.x} ${from.bottom} V${to.y} H${x}`,
+              tip: `M${wing} ${to.y - 4} L${x} ${to.y} L${wing} ${to.y + 4}`,
+            },
+          ];
+        }
         if (link.direction === "down-left") {
           // 从结果下方出线，再从右侧进入分母；转弯留在两排之间，避开平方项和分子。
           const lane = to.corridorRight;
@@ -81,7 +99,11 @@ export function ObjectConnections({
             },
           ];
         }
-        const lane = (from.bottom + to.top) / 2;
+        // 投影输入/输出行比参数矩阵矮；转折要避开整组，不能擦过参数底边。
+        const lane =
+          from.groupBottom < to.groupTop
+            ? (from.groupBottom + to.groupTop) / 2
+            : (from.bottom + to.top) / 2;
         return [
           {
             ...link,

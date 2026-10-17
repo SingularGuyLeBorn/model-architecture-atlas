@@ -116,6 +116,76 @@
 .architecture-swiglu > .architecture-columns {
   align-items: start;
 }
+.architecture-swiglu-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 80px;
+  margin-top: 40px;
+}
+.architecture-swiglu-down {
+  display: grid;
+  gap: 48px;
+}
+.architecture-silu {
+  width: max-content;
+  margin: 36px auto;
+}
+.architecture-silu-source {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+.architecture-silu-branches {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  gap: 100px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 40px;
+}
+.architecture-silu-branches > div,
+.architecture-silu-join,
+.architecture-silu-element {
+  width: max-content;
+  margin-inline: auto;
+}
+.architecture-silu-join {
+  margin-top: 24px;
+}
+.architecture-silu-element {
+  margin-top: 28px;
+}
+.architecture-silu-result {
+  margin-top: 32px;
+}
+.architecture-silu-wide > .object-connections {
+  display: grid;
+  grid-template-columns: max-content max-content max-content;
+  align-items: center;
+  gap: 24px 48px;
+}
+.architecture-silu-wide .architecture-silu-source {
+  grid-area: 1 / 1;
+}
+.architecture-silu-wide .architecture-silu-branches {
+  grid-area: 2 / 1;
+  margin-top: 0;
+}
+.architecture-silu-wide .architecture-silu-join {
+  grid-area: 3 / 1;
+  align-self: start;
+  margin-top: 0;
+}
+.architecture-silu-wide .architecture-silu-element {
+  grid-area: 3 / 2;
+  margin-top: 0;
+}
+.architecture-silu-wide .architecture-silu-result {
+  grid-area: 3 / 3;
+  margin-top: 0;
+}
 .architecture-fraction {
   display: grid;
   justify-items: center;

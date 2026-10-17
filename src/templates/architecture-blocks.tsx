@@ -209,7 +209,7 @@ export function Project({
   inputTone?: DiagramTone;
 }) {
   return (
-    <div className="architecture-equation">
+    <div className="architecture-equation" data-projection>
       <Row
         name={input}
         size={from}
@@ -406,6 +406,119 @@ export function Rms({
   );
 }
 
+/** 对所有特征应用同一标量结构；局部 z/a 在入口处映射到完整向量。 */
+export function SiluRow({
+  input,
+  output,
+  size,
+  divisor = 1,
+  inputTone = architectureTone(input),
+  outputTone = "mint",
+  inputTrace = "silu-input",
+  outputTrace = "silu-output",
+  inputPort = false,
+  outputPort = false,
+  compact = false,
+}: {
+  input: string;
+  output: string;
+  size: number;
+  divisor?: number;
+  inputTone?: DiagramTone;
+  outputTone?: DiagramTone;
+  inputTrace?: string;
+  outputTrace?: string;
+  inputPort?: boolean;
+  outputPort?: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={`architecture-silu${compact ? " architecture-silu-wide" : ""}`}
+      data-silu-row
+    >
+      <ObjectConnections
+        links={[
+          { from: inputTrace, to: "silu-identity" },
+          { from: inputTrace, to: "silu-sigmoid" },
+          {
+            from: "silu-identity",
+            to: "silu-multiply",
+            direction: "join-left",
+          },
+          {
+            from: "silu-sigmoid",
+            to: "silu-multiply",
+            direction: "join-right",
+          },
+          {
+            from: "silu-multiply",
+            to: "silu-element",
+            direction: compact ? "join-left" : "down",
+          },
+          {
+            from: "silu-element",
+            to: outputTrace,
+            direction: compact ? "right" : "down",
+          },
+        ]}
+      >
+        <div className="architecture-silu-source">
+          <Row
+            name={input}
+            size={size}
+            tone={inputTone}
+            trace={inputTrace}
+            direction={inputPort ? "in" : undefined}
+          />
+          <div>
+            <p className="architecture-caption">
+              SiLU · 逐元素{divisor !== 1 && ` · 输入先除以 ${divisor}`}
+            </p>
+            <p className="architecture-note">
+              <M
+                tex={`z:= ${divisor === 1 ? `(${input})_d` : `\\frac{(${input})_d}{${divisor}}`}`}
+              />
+            </p>
+            <p className="architecture-note">
+              <M tex={`a:=(${output})_d,\\quad d=1,\\ldots,${size}`} />
+            </p>
+          </div>
+        </div>
+        <div className="architecture-silu-branches">
+          <div data-trace-object="silu-identity">
+            <Scalar tex="z" tone={inputTone} />
+          </div>
+          <div data-trace-object="silu-sigmoid">
+            <Scalar tex="\sigma(z)=\frac{1}{1+e^{-z}}" tone="mint" />
+          </div>
+        </div>
+        <div
+          className="architecture-silu-join"
+          data-trace-object="silu-multiply"
+        >
+          <M tex="\times" />
+        </div>
+        <div
+          className="architecture-silu-element"
+          data-trace-object="silu-element"
+        >
+          <Scalar tex="a=z\cdot\sigma(z)" tone={outputTone} />
+        </div>
+        <div className="architecture-silu-result">
+          <Row
+            name={output}
+            size={size}
+            tone={outputTone}
+            trace={outputTrace}
+            direction={outputPort ? "out" : undefined}
+          />
+        </div>
+      </ObjectConnections>
+    </div>
+  );
+}
+
 export function SwiGlu({
   input,
   output,
@@ -433,7 +546,8 @@ export function SwiGlu({
       links={[
         { from: "input", to: "gate-in" },
         { from: "input", to: "up-in" },
-        { from: "activated", to: "multiply-a" },
+        { from: "gate-out", to: "silu-input" },
+        { from: "activated", to: "multiply-a", direction: "right" },
         { from: "up-out", to: "multiply-u" },
         { from: "product", to: "down-in" },
       ]}
@@ -453,24 +567,11 @@ export function SwiGlu({
                 weight={`W^{gate}_{${scope}}`}
                 output={gate}
                 inputTrace="gate-in"
+                outputTrace="gate-out"
+                tone="plum"
                 from={hidden}
                 to={intermediate}
               />
-              <Flow>
-                {[
-                  <Operation
-                    key="s"
-                    tex={`\\operatorname{SiLU}(${gate})=${gate}\\odot\\sigma(${gate})`}
-                  />,
-                  <Row
-                    key="a"
-                    trace="activated"
-                    name={`a_{${scope},t}`}
-                    size={intermediate}
-                    tone="mint"
-                  />,
-                ]}
-              </Flow>
             </div>,
             <Project
               key="up"
@@ -479,34 +580,56 @@ export function SwiGlu({
               output={up}
               inputTrace="up-in"
               outputTrace="up-out"
+              tone="forest"
               from={hidden}
               to={intermediate}
             />,
           ]}
         </Columns>
-        <div className="architecture-equation">
-          <Row
-            name={`a_{${scope},t}`}
+        <div className="architecture-swiglu-bottom">
+          <SiluRow
+            input={gate}
+            output={`a_{${scope},t}`}
             size={intermediate}
-            tone="mint"
-            trace="multiply-a"
+            outputTrace="activated"
+            inputTone="plum"
           />
-          <span className="architecture-operator">⊙</span>
-          <Row name={up} size={intermediate} trace="multiply-u" />
-          <span className="architecture-operator">=</span>
-          <Row name={product} size={intermediate} tone="teal" trace="product" />
+          <div className="architecture-swiglu-down">
+            <div className="architecture-equation">
+              <Row
+                name={`a_{${scope},t}`}
+                size={intermediate}
+                tone="mint"
+                trace="multiply-a"
+              />
+              <span className="architecture-operator">⊙</span>
+              <Row
+                name={up}
+                size={intermediate}
+                trace="multiply-u"
+                tone="forest"
+              />
+              <span className="architecture-operator">=</span>
+              <Row
+                name={product}
+                size={intermediate}
+                tone="teal"
+                trace="product"
+              />
+            </div>
+            <Project
+              input={product}
+              weight={`W^{down}_{${scope}}`}
+              output={output}
+              inputTrace="down-in"
+              outputPort={outputPort}
+              outputTrace={outputTrace}
+              from={intermediate}
+              to={hidden}
+              tone="coral"
+            />
+          </div>
         </div>
-        <Project
-          input={product}
-          weight={`W^{down}_{${scope}}`}
-          output={output}
-          inputTrace="down-in"
-          outputPort={outputPort}
-          outputTrace={outputTrace}
-          from={intermediate}
-          to={hidden}
-          tone="coral"
-        />
       </div>
     </ObjectConnections>
   );

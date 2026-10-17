@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { auditContentBounds } from "./helpers/content-bounds";
 import { auditRmsGeometry } from "./helpers/rms-geometry";
+import { auditSiluGeometry } from "./helpers/silu-geometry";
 
 for (const [id, layer, phase, chapter = "layer"] of [
   ["v3", 1, "prefill"],
@@ -52,6 +53,7 @@ for (const [id, layer, phase, chapter = "layer"] of [
       const stages = page.locator("[data-stage]");
       for (const stage of await stages.all()) {
         await expect.poll(() => auditRmsGeometry(stage)).toEqual([]);
+        await expect.poll(() => auditSiluGeometry(stage)).toEqual([]);
         if ((await stage.getAttribute("data-stage")) === "ple-lookup") {
           const crossings = await stage
             .locator(".object-connections > svg > g > path:first-child")
@@ -130,6 +132,20 @@ for (const [id, layer, phase, chapter = "layer"] of [
                 .querySelector(`[data-trace-object="${to}"]`)!
                 .getBoundingClientRect();
               const direction = link.getAttribute("data-direction");
+              if (direction === "join-left" || direction === "join-right")
+                return [
+                  Math.abs(
+                    start.x - (a.left + a.width / 2 - bounds.left) / scale,
+                  ),
+                  Math.abs(start.y - (a.bottom - bounds.top) / scale),
+                  Math.abs(
+                    end.x -
+                      ((direction === "join-left" ? b.left : b.right) -
+                        bounds.left) /
+                        scale,
+                  ),
+                  Math.abs(end.y - (b.top + b.height / 2 - bounds.top) / scale),
+                ];
               if (direction === "down-left")
                 return [
                   Math.abs(
