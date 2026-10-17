@@ -15,6 +15,45 @@ import {
 } from "../src/components/EditableArchitectureGraph";
 import { buildGraph } from "../src/compositions/DeepSeekV41Layer";
 
+it("保留起终点范围外、两个障碍之间的窄通道", () => {
+  const source = { left: 356, right: 1184, top: 7987, bottom: 8658 };
+  const target = { left: 1116, right: 2604, top: 10770, bottom: 13189 };
+  const kv = { left: 876, right: 2364, top: 8750, bottom: 9971 };
+  const compressor = { left: 2576, right: 4464, top: 8750, bottom: 10602 };
+  const points = automaticOrthogonalPoints(
+    1140,
+    8409,
+    1860,
+    10814,
+    Position.Right,
+    Position.Top,
+    [source, target, kv, compressor],
+    [],
+    [source],
+    [target],
+  );
+  expect(points.some((p) => p.x >= kv.right && p.x <= compressor.left)).toBe(
+    true,
+  );
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1],
+      b = points[i];
+    for (const box of [kv, compressor]) {
+      const crosses =
+        a.x === b.x
+          ? a.x > box.left &&
+            a.x < box.right &&
+            Math.max(a.y, b.y) > box.top &&
+            Math.min(a.y, b.y) < box.bottom
+          : a.y > box.top &&
+            a.y < box.bottom &&
+            Math.max(a.x, b.x) > box.left &&
+            Math.min(a.x, b.x) < box.right;
+      expect(crosses).toBe(false);
+    }
+  }
+});
+
 describe("人工折线端点接入", () => {
   it("窄间隙直线横移后，两端引线不重叠", () => {
     const line = [

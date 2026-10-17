@@ -8333,7 +8333,8 @@ export function buildGraph(
       "execution-guide",
       layer,
       mode,
-      1300,
+      // [OM-FREEPLAY] Token IDs 出线及两侧标签净空需要约 140px，说明框与分词器预留 200px 通道。
+      1400,
       0,
       650,
       contentHeights.get("execution-guide") ?? 330,

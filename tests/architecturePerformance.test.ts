@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import katex from "katex";
+import { labelRegistry } from "../src/components/edge-label-layout";
 import { Position, type InternalNode, type Node } from "@xyflow/react";
 import {
   latexHtml,
@@ -165,6 +166,23 @@ function fixture() {
 }
 
 describe("架构图增量路由", () => {
+  it("实测标签变宽会重新规划通道，重复测量与视口更新仍复用路由", () => {
+    const f = fixture();
+    f.edges[0].data = { labelTex: "G" };
+    const registry = labelRegistry(f.owner);
+    const before = routesForStore(f.owner, f.nodes, f.edges, f.internals);
+    registry.measure("ab", "G", { width: 100, height: 35 });
+    const measured = routesForStore(f.owner, f.nodes, f.edges, f.internals);
+    expect(measured).not.toBe(before);
+    registry.measure("ab", "G", { width: 100, height: 35 });
+    expect(routesForStore(f.owner, f.nodes, f.edges, f.internals)).toBe(
+      measured,
+    );
+    registry.measure("ab", "G", { width: 130, height: 35 });
+    expect(routesForStore(f.owner, f.nodes, f.edges, f.internals)).not.toBe(
+      measured,
+    );
+  });
   it("内部具名端口连接小框本身，人工锚点仍连接外框", () => {
     const f = fixture();
     const a = f.internals.get("a")!,

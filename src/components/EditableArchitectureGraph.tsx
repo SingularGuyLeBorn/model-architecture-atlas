@@ -740,6 +740,7 @@ function defaultOrthogonalPoints(
     ...new Set([
       left,
       right,
+      ...nearby.flatMap((item) => [item.left, item.right]),
       ...nearChannels(verticalChannels, sourceX, targetX),
     ]),
   ];
@@ -747,6 +748,7 @@ function defaultOrthogonalPoints(
     ...new Set([
       top,
       bottom,
+      ...nearby.flatMap((item) => [item.top, item.bottom]),
       ...nearChannels(horizontalChannels, sourceY, targetY),
     ]),
   ];
@@ -1234,6 +1236,20 @@ export function moveSegment(
 }
 
 type RouteFrame = { bounds: Obstacle; parentId?: string };
+// [OM-FREEPLAY] 入口标签离外框 12px，路由预留框再加 10px，给文字描边和线间净空留余量。
+function entranceLabelPoint(
+  target: XYPosition & { side: Position },
+  bounds: Obstacle,
+  size: { width: number; height: number },
+) {
+  if (target.side === Position.Top)
+    return { x: target.x, y: bounds.top - size.height / 2 - 12 };
+  if (target.side === Position.Bottom)
+    return { x: target.x, y: bounds.bottom + size.height / 2 + 12 };
+  if (target.side === Position.Left)
+    return { x: bounds.left - size.width / 2 - 12, y: target.y };
+  return { x: bounds.right + size.width / 2 + 12, y: target.y };
+}
 type RoutePlan = {
   signature: string;
   routes: Map<string, XYPosition[]>;
@@ -1243,8 +1259,12 @@ type RoutePlan = {
 const routingCache = new WeakMap<object, RoutePlan>();
 const routingHistory = new WeakMap<object, Map<string, RoutePlan>>();
 // 同一次 React Flow 状态更新只规划一次；各边只订阅自己的点列，不订阅整张节点/边数组。
-const routingSnapshots = new WeakMap<object, Map<string, XYPosition[]>>();
+const routingSnapshots = new WeakMap<
+  object,
+  { version: number; routes: Map<string, XYPosition[]> }
+>();
 type RoutingInput = {
+  version: number;
   nodes: Node[];
   edges: EditableEdge[];
   geometry: {
@@ -1311,6 +1331,20 @@ function labelsForRoutes(
     (frame) => frame.bounds,
   );
   const placements = layoutEdgeLabels(entries, boxes, routes);
+  // 共享规划可以变化，但没有移动的标签仍保留引用；拖一个框不重绘整页所有边。
+  for (const [id, placement] of placements) {
+    const old = cached?.placements.get(id);
+    if (
+      old &&
+      old.primary.x === placement.primary.x &&
+      old.primary.y === placement.primary.y &&
+      old.terminal?.x === placement.terminal?.x &&
+      old.terminal?.y === placement.terminal?.y &&
+      old.primaryIsTerminal === placement.primaryIsTerminal &&
+      old.unresolved === placement.unresolved
+    )
+      placements.set(id, old);
+  }
   labelPlans.set(owner, { routes, edges, version, placements });
   return placements;
 }
@@ -1322,10 +1356,12 @@ export function routesForStore(
   lookup: ReadonlyMap<string, InternalNode<Node>>,
 ) {
   const previous = routingInputs.get(owner);
+  const version = labelRegistry(owner).getSnapshot();
   // 平移/缩放只改变视口，连世界坐标的签名字符串也不应重新构造。
   // 同时核对可变内部表的数值与端口引用，不能仅凭 nodes 数组引用漏掉 ResizeObserver 更新。
   if (
     previous?.nodes === nodes &&
+    previous.version === version &&
     previous.edges === edges &&
     previous.geometry.length === lookup.size &&
     previous.geometry.every((g) => {
@@ -1352,7 +1388,7 @@ export function routesForStore(
     height: node.measured.height,
     handles: node.internals.handleBounds,
   }));
-  routingInputs.set(owner, { nodes, edges, geometry, routes });
+  routingInputs.set(owner, { nodes, edges, geometry, routes, version });
   return routes;
 }
 
@@ -1370,6 +1406,15 @@ export function planArchitectureRoutes(
   getInternalNode: (id: string) => InternalNode<Node> | undefined,
 ) {
   const cached = routingCache.get(owner);
+  const labelSizes = labelRegistry(owner).sizes;
+  // 标签中心在线上，入口通道同时容纳文字及净空。
+  // 实测尺寸变化（包括改字）进入路由签名；人工折线仍由原控制点负责。
+  const labelDimensions = (edge: EditableEdge) => {
+    const size = labelSizes.get(edge.id);
+    return size && size.tex === edge.data?.labelTex
+      ? [size.width, size.height]
+      : undefined;
+  };
   const frames = new Map<string, RouteFrame>();
   for (const node of nodes) {
     const internal = getInternalNode(node.id),
@@ -1455,6 +1500,7 @@ export function planArchitectureRoutes(
         endpointKey(source),
         endpointKey(target),
         edge.data?.waypoints,
+        labelDimensions(edge),
       ]),
     ]),
   );
@@ -1495,6 +1541,28 @@ export function planArchitectureRoutes(
     return ids;
   };
   const routes = new Map<string, XYPosition[]>();
+  // 入口变量也占通道，不能让后规划的导线横穿入口，再把变量挤回远处。
+  // 手工路线仍保持原样，由标签避让器报告无法兼顾的情况。
+  const entrances = new Map(
+    items.flatMap(({ edge, target }) => {
+      const size = labelSizes.get(edge.id);
+      if (!size || size.tex !== edge.data?.labelTex) return [];
+      let frame = frames.get(edge.target);
+      while (frame?.parentId) frame = frames.get(frame.parentId);
+      return frame
+        ? [
+            [
+              edge.id,
+              labelBounds(
+                entranceLabelPoint(target, frame.bounds, size),
+                size,
+                10,
+              ),
+            ] as const,
+          ]
+        : [];
+    }),
+  );
   const reserved: ReservedSegment[] = [];
   const reserve = (id: string, points: XYPosition[]) => {
     routes.set(id, points);
@@ -1531,19 +1599,30 @@ export function planArchitectureRoutes(
       ]);
       if (changedFrames.some(([id]) => parentIds.has(id))) continue;
       const excluded = new Set([edge.source, edge.target, ...parentIds]);
-      const blocked = changedFrames.some(
-        ([id, frame]) =>
-          !excluded.has(id) &&
+      const blockedByLabel = [...entrances].some(
+        ([id, rect]) =>
+          id !== edge.id &&
           previous
             .slice(1)
             .some((point, i) =>
-              segmentCrossesObstacle(
-                previous[i],
-                point,
-                inflate(frame.bounds, EDGE_NODE_CLEARANCE),
-              ),
+              segmentCrossesObstacle(previous[i], point, rect),
             ),
       );
+      const blocked =
+        blockedByLabel ||
+        changedFrames.some(
+          ([id, frame]) =>
+            !excluded.has(id) &&
+            previous
+              .slice(1)
+              .some((point, i) =>
+                segmentCrossesObstacle(
+                  previous[i],
+                  point,
+                  inflate(frame.bounds, EDGE_NODE_CLEARANCE),
+                ),
+              ),
+        );
       if (!blocked) reserve(edge.id, previous);
     }
   }
@@ -1555,13 +1634,46 @@ export function planArchitectureRoutes(
       targetFrames: Obstacle[] = [];
     const obstacles = [...frames].flatMap(([id, frame]) => {
       if (sourceAncestors.has(id) && targetAncestors.has(id)) return [];
-      const bounds = inflate(frame.bounds, EDGE_NODE_CLEARANCE);
+      // 文字按横纵两个尺寸占位，不能把宽公式的整宽同时加到上下通道。
+      const measured = labelSizes.get(edge.id);
+      const size = measured?.tex === edge.data?.labelTex ? measured : undefined;
+      const widthPad = Math.max(
+        EDGE_NODE_CLEARANCE,
+        (size?.width ?? 0) / 2 + 12,
+      );
+      const heightPad = Math.max(
+        EDGE_NODE_CLEARANCE,
+        (size?.height ?? 0) / 2 + 12,
+      );
+      const bounds = {
+        left: frame.bounds.left - widthPad,
+        right: frame.bounds.right + widthPad,
+        top: frame.bounds.top - heightPad,
+        bottom: frame.bounds.bottom + heightPad,
+      };
+      if (size && (id === edge.target || targetAncestors.has(id))) {
+        if (target.side === Position.Left)
+          bounds.left = frame.bounds.left - Math.max(widthPad, size.width + 20);
+        if (target.side === Position.Right)
+          bounds.right =
+            frame.bounds.right + Math.max(widthPad, size.width + 20);
+        if (target.side === Position.Top)
+          bounds.top = frame.bounds.top - Math.max(heightPad, size.height + 20);
+        if (target.side === Position.Bottom)
+          bounds.bottom =
+            frame.bounds.bottom + Math.max(heightPad, size.height + 20);
+      }
       if (id === edge.source || sourceAncestors.has(id))
         sourceFrames.push(bounds);
       if (id === edge.target || targetAncestors.has(id))
         targetFrames.push(bounds);
       return [bounds];
     });
+    obstacles.push(
+      ...[...entrances]
+        .filter(([id]) => id !== edge.id)
+        .map(([, rect]) => rect),
+    );
     reserve(
       edge.id,
       automaticOrthogonalPoints(
@@ -1605,23 +1717,36 @@ function EditableOrthogonalEdgeView({
     EditableEdge
   >();
   const store = useStoreApi();
-  const routes = useStore((state) => {
-    let routes = routingSnapshots.get(state);
-    if (!routes) {
-      // 各 hook 的包装对象不同，getState 才是同一画布的共享身份。
-      routes = routesForStore(
-        store.getState,
-        state.nodes,
-        state.edges as EditableEdge[],
-        state.nodeLookup,
-      );
-      routingSnapshots.set(state, routes);
-    }
-    return routes;
-  });
-  const route = routes.get(id);
   const registry = labelRegistry(store.getState);
-  useSyncExternalStore(registry.subscribe, registry.getSnapshot);
+  const labelVersion = useSyncExternalStore(
+    registry.subscribe,
+    registry.getSnapshot,
+  );
+  const { route, placement } = useStore(
+    (state) => {
+      let snapshot = routingSnapshots.get(state);
+      if (!snapshot || snapshot.version !== labelVersion) {
+        // 各 hook 的包装对象不同，getState 才是同一画布的共享身份。
+        const routes = routesForStore(
+          store.getState,
+          state.nodes,
+          state.edges as EditableEdge[],
+          state.nodeLookup,
+        );
+        snapshot = { routes, version: labelVersion };
+        routingSnapshots.set(state, snapshot);
+      }
+      return {
+        route: snapshot.routes.get(id),
+        placement: labelsForRoutes(
+          store.getState,
+          snapshot.routes,
+          state.edges as EditableEdge[],
+        ).get(id),
+      };
+    },
+    (a, b) => a.route === b.route && a.placement === b.placement,
+  );
   const [hoveredSegment, setHoveredSegment] = useState<number | null>(null);
   const labelRef = useRef<HTMLDivElement>(null);
   const labelSize = registry.sizes.get(id) ?? { width: 0, height: 0 };
@@ -1716,11 +1841,6 @@ function EditableOrthogonalEdgeView({
     data?.labelPosition === undefined
       ? longestSegmentCenter(points)
       : labelPointOnPath(points, data.labelPosition);
-  const placement = labelsForRoutes(
-    store.getState,
-    routes,
-    store.getState().edges as EditableEdge[],
-  ).get(id);
   const labelCenter = placement?.primary ?? preferredCenter;
   const terminalCenter = placement?.terminal;
   const path = pathWithLabelGap(
