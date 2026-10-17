@@ -229,10 +229,10 @@ export function explainModule(data: ExplainedModule): ModuleExplanation {
     group === "kv" && data.phase === "decode" && [3, 4].includes(data.layer)
       ? [
           data.layer === 3
-            ? "固定例子 t=129、130：第 3 层窗口先淘汰 token 1、再淘汰 token 2，写后分别保留 token 2–129、3–130，共 128 行。token 129 的候选内容与 gate 分数进入第 65 组暂存，G 与索引 Key 仍为 64 行；等第 130 个 token 到齐才合并两槽，分别追加第 65 行。旧行保留，不重算 token 129 的候选或前 64 个组。"
-            : "固定例子 t=129、130：第 4 层独立计算当前 Query 和局部 KV，自己的窗口同样先淘汰 token 1、再淘汰 token 2。每步直接读取第 3 层当时的 G₃ 和同一 token 的 I₃,t，不生成 G₄、不重跑 Indexer。第 4 层没有全局 Compressor 和 Indexer 的对应参数；自己的 Attention、输出与 FFN 仍计算。",
-          "Indexer 的查询来自当前 token 的低秩 Query，匹配对象是与 G 各行一一对应的索引 Key。32 个 Head 加权后得到 1×M 分数行，列 i 对应 G 第 i 行；Top-K 选的是这些候选列的行号，不是 Query 行或 Head 编号。129 时 M=64、130 时 M=65，都小于 512，因此全部选中。Reuse 复用同一步的行号，下一 token 在 Full 层重新选。",
-          "拼接后分别有 192、193 个 KV 表示，不代表这么多个不同 token。局部窗口淘汰 token 1、2 后，g₃,₁ 仍保留它们的压缩表示；这不是无损备份。工具栏“129、130 号 token 缓存示例”展示连续两步的读、算、暂存、追加和跨层复用。",
+            ? "固定例子 t=1201、1202：第 3 层窗口先淘汰 token 1073、再淘汰 token 1074，写后分别保留 token 1074–1201、1075–1202，共 128 行。token 1201 的候选内容与 gate 分数进入第 601 组暂存，G 与索引 Key 仍为 600 行；等第 1202 个 token 到齐才合并两槽，分别追加第 601 行。旧行和上一步暂存直接读取。"
+            : "固定例子 t=1201、1202：第 4 层独立计算当前 Query 和局部 KV，自己的窗口同样先淘汰 token 1073、再淘汰 token 1074。每步直接读取第 3 层当时的 G₃ 和同一 token 的 I₃,t，不生成 G₄、不重跑 Indexer。第 4 层没有全局 Compressor 和 Indexer 的对应参数；自己的 Attention、输出与 FFN 仍计算。",
+          "Indexer 的查询来自当前 token 的低秩 Query，匹配对象是与 G 各行一一对应的索引 Key。32 个 Head 加权后得到 1×M 分数行，列 i 对应 G 第 i 行。1201 时 M=600、1202 时 M=601，均选最高分的 512 个 ID，再按原行号排序，分别有 88、89 行本步未选；这些行仍保留在 G 中。图中分数明确标为教学赋值，非模型实测。Reuse 读取同一步的 512 个 ID，下一 token 在 Full 层重新选。",
+          "每步拼接本层 128 行窗口与选中的 512 行 G，共 640 个 KV 表示。第 j 个选中项保存原 G 行号 iⱼ，拼接后是第 128+j 行；原行号和结果位置分别标注。第 4 层沿用相同 ID 与 G 向量，但用自己的 Query 计算新的主 Attention 权重。工具栏“1201、1202 号 token 缓存示例”展示筛选边界、原 G 行和两层读写全过程。",
         ]
       : [];
   return {

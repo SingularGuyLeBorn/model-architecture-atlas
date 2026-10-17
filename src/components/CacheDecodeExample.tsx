@@ -11,9 +11,21 @@ import { Data, Down, Sequence } from "../templates/structure-blocks";
 import { CacheModeLedger } from "./CacheSemantics";
 
 // 固定官方 V4.1 配置：界面层号从 1 开始；3 是 Full，4 是 Reuse。
-export function cacheStep(token: 129 | 130) {
+export function cacheStep(token: 1201 | 1202) {
   const globalRows = Math.floor(token / 2);
+  // [OM-FREEPLAY] 教学分数用于展示真实 Top-K 筛选；确定性排列避免并列，非模型运行值。
+  const scores = Array.from({ length: globalRows }, (_, index) => ({
+    id: index + 1,
+    score: ((((index + 1) * 37 + token) % globalRows) + 1) / 100,
+  }));
+  const ranked = [...scores].sort((a, b) => b.score - a.score);
+  const ids = ranked
+    .slice(0, 512)
+    .map((row) => row.id)
+    .sort((a, b) => a - b);
   return {
+    scores,
+    ranked,
     token,
     previous: token - 1,
     window: 128,
@@ -25,11 +37,11 @@ export function cacheStep(token: 129 | 130) {
     globalRows,
     appendGlobal: token % 2 === 0,
     localRows: 128,
-    readRows: 128 + globalRows,
-    ids: Array.from({ length: globalRows }, (_, i) => i + 1),
+    readRows: 128 + ids.length,
+    ids,
   };
 }
-export const CACHE_STEPS = [cacheStep(129), cacheStep(130)];
+export const CACHE_STEPS = [cacheStep(1201), cacheStep(1202)];
 type Step = ReturnType<typeof cacheStep>;
 
 function Rows({
@@ -95,7 +107,7 @@ function localRows(layer: number, first: number, last: number) {
   }));
 }
 function globalRows(count: number) {
-  return [1, 2, "dots", ...(count === 65 ? [64, 65] : [64])].map((i) => ({
+  return [1, 2, "dots", count - 1, count].map((i) => ({
     tex: i === "dots" ? "dots" : `\\mathbf g_{3,${i}}`,
     label:
       i === "dots"
@@ -273,25 +285,25 @@ function Global({ step }: { step: Step }) {
           resultTone="violet"
         />
       </div>
-      <Down label="写入第 65 个压缩组 · 每槽保存一行内容和一行分数" />
+      <Down label="写入第 601 个压缩组 · 每槽保存一行内容和一行分数" />
       <div className="cache-pending" data-pending-step={t}>
         <strong>
           {appendGlobal
             ? "两槽到齐 · 读取上一步暂存 + 本步新算"
-            : "只到一槽 · 等待 token 130，不提前生成全局行"}
+            : "只到一槽 · 等待 token 1202，不提前生成全局行"}
         </strong>
         <div className="cache-projections">
           <Data>
             <strong>
-              槽 1 · token 129 · {appendGlobal ? "直接读暂存" : "本步写入"}
+              槽 1 · token 1201 · {appendGlobal ? "直接读暂存" : "本步写入"}
             </strong>
-            <M tex="\mathbf v^c_{3,129},\quad\mathbf a^{\mathrm{gate}}_{3,129}" />
+            <M tex="\mathbf v^c_{3,1201},\quad\mathbf a^{\mathrm{gate}}_{3,1201}" />
             <small>各为 1 × 512</small>
           </Data>
           {appendGlobal ? (
             <Data>
-              <strong>槽 2 · token 130 · 本步写入</strong>
-              <M tex="\mathbf v^c_{3,130},\quad\mathbf a^{\mathrm{gate}}_{3,130}" />
+              <strong>槽 2 · token 1202 · 本步写入</strong>
+              <M tex="\mathbf v^c_{3,1202},\quad\mathbf a^{\mathrm{gate}}_{3,1202}" />
               <small>各为 1 × 512</small>
             </Data>
           ) : (
@@ -307,18 +319,18 @@ function Global({ step }: { step: Step }) {
         <>
           <Down label="组满 · 同列两项 Softmax，再逐列加权合并" />
           <div className="cache-query">
-            <M tex="\alpha_{3,65,r,d}=\frac{\exp(a^{\mathrm{gate}}_{3,128+r,d})}{\exp(a^{\mathrm{gate}}_{3,129,d})+\exp(a^{\mathrm{gate}}_{3,130,d})}" />
+            <M tex="\alpha_{3,601,r,d}=\frac{\exp(a^{\mathrm{gate}}_{3,1200+r,d})}{\exp(a^{\mathrm{gate}}_{3,1201,d})+\exp(a^{\mathrm{gate}}_{3,1202,d})}" />
             <p>
               r=1、2 对应组内两个 token；d=1,…,512。α 是权重，vᶜ 是候选内容。
             </p>
             <div className="cache-inline">
               <StackedSum outputDirection="right">
                 {[
-                  <Data key="129" tone="cyan">
-                    <M tex="\boldsymbol\alpha_{3,65,1}\odot\mathbf v^c_{3,129}" />
+                  <Data key="1201" tone="cyan">
+                    <M tex="\boldsymbol\alpha_{3,601,1}\odot\mathbf v^c_{3,1201}" />
                   </Data>,
-                  <Data key="130" tone="cyan">
-                    <M tex="\boldsymbol\alpha_{3,65,2}\odot\mathbf v^c_{3,130}" />
+                  <Data key="1202" tone="cyan">
+                    <M tex="\boldsymbol\alpha_{3,601,2}\odot\mathbf v^c_{3,1202}" />
                   </Data>,
                 ]}
               </StackedSum>
@@ -327,7 +339,7 @@ function Global({ step }: { step: Step }) {
                 <M tex="\longrightarrow" />
               </div>
               <Data>
-                <M tex="\widehat{\mathbf g}_{3,65}" />
+                <M tex="\widehat{\mathbf g}_{3,601}" />
                 <small>1 × 512 · RoPE 前</small>
               </Data>
             </div>
@@ -335,18 +347,18 @@ function Global({ step }: { step: Step }) {
           <div className="cache-projections">
             <div className="cache-query">
               <strong>由同一压缩潜向量生成索引 Key</strong>
-              <M tex="\widehat{\mathbf g}_{3,65}W_3^{IK}\ \xrightarrow{\mathrm{RMSNorm,\ RoPE,\ FP4}}\ \mathbf k^{I\prime}_{3,65}" />
+              <M tex="\widehat{\mathbf g}_{3,601}W_3^{IK}\ \xrightarrow{\mathrm{RMSNorm,\ RoPE,\ FP4}}\ \mathbf k^{I\prime}_{3,601}" />
               <p>
-                W₃ᴵᴷ 为独立参数，512 × 128。追加索引 Key 第 65 行（1 ×
+                W₃ᴵᴷ 为独立参数，512 × 128。追加索引 Key 第 601 行（1 ×
                 128），供本步 Indexer 打分。
               </p>
             </div>
             <div className="cache-query">
               <strong>主分支写入全局 KV</strong>
-              <M tex="\widehat{\mathbf g}_{3,65}\ \xrightarrow{\mathrm{RoPE,\ FP4}}\ \mathbf g_{3,65}" />
+              <M tex="\widehat{\mathbf g}_{3,601}\ \xrightarrow{\mathrm{RoPE,\ FP4}}\ \mathbf g_{3,601}" />
               <p>
-                追加 G 第 65 行（1 × 512），供本步 Attention
-                读取。两分支使用组首 token 129 的位置。
+                追加 G 第 601 行（1 × 512），供本步 Attention
+                读取。两分支使用组首 token 1201 的位置。
               </p>
             </div>
           </div>
@@ -358,7 +370,7 @@ function Global({ step }: { step: Step }) {
         </>
       ) : (
         <p>
-          本步不产生新的压缩潜向量，因此 G 与索引 Key 都不追加；已有的第 1–64
+          本步不产生新的压缩潜向量，因此 G 与索引 Key 都不追加；已有的第 1–600
           行直接读取。
         </p>
       )}
@@ -368,7 +380,7 @@ function Global({ step }: { step: Step }) {
           shape={`${m}\\times512`}
           tone="green"
           rows={globalRows(m)}
-          fresh={appendGlobal ? "\\mathbf g_{3,65}" : undefined}
+          fresh={appendGlobal ? "\\mathbf g_{3,601}" : undefined}
         />
         <Rows
           name={`K_3^{I\\prime,\\le${t}}`}
@@ -378,18 +390,162 @@ function Global({ step }: { step: Step }) {
             ...row,
             tex: row.tex.replace("\\mathbf g", "\\mathbf k^{I\\prime}"),
           }))}
-          fresh={appendGlobal ? "\\mathbf k^{I\\prime}_{3,65}" : undefined}
+          fresh={appendGlobal ? "\\mathbf k^{I\\prime}_{3,601}" : undefined}
         />
       </div>
       <p>
         同一个行号 i 对应同一组 token：G 的第 i 行用于主 Attention，索引 Key 第
-        i 行用于快速匹配。旧 64 行保持；
+        i 行用于快速匹配。旧 600 行保持；
         {appendGlobal
-          ? "本步新增第 65 行。暂存组已消费，下一组等待 token 131、132；物理槽不必清零，下组按位置覆盖。"
-          : "候选 token 129 尚未成为可选的 G 行。"}{" "}
+          ? "本步新增第 601 行。暂存组已消费，下一组等待 token 1203、1204；物理槽不必清零，下组按位置覆盖。"
+          : "候选 token 1201 尚未成为可选的 G 行。"}{" "}
         上标 ≤t 表示同一缓存到该时刻的状态，始终是同一份缓存。
       </p>
     </>
+  );
+}
+function idsTex(step: Step) {
+  return `(${step.ids[0]},${step.ids[1]},\\ldots,${step.ids.at(-1)})`;
+}
+
+function SelectionEvidence({ step }: { step: Step }) {
+  const { token: t, globalRows: m, ranked, ids } = step;
+  const shownIds = [
+    ...new Set([
+      1,
+      2,
+      ids[0],
+      ids[1],
+      ranked[0].id,
+      ranked[511].id,
+      ranked[512].id,
+      ids[511],
+      m,
+    ]),
+  ].sort((a, b) => a - b);
+  return (
+    <section
+      className="cache-selection-evidence"
+      data-score-columns={m}
+      data-selected-ids={ids.join(",")}
+    >
+      <h4>教学分数 → Top-512 → 原 G 行</h4>
+      <p>
+        以下数值为教学赋值，用来演示筛选，非模型实测输出。真实分数由上方 η × A
+        得到；每个候选只有一个最终分数，分数越大越优先。
+      </p>
+      <div className="cache-projections">
+        <section>
+          <h4>① 按分数选 512 个 ID</h4>
+          <table className="cache-ranking" aria-label={`token ${t} 分数排名`}>
+            <thead>
+              <tr>
+                <th>名次</th>
+                <th>原 G 行 ID</th>
+                <th>分数</th>
+                <th>本步</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[0, 1, "dots", 511, 512, "tail", m - 1].map((rank) =>
+                typeof rank === "string" ? (
+                  <tr key={rank}>
+                    <td colSpan={4}>⋮</td>
+                  </tr>
+                ) : (
+                  <tr
+                    key={rank}
+                    data-rank={rank + 1}
+                    data-selected={rank < 512}
+                  >
+                    <td>{rank + 1}</td>
+                    <td>{ranked[rank].id}</td>
+                    <td>{ranked[rank].score.toFixed(2)}</td>
+                    <td>{rank < 512 ? "选中" : "未选"}</td>
+                  </tr>
+                ),
+              )}
+            </tbody>
+          </table>
+          <p>
+            第 512 名 {ranked[511].score.toFixed(2)} ＞ 第 513 名{" "}
+            {ranked[512].score.toFixed(2)}。本例无并列；上面省略的第 3–511
+            名全部入选，第 514–{m - 1} 名全部未选。
+          </p>
+        </section>
+        <section className="cache-query">
+          <h4>② 选中的 ID 按原位置排序</h4>
+          <Data tone="amber">
+            <M tex={`I_{3,${t}}=${idsTex(step)}`} />
+            <small>1 × 512 · 共 512 个原 G 行号</small>
+          </Data>
+          <p>
+            排列按行号递增，保留刚才选中的集合；第 1 项 ID={ids[0]}，第 2 项 ID=
+            {ids[1]}，末项 ID={ids.at(-1)}。省略号只省略其余 509 个已选 ID。
+          </p>
+          <M
+            tex={`G^{\\mathrm{selected}}_{3,${t}}\\in\\mathbb R^{512\\times512}`}
+          />
+          <p>
+            选中 512 行，未选 {m - 512} 行。缓存 G 仍有 {m}{" "}
+            行；未选行下次仍可参与评分。
+          </p>
+        </section>
+      </div>
+      <Down label="③ 保留原 G 行号取数 · 琥珀轮廓标出本步选中行" />
+      <table
+        className="cache-selection-map"
+        aria-label={`token ${t} 原 G 行对应`}
+      >
+        <thead>
+          <tr>
+            <th>原 G 行 i</th>
+            <th>压缩来源 token</th>
+            <th>缓存向量 · 1 × 512</th>
+            <th>本步分数</th>
+            <th>读取去向</th>
+          </tr>
+        </thead>
+        <tbody>
+          {shownIds.flatMap((id, index) => {
+            const j = ids.indexOf(id) + 1;
+            return [
+              index > 0 && id > shownIds[index - 1] + 1 ? (
+                <tr key={`gap-${id}`}>
+                  <td>⋮</td>
+                  <td>⋮</td>
+                  <td>⋮</td>
+                  <td>⋮</td>
+                  <td>⋮</td>
+                </tr>
+              ) : null,
+              <tr key={id} data-candidate-id={id} data-selected={j > 0}>
+                <td>{id}</td>
+                <td>
+                  {2 * id - 1}、{2 * id}
+                </td>
+                <td>
+                  <Data>
+                    <M tex={`\\mathbf g_{3,${id}}`} />
+                  </Data>
+                </td>
+                <td>{step.scores[id - 1].score.toFixed(2)}</td>
+                <td>
+                  {j
+                    ? `I 第 ${j} 项 → KV 第 ${128 + j} 行`
+                    : "未选 · 留在 G 中，本步不读取"}
+                </td>
+              </tr>,
+            ];
+          })}
+        </tbody>
+      </table>
+      <p>
+        表按原 G 行顺序展开代表行，点串省略中间行。ID 指 G 的逻辑行号，从 1
+        开始；代码中使用零基索引和局部区偏移。token {t} 的分数向量 s 有 {m}{" "}
+        列，第 i 列就对应表中的 G 行 i。
+      </p>
+    </section>
   );
 }
 function IndexSelection({ step }: { step: Step }) {
@@ -416,9 +572,9 @@ function IndexSelection({ step }: { step: Step }) {
           <M tex={`K_3^{I\\prime,\\le${t}}\\in\\mathbb R^{${m}\\times128}`} />
           <p>
             读取刚才的索引 Key 缓存；每行对应 G₃ 的同号行。
-            {t === 130
-              ? "包含本步新追加的第 65 行。"
-              : "只有第 1–64 行，不含尚未压缩完的 token 129。"}
+            {t === 1202
+              ? "包含本步新追加的第 601 行。"
+              : "只有第 1–600 行，不含尚未压缩完的 token 1201。"}
           </p>
         </div>
       </div>
@@ -452,39 +608,7 @@ function IndexSelection({ step }: { step: Step }) {
           轴，不归约候选行轴。
         </p>
       </div>
-      <div className="cache-score-grid" data-score-columns={m}>
-        <strong>候选行号 i</strong>
-        {[1, 2, "dots", m].map((i) => (
-          <span key={i}>{i === "dots" ? "⋯" : i}</span>
-        ))}
-        <strong>当前 token 的分数</strong>
-        {[1, 2, "dots", m].map((i) => (
-          <span key={i}>
-            {i === "dots" ? "⋯" : <M tex={`s_{3,${t},${i}}`} />}
-          </span>
-        ))}
-      </div>
-      <Down
-        label={`Top-512 沿候选列选 ID · min(512, ${m}) = ${m}，本例全部选中`}
-      />
-      <Data tone="amber">
-        <M tex={`I_{3,${t}}=(1,2,\\ldots,${m})`} />
-        <small>G 的行号 · 按位置排序 · 对应被选候选</small>
-      </Data>
-      <Down label="按 ID 读同号 G 行 · 保留原行号与来源" />
-      <div className="cache-inline">
-        <Rows
-          name={`G_3^{\\le${t}}\\quad\\text{选中行}`}
-          shape={`${m}\\times512`}
-          tone="green"
-          rows={globalRows(m).map((r) => ({ ...r, tone: "amber" as const }))}
-        />
-        <p className="cache-read-labels">
-          展示的行和省略行都被选中。M 超过 512 后才只保留高分候选。图中 ID 从 1
-          开始；代码采用零基索引并加局部区偏移；图示与物理偏移分开，ID 对应 G
-          的逻辑行号。
-        </p>
-      </div>
+      <SelectionEvidence step={step} />
       <p>
         S 的完整矩阵按查询 token 排行、按候选缓存排列；Decode 本步只算 s₃,{t}{" "}
         这一行，并不保留历史分数矩阵。本步行号传给第 4 层；下一 token 在第 3
@@ -494,7 +618,7 @@ function IndexSelection({ step }: { step: Step }) {
   );
 }
 function ReadAttention({ layer, step }: { layer: number; step: Step }) {
-  const { token: t, globalRows: m, firstAfter, readRows } = step;
+  const { token: t, firstAfter, readRows } = step;
   return (
     <>
       <h4>按行拼接 · 本层窗口 + 选中的 G 行</h4>
@@ -506,15 +630,13 @@ function ReadAttention({ layer, step }: { layer: number; step: Step }) {
           rows={[
             ...localRows(layer, firstAfter, t),
             { tex: "separator", label: "" },
-            ...globalRows(m).map((r) => ({
-              ...r,
+            ...[0, 1, "dots", 511].map((j) => ({
+              tex:
+                j === "dots" ? "dots" : `\\mathbf g_{3,${step.ids[Number(j)]}}`,
               label:
-                r.tex === "dots"
+                j === "dots"
                   ? ""
-                  : r.label.replace(
-                      /行 (\d+).*/,
-                      (_, i) => `结果行 ${128 + Number(i)} · 原 G 行 ${i}`,
-                    ),
+                  : `结果行 ${129 + Number(j)} · 原 G 行 ${step.ids[Number(j)]}`,
             })),
           ]}
         />
@@ -522,7 +644,10 @@ function ReadAttention({ layer, step }: { layer: number; step: Step }) {
           <p>
             上段 128 行：本层 U{layer}，token {firstAfter}–{t}。
           </p>
-          <p>下段 {m} 行：第 3 层 G₃；原 G 行 i 位于结果行 128+i。</p>
+          <p>
+            下段 512 行：按 I 的顺序读取 G₃；第 j 个选中 ID 为 iⱼ，原 G 行 iⱼ
+            位于结果行 128+j。j=1,…,512。
+          </p>
           <M tex={`K_{${layer},${t}}=V_{${layer},${t}}=KV_{${layer},${t}}`} />
           <p>
             {readRows} 个表示 ≠ {readRows} 个不同
@@ -564,15 +689,15 @@ function ReadAttention({ layer, step }: { layer: number; step: Step }) {
 export function cacheDecodeRecipe(references: Recipe["references"]): Recipe {
   const stages: Stage[] = [
     {
-      id: "history128",
-      title: "起点 · 前 128 个 token 已完成",
+      id: "history1200",
+      title: "起点 · 前 1200 个 token 已完成",
       output: "\\mathrm{cached\\ state}",
       body: (
         <Frame
           notes={[
             "固定官方 V4.1 场景：第 3 层 Full，第 4 层 Reuse；SWA 容量 128，压缩比 2，索引 Top-K 上限 512。图中层、token、G 行号从 1 开始。",
             "蓝色 U 是每层自己的局部 KV，绿色 G 是第 3 层生成的全局表示，青色索引 Key 用于候选匹配。全局指序列范围可超出窗口，所属序列和源层明确。",
-            "只展开第 3、4 层；token 129 仍须通过其余层并完成本步，才进入 token 130 的处理。两个 token 的层内输入各走自己的前向路径。",
+            "只展开第 3、4 层；token 1201 仍须通过其余层并完成本步，才进入 token 1202 的处理。两个 token 的层内输入各走自己的前向路径。",
           ]}
         >
           <CacheModeLedger layer={3} />
@@ -580,31 +705,31 @@ export function cacheDecodeRecipe(references: Recipe["references"]): Recipe {
             {[3, 4].map((l) => (
               <Rows
                 key={l}
-                name={`U_${l}^{\\mathrm{SWA},\\le128}`}
+                name={`U_${l}^{\\mathrm{SWA},\\le1200}`}
                 shape="128\times512"
-                rows={localRows(l, 1, 128)}
+                rows={localRows(l, 1073, 1200)}
               />
             ))}
             <Rows
-              name="G_3^{\le128}"
-              shape="64\times512"
+              name="G_3^{\le1200}"
+              shape="600\times512"
               tone="green"
-              rows={globalRows(64)}
+              rows={globalRows(600)}
             />
           </div>
           <p>
-            U₃ 与 U₄ 来自不同层的输入和本层独立投影参数，分别保存。G₃ 的第 1–64
+            U₃ 与 U₄ 来自不同层的输入和本层独立投影参数，分别保存。G₃ 的第 1–600
             行已经生成，后续直接读取，不重新压缩这些旧组。
           </p>
           <div className="cache-inline">
             <Data tone="cyan">
-              <M tex="K_3^{I\prime,\le128}\in\mathbb R^{64\times128}" />与 G₃ 的
-              64 行一一对应
+              <M tex="K_3^{I\prime,\le1200}\in\mathbb R^{600\times128}" />与 G₃
+              的 600 行一一对应
             </Data>
             <Data tone="amber">
-              压缩暂存：第 64 组已完成
+              压缩暂存：第 600 组已完成
               <br />
-              下一组等待 token 129、130
+              下一组等待 token 1201、1202
             </Data>
           </div>
           <p>
@@ -637,18 +762,18 @@ export function cacheDecodeRecipe(references: Recipe["references"]): Recipe {
       },
       {
         id: `global${t}`,
-        title: `t=${t} · 第 3 层 Full · ${step.appendGlobal ? "组满追加第 65 行" : "暂存候选，G 仍 64 行"}`,
+        title: `t=${t} · 第 3 层 Full · ${step.appendGlobal ? "组满追加第 601 行" : "暂存候选，G 仍 600 行"}`,
         output: `G_3^{\\le${t}},\\ I_{3,${t}}`,
         body: (
           <Frame
             notes={[
               "Full 自己持有并更新 G，但仍保留历史 G；只为当前输入生成候选内容与 gate 分数。",
-              t === 129
-                ? "第 65 组只收到 token 129。暂存只有在组完成后才成为 G 的有效候选行；索引 Key 仍为 64 行。"
-                : "直接读取上一步暂存的 token 129 候选和分数，不重算。token 130 到齐后，两槽逐列加权压成一行，G 与索引 Key 均增至 65 行。",
+              t === 1201
+                ? "第 601 组只收到 token 1201。暂存只有在组完成后才成为 G 的有效候选行；索引 Key 仍为 600 行。"
+                : "直接读取上一步暂存的 token 1201 候选和分数，不重算。token 1202 到齐后，两槽逐列加权压成一行，G 与索引 Key 均增至 601 行。",
               "vᶜ 保存候选内容；α 是沿组内行方向 Softmax 得到的逐元素权重。它们是输入相关结果，W 是独立参数。",
               "Indexer 筛选对象是 G 的候选行。Query 是发起匹配的当前 token，32 个 Head 是不同匹配分支；候选对应压缩缓存行。",
-              `此时只有 ${m} 个可见全局行，小于 512，故全部选中。新 token 到来仍重新计算当前分数，即使 ID 全选，分数也按当前输入重新计算。`,
+              `当前有 ${m} 个可见全局行，选 512 行，另 ${m - 512} 行本步未选。分数为教学赋值；下一 token 重新匹配，选中集合可以变化。`,
             ]}
           >
             <Global step={step} />
@@ -663,8 +788,8 @@ export function cacheDecodeRecipe(references: Recipe["references"]): Recipe {
         body: (
           <Frame
             notes={[
-              `128 行本地窗口与 ${m} 行全局表示沿行拼接，共 ${step.readRows} 行；列维保持 512，不做相加。`,
-              "局部淘汰不删除 G：即使 token 1、2 离开窗口，g₃,₁ 仍保留它们的压缩信息；它是有损压缩的表示。",
+              `128 行本地窗口与 512 行选中全局表示沿行拼接，共 ${step.readRows} 行；列维保持 512。第 j 个选中项的原 G 行号 iⱼ 继续保留，读取结果行号为 128+j。`,
+              "未选中的 G 行仍保留在缓存中；Top-K 只决定当前读取集合。局部窗口淘汰与全局候选未选中是两种不同操作。",
               "当前主 Query 重新给这些 KV 打分并得到输出。再经过本层 FFN 和残差回写，才把同一 token 交给第 4 层。",
             ]}
           >
@@ -686,16 +811,25 @@ export function cacheDecodeRecipe(references: Recipe["references"]): Recipe {
             ]}
           >
             <Local layer={4} step={step} />
-            <div className="cache-shared">
+            <div
+              className="cache-shared"
+              data-selected-ids={step.ids.join(",")}
+            >
               <strong>跨层直接读 · 同一个 G，同一步的行号</strong>
               <div className="cache-inline">
                 <Data>
                   <M tex={`G_3^{\\le${t}}\\in\\mathbb R^{${m}\\times512}`} />
                 </Data>
                 <Data tone="amber">
-                  <M tex={`I_{4,${t}}:=I_{3,${t}}=(1,2,\\ldots,${m})`} />
+                  <M tex={`I_{4,${t}}:=I_{3,${t}}=${idsTex(step)}`} />
+                  <small>同一份 512 个 ID · 原行号与顺序不变</small>
                 </Data>
               </div>
+              <p>
+                第 4 层跳过全局压缩和 Indexer，直接读以上 ID 对应的 G 行。它的主
+                Query 仍重新给这 512 行及本层窗口打 Attention 分数；本层
+                Attention 权重另算。
+              </p>
             </div>
             <ReadAttention layer={4} step={step} />
           </Frame>
@@ -704,17 +838,17 @@ export function cacheDecodeRecipe(references: Recipe["references"]): Recipe {
     );
     links.push(
       {
-        source: t === 129 ? "history128" : "local129",
+        source: t === 1201 ? "history1200" : "local1201",
         target: `local${t}`,
         tex: `U_3^{\\mathrm{SWA},\\le${previous}}\\quad\\text{历史}`,
       },
       {
-        source: t === 129 ? "history128" : "global129",
+        source: t === 1201 ? "history1200" : "global1201",
         target: `global${t}`,
         tex:
-          t === 129
-            ? "G_3^{\\le128},\\ K_3^{I\\prime,\\le128}"
-            : "G_3^{\\le129},\\ K_3^{I\\prime,\\le129},\\ \\mathbf v^c_{3,129},\\ \\mathbf a^{\\mathrm{gate}}_{3,129}",
+          t === 1201
+            ? "G_3^{\\le1200},\\ K_3^{I\\prime,\\le1200}"
+            : "G_3^{\\le1201},\\ K_3^{I\\prime,\\le1201},\\ \\mathbf v^c_{3,1201},\\ \\mathbf a^{\\mathrm{gate}}_{3,1201}",
       },
       {
         source: `local${t}`,
@@ -742,16 +876,16 @@ export function cacheDecodeRecipe(references: Recipe["references"]): Recipe {
         tex: `G_3^{\\le${t}},\\ I_{3,${t}}\\quad\\text{直接读}`,
       },
       {
-        source: t === 129 ? "history128" : "reuse129",
+        source: t === 1201 ? "history1200" : "reuse1201",
         target: `reuse${t}`,
         tex: `U_4^{\\mathrm{SWA},\\le${previous}}\\quad\\text{历史}`,
       },
     );
   }
   return {
-    exportName: "V41-token-129-130-layer-3-4-decode",
+    exportName: "V41-token-1201-1202-layer-3-4-decode",
     introduction:
-      "Decode 连续两步：t=129 与 t=130，每步对照第 3 层 Full → 第 4 层 Reuse。蓝色为本层 U，绿色为全局 G，青色为索引 Key，琥珀色标记权重、ID 与被选行。上标 ≤t 仅标记缓存时刻。选择左侧步骤可定位；各框右侧同步旁注。",
+      "Decode 连续两步：t=1201 与 t=1202，每步对照第 3 层 Full → 第 4 层 Reuse。蓝色为本层 U，绿色为全局 G，青色为索引 Key，琥珀色标记权重、ID 与被选行。上标 ≤t 仅标记缓存时刻。选择左侧步骤可定位；各框右侧同步旁注。",
     stages: stages.map((stage, layoutLevel) => ({
       ...stage,
       layoutLevel,

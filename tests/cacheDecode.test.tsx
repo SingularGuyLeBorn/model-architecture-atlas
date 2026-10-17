@@ -9,7 +9,7 @@ import { models, rawConfigs } from "../src/data/models";
 import { recipeFor } from "../src/templates/recipes";
 import { explainModule } from "../src/components/ModuleInspector";
 
-describe("第 129、130 个 token 的缓存契约", () => {
+describe("第 1201、1202 个 token 的缓存契约", () => {
   it("窗口淘汰、分组完成和可见候选数量对齐官方配置", () => {
     const config = rawConfigs.v41.text_config;
     expect(config.kv_source_layer_ids).toContain(2);
@@ -21,12 +21,21 @@ describe("第 129、130 个 token 的缓存契约", () => {
       expect(step.globalRows).toBe(
         Math.floor(step.token / config.compress_ratios[2]),
       );
-      expect(step.globalBefore).toBe(64);
+      expect(step.globalBefore).toBe(600);
       expect(step.firstBefore).toBe(step.token - config.sliding_window);
       expect(step.firstAfter).toBe(step.evicted + 1);
       expect(step.token - step.firstAfter + 1).toBe(config.sliding_window);
-      expect(step.readRows).toBe(step.localRows + step.globalRows);
-      expect(step.ids).toEqual(
+      expect(step.readRows).toBe(step.localRows + 512);
+      expect(step.ids).toHaveLength(config.index_topk);
+      expect(new Set(step.ids).size).toBe(512);
+      expect(step.ids).toEqual([...step.ids].sort((a, b) => a - b));
+      const selected = step.scores.filter((row) => step.ids.includes(row.id));
+      const rejected = step.scores.filter((row) => !step.ids.includes(row.id));
+      expect(rejected).toHaveLength(step.globalRows - 512);
+      expect(Math.min(...selected.map((row) => row.score))).toBeGreaterThan(
+        Math.max(...rejected.map((row) => row.score)),
+      );
+      expect(step.ranked.map((row) => row.id).sort((a, b) => a - b)).toEqual(
         Array.from({ length: step.globalRows }, (_, i) => i + 1),
       );
     }
@@ -38,14 +47,20 @@ describe("第 129、130 个 token 的缓存契约", () => {
         s.readRows,
       ]),
     ).toEqual([
-      [1, 64, false, 192],
-      [2, 65, true, 193],
+      [1073, 600, false, 640],
+      [1074, 601, true, 640],
     ]);
+    expect(CACHE_STEPS[0].ranked[511]).toEqual({ id: 51, score: 0.89 });
+    expect(CACHE_STEPS[0].ranked[512]).toEqual({ id: 278, score: 0.88 });
+    expect(CACHE_STEPS[1].ranked[511]).toEqual({ id: 376, score: 0.9 });
+    expect(CACHE_STEPS[1].ranked[512]).toEqual({ id: 311, score: 0.89 });
+    expect(CACHE_STEPS[1].ids).not.toContain(601);
+    expect(CACHE_STEPS[0].ids).not.toEqual(CACHE_STEPS[1].ids);
   });
   it("两层历史分别传递；跨时间仅传状态，同 token 跨层复用 G 与 ID", () => {
     const recipe = cacheDecodeRecipe([]);
     expect(recipe.stages).toHaveLength(9);
-    for (const t of [129, 130]) {
+    for (const t of [1201, 1202]) {
       for (const [prefix, layer] of [
         ["local", 3],
         ["reuse", 4],
@@ -53,7 +68,7 @@ describe("第 129、130 个 token 的缓存契约", () => {
         expect(
           recipe.links.find(
             (l) =>
-              l.source === (t === 129 ? "history128" : prefix + "129") &&
+              l.source === (t === 1201 ? "history1200" : prefix + "1201") &&
               l.target === prefix + t,
           )?.tex,
         ).toContain("U_" + layer);
@@ -70,13 +85,13 @@ describe("第 129、130 个 token 的缓存契约", () => {
       expect(html).not.toContain("W_{4}^{KV,c}");
     }
     const pending = recipe.links.find(
-      (l) => l.source === "global129" && l.target === "global130",
+      (l) => l.source === "global1201" && l.target === "global1202",
     )!;
-    expect(pending.tex).toContain("v^c_{3,129}");
-    expect(pending.tex).toContain("a^{\\mathrm{gate}}_{3,129}");
+    expect(pending.tex).toContain("v^c_{3,1201}");
+    expect(pending.tex).toContain("a^{\\mathrm{gate}}_{3,1201}");
     expect(
       recipe.links.some(
-        (l) => l.source === "reuse129" && l.target === "local130",
+        (l) => l.source === "reuse1201" && l.target === "local1202",
       ),
     ).toBe(false);
     expect(recipe.stages.map((s) => s.layoutLevel)).toEqual([
@@ -87,22 +102,40 @@ describe("第 129、130 个 token 的缓存契约", () => {
       recipeFor(model, "cache", "prefill", 1).stages.map((s) => s.id),
     ).toEqual(recipeFor(model, "cache", "decode", 3).stages.map((s) => s.id));
   });
-  it("追加发生在 130，索引候选轴、权重与参数区分完整且公式可渲染", () => {
+  it("追加发生在 1202，索引候选轴、权重与参数区分完整且公式可渲染", () => {
     const recipe = cacheDecodeRecipe([]);
     for (const stage of recipe.stages)
       expect(renderToStaticMarkup(stage.body)).not.toContain("katex-error");
     const odd = renderToStaticMarkup(
-      recipe.stages.find((s) => s.id === "global129")!.body,
+      recipe.stages.find((s) => s.id === "global1201")!.body,
     );
     const even = renderToStaticMarkup(
-      recipe.stages.find((s) => s.id === "global130")!.body,
+      recipe.stages.find((s) => s.id === "global1202")!.body,
     );
     expect(odd).not.toContain('data-new-row="true"');
     expect(even.match(/data-new-row="true"/g)).toHaveLength(2);
-    expect(even).toContain("65\\times128");
-    expect(even).toContain("65\\times512");
-    expect(even).toContain('data-score-columns="65"');
+    expect(even).toContain("601\\times128");
+    expect(even).toContain("601\\times512");
+    expect(even).toContain('data-score-columns="601"');
     expect(even).toContain("data-stacked-sum");
+  });
+  it("选行到读取位置和第 4 层复用使用同一个集合", () => {
+    const recipe = cacheDecodeRecipe([]);
+    for (const step of CACHE_STEPS) {
+      const render = (prefix: string) =>
+        renderToStaticMarkup(
+          recipe.stages.find((s) => s.id === prefix + step.token)!.body,
+        );
+      const selectedIds = `data-selected-ids="${step.ids.join(",")}"`;
+      expect(render("global")).toContain(selectedIds);
+      expect(render("reuse")).toContain(selectedIds);
+      for (const prefix of ["attend", "reuse"]) {
+        const html = render(prefix);
+        expect(html).toContain(`结果行 129 · 原 G 行 ${step.ids[0]}`);
+        expect(html).toContain(`结果行 640 · 原 G 行 ${step.ids[511]}`);
+        expect(html).not.toContain("mathbf g_{3,601}");
+      }
+    }
   });
   it("第三、四层 Decode 旁注同步两步例子，其他层不套用", () => {
     const explain = (layer: number) =>
@@ -111,10 +144,10 @@ describe("第 129、130 个 token 的缓存契约", () => {
         layer,
         phase: "decode",
       }).paragraphs.join("");
-    expect(explain(3)).toContain("等第 130 个 token");
+    expect(explain(3)).toContain("等第 1202 个 token");
     expect(explain(4)).toContain("不生成 G₄");
     expect(explain(4)).toContain("同一 token");
-    expect(explain(5)).not.toContain("固定例子 t=129");
+    expect(explain(5)).not.toContain("固定例子 t=1201");
   });
 });
 describe("SVG 导出边界", () => {

@@ -9,20 +9,21 @@ test("缓存示例连续两步：结构、旁注、宽窄屏、完整 SVG 与离
 }) => {
   test.setTimeout(180000);
   const errors: string[] = [];
+  const selectedByToken = new Map<string, string>();
   page.on("pageerror", (e) => errors.push(e.message));
   await page.setViewportSize({ width: 2000, height: 3400 });
   await page.goto("/#model=v41&chapter=cache");
   await page.getByRole("button", { name: "收起左栏", exact: true }).click();
   for (const [index, id] of [
-    "history128",
-    "local129",
-    "global129",
-    "attend129",
-    "reuse129",
-    "local130",
-    "global130",
-    "attend130",
-    "reuse130",
+    "history1200",
+    "local1201",
+    "global1201",
+    "attend1201",
+    "reuse1201",
+    "local1202",
+    "global1202",
+    "attend1202",
+    "reuse1202",
   ].entries()) {
     await page
       .getByRole("navigation", { name: "图中步骤" })
@@ -33,22 +34,53 @@ test("缓存示例连续两步：结构、旁注、宽窄屏、完整 SVG 与离
     await expect(stage).toBeVisible();
     await expect(stage.locator(".cache-note")).toBeVisible();
     await expect(stage.locator(".katex-error")).toHaveCount(0);
-    if (id === "local129") await expect(stage).toContainText("淘汰 token 1");
-    if (id === "local130") await expect(stage).toContainText("淘汰 token 2");
-    if (id === "global129")
+    if (id === "local1201")
+      await expect(stage).toContainText("淘汰 token 1073");
+    if (id === "local1202")
+      await expect(stage).toContainText("淘汰 token 1074");
+    if (id === "global1201")
       await expect(stage.locator("[data-new-row]")).toHaveCount(0);
-    if (id === "global130")
+    if (id === "global1202")
       await expect(stage.locator("[data-new-row]")).toHaveCount(2);
     if (id.startsWith("global")) {
-      const result = await stage
-        .locator(".cache-index-selection > .data-box")
-        .boundingBox();
-      const group = await stage.locator(".cache-index-selection").boundingBox();
+      const evidence = stage.locator(".cache-selection-evidence");
+      const ids = (await evidence.getAttribute("data-selected-ids"))!.split(
+        ",",
+      );
+      expect(ids).toHaveLength(512);
+      selectedByToken.set(id.slice(6), ids.join(","));
+      await expect(evidence.locator('[data-rank="512"]')).toHaveAttribute(
+        "data-selected",
+        "true",
+      );
+      await expect(evidence.locator('[data-rank="513"]')).toHaveAttribute(
+        "data-selected",
+        "false",
+      );
+      await expect(evidence).toContainText("非模型实测");
+      await expect(
+        evidence
+          .locator('.cache-selection-map [data-selected="false"]')
+          .first(),
+      ).toContainText("留在 G");
+      const sizes = await evidence
+        .locator(".cache-selection-map .data-box")
+        .evaluateAll((cells) =>
+          cells.map((el) => {
+            const r = el.getBoundingClientRect();
+            return [r.width, r.height];
+          }),
+        );
       expect(
-        Math.abs(result!.x + result!.width / 2 - group!.x - group!.width / 2),
-      ).toBeLessThan(2);
+        Math.max(...sizes.map((s) => s[0])) -
+          Math.min(...sizes.map((s) => s[0])),
+      ).toBeLessThan(1);
+      expect(
+        Math.max(...sizes.map((s) => s[1])) -
+          Math.min(...sizes.map((s) => s[1])),
+      ).toBeLessThan(1);
     }
-    if (id === "global130") {
+    if (id === "global1202") {
       const normalize = stage.locator(".cache-normalize");
       expect(
         await normalize.evaluate((el) => el.scrollWidth - el.clientWidth),
@@ -57,11 +89,21 @@ test("缓存示例连续两步：结构、旁注、宽窄屏、完整 SVG 与离
         .locator("..")
         .screenshot({ path: "artifacts/cache-sum-detail.png" });
     }
-    if (id === "reuse130") await expect(stage).toContainText("193");
+    if (id.startsWith("reuse")) {
+      await expect(stage).toContainText("640");
+      expect(
+        (await stage
+          .locator(".cache-shared")
+          .getAttribute("data-selected-ids"))!.split(","),
+      ).toHaveLength(512);
+      expect(
+        await stage.locator(".cache-shared").getAttribute("data-selected-ids"),
+      ).toBe(selectedByToken.get(id.slice(5)));
+    }
     const overflow = await stage.evaluate((root) =>
       [
         ...root.querySelectorAll<HTMLElement>(
-          ".cache-matrix,.cache-weight,.cache-query,.cache-structure,.cache-example",
+          ".cache-matrix,.cache-weight,.cache-query,.cache-structure,.cache-example,.cache-ranking,.cache-selection-map",
         ),
       ]
         .filter((el) => el.scrollWidth > el.clientWidth + 2)
@@ -81,6 +123,10 @@ test("缓存示例连续两步：结构、旁注、宽窄屏、完整 SVG 与离
       .nth(index)
       .click();
     await stage.screenshot({ path: `artifacts/cache-${id}.png` });
+    if (id.startsWith("global"))
+      await stage
+        .locator(".cache-selection-evidence")
+        .screenshot({ path: `artifacts/selection-${id}.png` });
   }
   await page.setViewportSize({ width: 800, height: 1100 });
   await page
@@ -93,12 +139,12 @@ test("缓存示例连续两步：结构、旁注、宽窄屏、完整 SVG 与离
   const camera = await page
     .locator(".react-flow__viewport")
     .getAttribute("style");
-  const historyNode = page.locator('.react-flow__node[data-id="history128"]');
+  const historyNode = page.locator('.react-flow__node[data-id="history1200"]');
   const originalTransform = await historyNode.evaluate(
     (el) => getComputedStyle(el).transform,
   );
   const title = (await page
-    .locator('[data-stage="history128"] .stage-title')
+    .locator('[data-stage="history1200"] .stage-title')
     .boundingBox())!;
   await page.mouse.move(title.x + 150, title.y + 20);
   await page.mouse.down();
@@ -114,14 +160,14 @@ test("缓存示例连续两步：结构、旁注、宽窄屏、完整 SVG 与离
   await page.getByRole("button", { name: "导出 SVG", exact: true }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe(
-    "V41-token-129-130-layer-3-4-decode.svg",
+    "V41-token-1201-1202-layer-3-4-decode.svg",
   );
-  const file = path.resolve("artifacts/cache-129-130.svg");
+  const file = path.resolve("artifacts/cache-1201-1202.svg");
   await download.saveAs(file);
   const xml = await readFile(file, "utf8");
   expect(xml).toContain("data:font/");
   expect(xml).not.toContain("data:image/png");
-  expect(xml).toContain('data-stage="reuse129"');
+  expect(xml).toContain('data-stage="reuse1201"');
   await expect(
     page.getByRole("button", { name: "导出 SVG", exact: true }),
   ).toBeEnabled();
@@ -135,23 +181,23 @@ test("缓存示例连续两步：结构、旁注、宽窄屏、完整 SVG 与离
   await expect(offline.locator(".stage-card")).toHaveCount(9);
   expect(
     await offline
-      .locator('.react-flow__node[data-id="history128"]')
+      .locator('.react-flow__node[data-id="history1200"]')
       .evaluate((el) => getComputedStyle(el).transform),
   ).toBe(movedTransform);
-  const weight = offline.locator('[data-stage="reuse129"] .cache-weight');
+  const weight = offline.locator('[data-stage="reuse1201"] .cache-weight');
   const tops = await weight
     .locator(".cache-inline > *")
     .evaluateAll((elements) =>
       elements.map((el) => el.getBoundingClientRect().top),
     );
   expect(Math.max(...tops) - Math.min(...tops)).toBeLessThan(10);
-  for (const id of ["history128", "global129", "global130", "reuse130"]) {
+  for (const id of ["history1200", "global1201", "global1202", "reuse1202"]) {
     await offline
       .locator(`[data-stage="${id}"]`)
       .screenshot({ path: `artifacts/cache-svg-${id}.png` });
   }
   await offline
-    .locator('[data-stage="history128"]')
+    .locator('[data-stage="history1200"]')
     .screenshot({ path: "artifacts/cache-svg-offline.png" });
   await offline.close();
   expect(errors).toEqual([]);
