@@ -343,7 +343,9 @@ describe("mHC 与 Engram 的真实主路径", () => {
     for (const group of root.querySelectorAll<HTMLElement>(
       "[data-four-stream-row]",
     ))
-      expect(group.style.gridTemplateColumns).toBe("repeat(4,minmax(0,1fr))");
+      expect(group.style.gridTemplateColumns).toBe(
+        "repeat(4,minmax(max-content,1fr))",
+      );
     for (let target = 1; target <= 4; target++)
       for (let source = 1; source <= 4; source++) {
         const product = root.querySelector(
@@ -393,7 +395,7 @@ describe("mHC 与 Engram 的真实主路径", () => {
           "[data-mhc-parallel-branches]",
         )!;
         expect(branches.style.gridTemplateColumns).toBe(
-          "max-content minmax(0,1fr)",
+          "max-content minmax(max-content,1fr)",
         );
         expect(branches.children[0].hasAttribute("data-mhc-residual-mix")).toBe(
           true,

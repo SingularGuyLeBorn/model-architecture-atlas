@@ -539,6 +539,7 @@ export function MatrixEllipsis({ columns }: { columns: string[] }) {
       data-matrix-ellipsis-row
       style={{
         display: "grid",
+        padding: "0 5px",
         gridColumn: "1 / -1",
         gridTemplateColumns: "subgrid",
         textAlign: "center",
@@ -551,7 +552,11 @@ export function MatrixEllipsis({ columns }: { columns: string[] }) {
         column === "\\cdots" ? (
           <span key={index} />
         ) : (
-          <span key={index} data-matrix-ellipsis-column={column}>
+          <span
+            key={index}
+            data-matrix-ellipsis-column={column}
+            style={{ marginRight: index < columns.length - 1 ? 5 : undefined }}
+          >
             <MathFormula tex="\vdots" />
           </span>
         ),
@@ -1391,7 +1396,7 @@ export function FeatureVector({
         background: "transparent",
         borderRadius: 7,
         padding: 6,
-        minWidth: 0,
+        minWidth: "max-content",
         display: "grid",
         gap: 5,
       }}

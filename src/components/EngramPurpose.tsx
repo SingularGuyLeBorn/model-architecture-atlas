@@ -92,7 +92,7 @@ export function EngramPurpose({ layer }: { layer?: number }) {
           strokeWidth="1.5"
           markerEnd={"url(#" + marker + ")"}
         >
-          <path d="M140 65 H190" stroke={COLORS.blue} />
+          <path d="M90 65 H190" stroke={COLORS.blue} />
           <path d="M380 65 H430" />
           <path d="M550 65 H600" />
           <path d="M260 180 H300" stroke={COLORS.blue} />
@@ -101,7 +101,7 @@ export function EngramPurpose({ layer }: { layer?: number }) {
           <path d="M900 202 V240" />
           <path d="M825 270 H780 V260 H730" />
           <path d="M780 270 V330 H730" />
-          <path d="M140 322 H250 V260 H300" stroke={COLORS.blue} />
+          <path d="M84 322 H250 V260 H300" stroke={COLORS.blue} />
           <path d="M600 260 H450" />
           <path d="M375 284 V300 H335 V310" stroke={COLORS.amber} />
           <path d="M600 330 H370" />
@@ -119,7 +119,7 @@ export function EngramPurpose({ layer }: { layer?: number }) {
             有 Engram · 第 {layer ?? "2、15"} 层
           </text>
         </g>
-        <DiagramBox x={20} y={43} w={120} tone="blue">
+        <DiagramBox x={20} y={43} w={70} tone="blue">
           <M tex="\mathcal H^{\mathrm{base}}" />
         </DiagramBox>
         <DiagramBox x={190} y={43} w={190}>
@@ -128,7 +128,7 @@ export function EngramPurpose({ layer }: { layer?: number }) {
         <DiagramBox x={430} y={43} w={120}>
           FFN
         </DiagramBox>
-        <DiagramBox x={600} y={43} w={120} tone="blue">
+        <DiagramBox x={600} y={43} w={70} tone="blue">
           <M tex="\mathcal H^{\mathrm{next}}" />
         </DiagramBox>
         <DiagramBox x={20} y={160} w={240} h={40} tone="blue">
@@ -156,7 +156,7 @@ export function EngramPurpose({ layer }: { layer?: number }) {
         <DiagramBox x={600} y={310} w={130}>
           <M tex="v\quad1\times5120" />
         </DiagramBox>
-        <DiagramBox x={20} y={300} w={120} tone="blue">
+        <DiagramBox x={20} y={300} w={64} tone="blue">
           <M tex="h_c^{\mathrm{in}}" />
         </DiagramBox>
         <DiagramBox x={300} y={240} w={150} tone="amber">

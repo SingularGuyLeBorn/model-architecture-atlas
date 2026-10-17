@@ -733,7 +733,7 @@ export function RmsNormProcess({
       rowLength={String(dimension)}
       elementTex={(index, column) => `${symbol}_{${indices[index]},${column}}`}
       tone={tone}
-      headerLineHeight={2.4}
+      headerLineHeight={horizontalReduction ? 1.8 : 2.4}
     />
   );
   return (
@@ -779,7 +779,7 @@ export function RmsNormProcess({
           gridTemplateColumns: horizontal
             ? "minmax(0,1fr) 38px minmax(0,1fr)"
             : "minmax(0,1fr)",
-          gap: horizontalReduction ? 24 : 8,
+          gap: horizontalReduction ? 16 : 8,
           alignItems: horizontalReduction ? "center" : "start",
         }}
       >
@@ -934,7 +934,7 @@ export function RmsNormProcess({
           data-rmsnorm-stage="scale"
           style={{
             display: "grid",
-            gap: 8,
+            gap: horizontalReduction ? 4 : 8,
             justifyItems: "center",
             minWidth: 0,
           }}
@@ -1075,7 +1075,7 @@ export function RmsNormProcess({
         data-rmsnorm-example
         style={{
           borderTop: `1px solid ${COLORS.line}`,
-          paddingTop: 7,
+          paddingTop: horizontalReduction ? 3 : 7,
           display: horizontal ? "flex" : "grid",
           flexWrap: "wrap",
           alignItems: "center",
@@ -1835,7 +1835,7 @@ export function MhcPost({
         data-four-stream-row
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4,minmax(0,1fr))",
+          gridTemplateColumns: "repeat(4,minmax(max-content,1fr))",
           gap: 16,
         }}
       >
@@ -1858,7 +1858,7 @@ export function MhcPost({
               data-mhc-parallel-branches
               style={{
                 display: "grid",
-                gridTemplateColumns: "max-content minmax(0,1fr)",
+                gridTemplateColumns: "max-content minmax(max-content,1fr)",
                 gap: 14,
               }}
             >
@@ -4133,7 +4133,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 24px 1fr",
+          gridTemplateColumns: "minmax(max-content,1fr) 24px max-content",
           gap: 10,
           alignItems: "center",
         }}
@@ -5296,7 +5296,9 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             {data.columnVectors ? (
               <>
                 <MathFormula tex={data.tex ?? ""} />
-                <span data-module-title>{data.title}</span>
+                <span data-module-title style={{ whiteSpace: "nowrap" }}>
+                  {data.title}
+                </span>
               </>
             ) : (
               data.title
@@ -6559,7 +6561,8 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           style={{
             padding: 10,
             display: "grid",
-            gridTemplateColumns: "1.55fr 34px .8fr",
+            gridTemplateColumns: "max-content 34px max-content",
+            justifyContent: "center",
             alignItems: "center",
             gap: 10,
             minWidth: 0,
