@@ -29,6 +29,8 @@ export function Row({
   trace,
   columns,
   element,
+  selectedColumns,
+  columnTrace,
 }: {
   name: string;
   size: number | string;
@@ -38,6 +40,8 @@ export function Row({
   trace?: string;
   columns?: string[];
   element?: (column: string) => string;
+  selectedColumns?: readonly string[];
+  columnTrace?: (column: string) => string | undefined;
 }) {
   const tensor = (
     <Tensor
@@ -45,6 +49,8 @@ export function Row({
       shape={`1\\times ${size}`}
       rows={["t"]}
       rowLabels={false}
+      selectedColumns={selectedColumns}
+      columnTrace={columnTrace}
       elementTex={(_, column) =>
         element?.(column) ??
         elementIndex(
@@ -96,7 +102,7 @@ export function Matrix({
   columns: string[];
   shape: string;
   tone?: DiagramTone;
-  selected?: string;
+  selected?: string | readonly string[];
   direction?: "in" | "out";
   title?: string;
   rowTrace?: (row: string) => string | undefined;
@@ -267,6 +273,8 @@ export function Rms({
   inputPort = false,
   outputPort = false,
   inputSource = false,
+  inputTone = architectureTone(input),
+  outputTone = architectureTone(output),
 }: {
   input: string;
   output: string;
@@ -276,6 +284,8 @@ export function Rms({
   inputPort?: boolean;
   outputPort?: boolean;
   inputSource?: boolean;
+  inputTone?: DiagramTone;
+  outputTone?: DiagramTone;
 }) {
   return (
     <div className="architecture-rms">
@@ -286,6 +296,7 @@ export function Rms({
             name={input}
             size={size}
             direction={inputPort ? "in" : inputSource ? "out" : undefined}
+            tone={inputTone}
           />,
           <Operation
             key="r"
@@ -296,7 +307,7 @@ export function Rms({
       </Flow>
       <div className="architecture-equation">
         <div className="architecture-fraction">
-          <Row name={input} size={size} />
+          <Row name={input} size={size} tone={inputTone} />
           <M tex="r" />
         </div>
         <span className="architecture-operator">⊙</span>
@@ -311,6 +322,7 @@ export function Rms({
           name={output}
           size={size}
           direction={outputPort ? "out" : undefined}
+          tone={outputTone}
         />
       </div>
     </div>
@@ -441,19 +453,27 @@ export function HalfRoPE({
   size,
   rotary,
   theta,
+  position = "t-1",
+  positionIndex = "t",
+  inputTone = architectureTone(input),
+  outputTone = architectureTone(output),
 }: {
   input: string;
   output: string;
   size: number;
   rotary: number;
   theta: number;
+  position?: string;
+  positionIndex?: string;
+  inputTone?: DiagramTone;
+  outputTone?: DiagramTone;
 }) {
   const half = rotary / 2;
   return (
     <div className="architecture-rope">
       <p className="architecture-note">
         <M
-          tex={`\\phi_{t,j}=(t-1)\\,${theta}^{-2(j-1)/${rotary}},\\quad j=1,\\ldots,${half}`}
+          tex={`\\phi_{${positionIndex},j}=(${position})\\,${theta}^{-2(j-1)/${rotary}},\\quad j=1,\\ldots,${half}`}
         />
       </p>
       <Columns>
@@ -464,15 +484,15 @@ export function HalfRoPE({
             </p>
             <div className="architecture-equation">
               <Matrix
-                name={`R_{t,${j}}`}
+                name={`R_{${positionIndex},${j}}`}
                 shape={"2\\times2"}
                 rows={["1", "2"]}
                 columns={["1", "2"]}
                 tone="crimson"
                 element={(r, c) =>
                   r === c
-                    ? `\\cos\\phi_{t,${j}}`
-                    : `${r === "1" ? "-" : ""}\\sin\\phi_{t,${j}}`
+                    ? `\\cos\\phi_{${positionIndex},${j}}`
+                    : `${r === "1" ? "-" : ""}\\sin\\phi_{${positionIndex},${j}}`
                 }
               />
               <span className="architecture-operator">×</span>
@@ -481,7 +501,7 @@ export function HalfRoPE({
                 shape={"2\\times1"}
                 rows={["1", "2"]}
                 columns={["1"]}
-                tone={architectureTone(input)}
+                tone={inputTone}
                 element={(r) =>
                   elementIndex(input, String(r === "1" ? j : j + half))
                 }
@@ -492,7 +512,7 @@ export function HalfRoPE({
                 shape={"2\\times1"}
                 rows={["1", "2"]}
                 columns={["1"]}
-                tone={architectureTone(output)}
+                tone={outputTone}
                 element={(r) =>
                   elementIndex(output, String(r === "1" ? j : j + half))
                 }

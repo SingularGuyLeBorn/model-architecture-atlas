@@ -13,6 +13,47 @@ import {
 import { Expert } from "../src/compositions/DeepSeekV41Layer";
 import { Tensor } from "../src/templates/structure-blocks";
 
+it("选中列保留独立连线锚点，选中行与列统一使用同族填色和边框", () => {
+  const root = document.createElement("div");
+  root.innerHTML = renderToStaticMarkup(
+    <Tensor
+      name="S"
+      shape={"3\\times3"}
+      rows={["1", "2", "3"]}
+      columns={["1", "2", "3"]}
+      selected={["1", "3"]}
+      selectedColumns={["2"]}
+      tone="violet"
+    />,
+  );
+  const rows = [...root.querySelectorAll<HTMLElement>(".tensor-row")];
+  expect(root.querySelectorAll(".tensor-row.picked")).toHaveLength(2);
+  const selected = rows[0].querySelector<HTMLElement>(".scalar")!;
+  const column = rows[1].querySelectorAll<HTMLElement>(".scalar")[1];
+  const normal = rows[1].querySelector<HTMLElement>(".scalar")!;
+  expect(column.style.borderColor).toBe(selected.style.borderColor);
+  expect(column.style.background).toBe(selected.style.background);
+  expect(column.style.background).not.toBe(normal.style.background);
+  root.innerHTML = renderToStaticMarkup(
+    <Tensor
+      name="s"
+      shape={"1\\times3"}
+      rows={["t"]}
+      columns={["1", "2", "3"]}
+      selectedColumns={["2"]}
+      columnTrace={(c) => (c === "2" ? "chosen-score" : undefined)}
+    />,
+  );
+  expect(
+    root.querySelectorAll('[data-trace-object="chosen-score"]'),
+  ).toHaveLength(1);
+  expect(
+    root
+      .querySelector('[data-trace-object="chosen-score"]')
+      ?.classList.contains("scalar"),
+  ).toBe(true);
+});
+
 it.each([
   [["1", "2", "\\cdots", "128"], 3],
   [["1", "2", "3", "\\cdots", "512"], 4],

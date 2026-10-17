@@ -33,23 +33,31 @@ export function Tensor({
   columns = ["1", "2", "…", "d"],
   tone = "green",
   selected,
+  selectedColumns,
   elementTex,
   rowLabels = true,
   rowTrace,
   rowTone,
+  columnTrace,
 }: {
   name: string;
   shape: string;
   rows?: string[];
   columns?: string[];
   tone?: DiagramTone;
-  selected?: string;
+  selected?: string | readonly string[];
+  selectedColumns?: readonly string[];
   elementTex?: (row: string, column: string) => string;
   rowLabels?: boolean;
   rowTrace?: (row: string) => string | undefined;
   rowTone?: (row: string) => DiagramTone;
+  columnTrace?: (column: string) => string | undefined;
 }) {
   const palette = tonePalette(tone);
+  const isPickedRow = (row: string) =>
+    typeof selected === "string"
+      ? selected === row
+      : (selected?.includes(row) ?? false);
   const count = shape.split("\\times")[0];
   const rows =
     specifiedRows ??
@@ -91,12 +99,12 @@ export function Tensor({
             <div
               key={index}
               data-trace-object={rowTrace?.(row)}
-              className={selected === row ? "tensor-row picked" : "tensor-row"}
+              className={isPickedRow(row) ? "tensor-row picked" : "tensor-row"}
               style={{
                 gridColumn: "1 / -1",
                 gridTemplateColumns: "subgrid",
                 alignItems: "stretch",
-                ...(selected === row
+                ...(isPickedRow(row)
                   ? { outlineOffset: 4, marginBlock: 5 }
                   : {}),
               }}
@@ -111,14 +119,17 @@ export function Tensor({
                   <span
                     key={i}
                     className="scalar"
+                    data-trace-object={columnTrace?.(col)}
                     style={{
-                      borderColor: (selected === row
+                      borderColor: (isPickedRow(row) ||
+                      selectedColumns?.includes(col)
                         ? selectionPalette(tone, "amber")
                         : rowTone
                           ? tonePalette(rowTone(row))
                           : palette
                       ).color,
-                      background: (selected === row
+                      background: (isPickedRow(row) ||
+                      selectedColumns?.includes(col)
                         ? selectionPalette(tone, "amber")
                         : rowTone
                           ? tonePalette(rowTone(row))

@@ -37,10 +37,25 @@ function routeFromUrl() {
     chapter: model.chapters.includes(requested) ? requested : model.chapters[0],
   };
 }
+function chapterLayers(id: ModelId, chapter: Chapter) {
+  const model = models.find((item) => item.id === id)!;
+  return Array.from(
+    { length: model.config.num_hidden_layers },
+    (_, i) => i + 1,
+  ).filter(
+    (i) =>
+      model.family !== "qwen" ||
+      (chapter !== "gdn" && chapter !== "qsa") ||
+      model.config.layer_types[i - 1] ===
+        (chapter === "gdn" ? "linear_attention" : "full_attention"),
+  );
+}
 export function App() {
   const [route, setRoute] = useState(routeFromUrl);
   const [phase, setPhase] = useState<Phase>("prefill");
-  const [layer, setLayer] = useState(1);
+  const [layer, setLayer] = useState(
+    () => chapterLayers(route.id, route.chapter)[0],
+  );
   const [sources, setSources] = useState(false);
   const [sourcePreview, setSourcePreview] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -60,8 +75,9 @@ export function App() {
     const syncRoute = () => {
       navIntent.dismiss();
       sourceIntent.dismiss();
-      setRoute(routeFromUrl());
-      setLayer(1);
+      const next = routeFromUrl();
+      setRoute(next);
+      setLayer(chapterLayers(next.id, next.chapter)[0]);
     };
     window.addEventListener("hashchange", syncRoute);
     return () => window.removeEventListener("hashchange", syncRoute);
@@ -80,7 +96,7 @@ export function App() {
       ? chapter
       : next.chapters[0];
     setRoute({ id, chapter: selected });
-    setLayer(1);
+    setLayer(chapterLayers(id, selected)[0]);
     setMenu(false);
     navIntent.dismiss();
     sourceIntent.dismiss();
@@ -242,6 +258,7 @@ export function App() {
               </div>
               {(route.chapter === "csa" ||
                 route.chapter === "gdn" ||
+                route.chapter === "qsa" ||
                 route.chapter === "layer" ||
                 (model.id === "v32" && route.chapter === "mla")) && (
                 <label>
@@ -250,22 +267,11 @@ export function App() {
                     value={layer}
                     onChange={(event) => setLayer(Number(event.target.value))}
                   >
-                    {Array.from(
-                      { length: model.config.num_hidden_layers },
-                      (_, i) => i + 1,
-                    )
-                      .filter(
-                        (i) =>
-                          route.chapter !== "gdn" ||
-                          model.family !== "qwen" ||
-                          model.config.layer_types[i - 1] ===
-                            "linear_attention",
-                      )
-                      .map((i) => (
-                        <option key={i} value={i}>
-                          {i}
-                        </option>
-                      ))}
+                    {chapterLayers(model.id, route.chapter).map((i) => (
+                      <option key={i} value={i}>
+                        {i}
+                      </option>
+                    ))}
                   </select>
                 </label>
               )}

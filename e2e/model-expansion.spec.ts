@@ -11,6 +11,8 @@ for (const [id, layer, phase, chapter = "layer"] of [
   ["mimo25", 48, "decode"],
   ["qwen38", 1, "prefill", "gdn"],
   ["qwen38", 47, "decode", "gdn"],
+  ["qwen38", 4, "prefill", "qsa"],
+  ["qwen38", 48, "decode", "qsa"],
 ] as const) {
   test(`${id} Layer ${layer} ${phase} · 内容边界、端口与截图`, async ({
     page,

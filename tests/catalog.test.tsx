@@ -35,7 +35,12 @@ for (const model of models)
   for (const chapter of model.chapters.filter((c) => c !== "layer"))
     for (const phase of ["prefill", "decode"] as const) {
       it(`${model.id} / ${chapter} / ${phase} 的图都有结构、来源和有效公式`, () => {
-        const recipe = recipeFor(model, chapter, phase, 3);
+        const recipe = recipeFor(
+          model,
+          chapter,
+          phase,
+          chapter === "qsa" ? 4 : 3,
+        );
         expect(recipe.stages.length).toBeGreaterThanOrEqual(2);
         expect(new Set(recipe.stages.map((s) => s.id)).size).toBe(
           recipe.stages.length,

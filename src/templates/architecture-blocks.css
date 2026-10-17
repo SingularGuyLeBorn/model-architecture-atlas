@@ -117,6 +117,10 @@
   border: 1px solid #c9d0ce;
   border-radius: 7px;
 }
+.architecture-cache-branch > .data-box {
+  width: max-content;
+  margin-inline: auto;
+}
 .architecture-cache-transfer {
   display: flex;
   align-items: center;
@@ -158,4 +162,8 @@
   border: 1px solid #c9d0ce;
   border-radius: 6px;
   font-size: 13px;
+}
+.architecture-id-anchor {
+  width: max-content;
+  margin-inline: auto;
 }
