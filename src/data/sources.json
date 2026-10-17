@@ -30,6 +30,27 @@
     "checkedAt": "2026-10-16"
   },
   {
+    "id": "DeepSeek-V3.2",
+    "revision": "a7e62ac04ecb2c0a54d736dc46601c5606cf10a6",
+    "url": "https://huggingface.co/deepseek-ai/DeepSeek-V3.2/blob/a7e62ac04ecb2c0a54d736dc46601c5606cf10a6/config.json",
+    "implementation": "https://github.com/deepseek-ai/DeepSeek-V3.2-Exp/blob/87e509a2e5a100d221c97df52c6e8be7835f0057/inference/model.py",
+    "checkedAt": "2026-10-18"
+  },
+  {
+    "id": "MiMo-V2.5",
+    "revision": "63651580ca774f8504f676040460aed3e1244ac1",
+    "url": "https://huggingface.co/XiaomiMiMo/MiMo-V2.5/blob/63651580ca774f8504f676040460aed3e1244ac1/config.json",
+    "implementation": "https://huggingface.co/XiaomiMiMo/MiMo-V2.5/blob/63651580ca774f8504f676040460aed3e1244ac1/modeling_mimo_v2.py",
+    "checkedAt": "2026-10-18"
+  },
+  {
+    "id": "Qwen3.8-Flash-Next",
+    "revision": "de4b8e4d43b917e7706784d8bb445c9af86a3540",
+    "url": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next/blob/de4b8e4d43b917e7706784d8bb445c9af86a3540/config.json",
+    "implementation": "https://github.com/huggingface/transformers/blob/d4804f9d76b8c071b993d813e9e87067b780cbee/src/transformers/models/qwen4_exp/modeling_qwen4_exp.py",
+    "checkedAt": "2026-10-18"
+  },
+  {
     "id": "DeepSeek-R1",
     "revision": "56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad",
     "url": "https://huggingface.co/deepseek-ai/DeepSeek-R1/blob/56d4cbbb4d29f4355bab4b9a39ccb717a14ad5ad/config.json",
