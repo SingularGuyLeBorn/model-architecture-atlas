@@ -21,6 +21,7 @@ import {
 } from "../components/CacheSemantics";
 import { EngramPurpose } from "../components/EngramPurpose";
 import { EngramDequantization } from "../components/EngramDequantization";
+import { EngramHash } from "../components/EngramHash";
 import {
   CandidateFilter,
   CANDIDATE_SOURCE,
@@ -2472,64 +2473,7 @@ export function EngramLookup({
           : "Decode：追加当前压缩 ID，读取已缓存的至多 3 个历史 ID。"}{" "}
         序列开头补 PAD；图像位置截断回看。
       </span>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3,minmax(0,1fr))",
-          gap: 8,
-        }}
-      >
-        {[2, 3, 4].map((n) => (
-          <div
-            key={n}
-            data-ngram={n}
-            style={{
-              border: `1px solid ${frameColor(COLORS.blue)}`,
-              borderRadius: 8,
-              padding: 8,
-              display: "grid",
-              gap: 8,
-            }}
-          >
-            <strong>{n}-gram · 结束于 t</strong>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-around",
-                gap: 4,
-              }}
-            >
-              {Array.from({ length: n }, (_, i) => n - 1 - i).map((j) => (
-                <Box key={j} tone="blue">
-                  <MathFormula tex={`c_{${j ? `t-${j}` : "t"}}`} />
-                </Box>
-              ))}
-            </div>
-            <Operator tex="\downarrow" />
-            <Box tone="amber">
-              <MathFormula
-                tex={`u_${n}=\\bigoplus_{j=0}^{${n - 1}}(a_{${layer},j}\\cdot c_{t-j})`}
-              />
-            </Box>
-            <span>8 个独立模数与桶偏移</span>
-            <VectorStrip
-              name={`\\mathbf b_${n}`}
-              length="8"
-              elementTex={(h) => `b_{${n},${h}}`}
-              tone="amber"
-              compact
-            />
-            <MathFormula
-              tex={`b_{${n},h}=o_{${n},h}+(u_${n}\\bmod p_{${n},h})`}
-            />
-          </div>
-        ))}
-      </div>
-      <FlowStep>3 种长度 × 8 个哈希头 = 24 个地址；每个地址查一行</FlowStep>
-      <div>
-        哈希乘数 a、素数模数 p 与桶偏移 o
-        是固定地址规则；不由当前隐藏状态预测，也不是注意力权重。
-      </div>
+      <EngramHash layer={layer} />
       <EngramDequantization layer={layer} rows={rows} />
       <FlowStep>
         <MathFormula
