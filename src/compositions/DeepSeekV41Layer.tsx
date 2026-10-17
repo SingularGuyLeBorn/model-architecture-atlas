@@ -1,6 +1,7 @@
 import { frameColor } from "../components/diagram-appearance";
 import { CompressorProjections } from "../components/CompressorProjections";
 import { KvRowConcat } from "../components/KvRowConcat";
+import { LayerCacheExample } from "../components/CacheDecodeExample";
 import {
   CacheModeLedger,
   GlobalCacheHistory,
@@ -322,6 +323,7 @@ const CONTENT_SIZED_KINDS = new Set<NodeKind>([
   "concat",
   "compressor",
   "indexer",
+  "global-select",
   "router",
   "scores",
   "experts",
@@ -3650,6 +3652,7 @@ function LocalKvProjection({ layer }: { layer: number }) {
             </React.Fragment>,
           ]}
         </SerialFlow>
+        <LayerCacheExample layer={layer} phase={phase} part="local" />
       </div>
     </div>
   );
@@ -6332,6 +6335,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           {writesKv && phase === "decode" && (
             <GlobalCacheHistory layer={layer} ratio={ratio} />
           )}
+          <LayerCacheExample layer={layer} phase={phase} part="global" />
           {writesKv && phase === "prefill" && (
             <div style={{ fontSize: 13 }}>
               Prefill：由输入序列建立 G，各 Query 仅选因果可见行。Decode：旧 G
@@ -6648,6 +6652,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               <FlowStep>同一组行号送往下方全局 KV 取行</FlowStep>
             </div>
           )}
+          <LayerCacheExample layer={layer} phase={phase} part="index" />
         </div>
       </div>
     );
@@ -6657,7 +6662,13 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
     const kvSource = globalKvSourceLayer(layer)!;
     const indexSource = globalIndexSourceLayer(layer)!;
     return (
-      <div style={{ ...panel, borderColor: frameColor(COLORS.green) }}>
+      <div
+        style={{
+          ...panel,
+          height: "auto",
+          borderColor: frameColor(COLORS.green),
+        }}
+      >
         <Handle
           id="matrix"
           type="target"
@@ -6702,39 +6713,42 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               </span>
             </Box>
             {/* [OM-FREEPLAY] 3、7、12 是说明索引与行向量对应关系的示例行号。 */}
-            <div
-              data-selection-example
-              style={{
-                display: "grid",
-                gap: 3,
-                width: "max-content",
-                justifySelf: "center",
-                gridTemplateColumns:
-                  "max-content repeat(2, minmax(max-content, 1fr)) 24px minmax(max-content, 1fr)",
-                fontSize: 10,
-                color: COLORS.green,
-              }}
-            >
-              <strong style={{ gridColumn: "1 / -1" }}>
-                例：选中行号 3、7、12
-              </strong>
-              {[3, 7, 12].map((row) => (
-                <VectorStrip
-                  key={row}
-                  name={`\\mathbf g_{${kvSource},${row}}`}
-                  length="512"
-                  nameWidth={42}
-                  elementTex={(column) => `g_{${kvSource},${row},${column}}`}
-                  tone="green"
-                  selected
-                  columnSubgrid
-                  uniformCells
-                  compact
-                />
-              ))}
-            </div>
+            {!(phase === "decode" && (layer === 3 || layer === 4)) && (
+              <div
+                data-selection-example
+                style={{
+                  display: "grid",
+                  gap: 3,
+                  width: "max-content",
+                  justifySelf: "center",
+                  gridTemplateColumns:
+                    "max-content repeat(2, minmax(max-content, 1fr)) 24px minmax(max-content, 1fr)",
+                  fontSize: 10,
+                  color: COLORS.green,
+                }}
+              >
+                <strong style={{ gridColumn: "1 / -1" }}>
+                  例：选中行号 3、7、12
+                </strong>
+                {[3, 7, 12].map((row) => (
+                  <VectorStrip
+                    key={row}
+                    name={`\\mathbf g_{${kvSource},${row}}`}
+                    length="512"
+                    nameWidth={42}
+                    elementTex={(column) => `g_{${kvSource},${row},${column}}`}
+                    tone="green"
+                    selected
+                    columnSubgrid
+                    uniformCells
+                    compact
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
+        <LayerCacheExample layer={layer} phase={phase} part="selected" />
       </div>
     );
   }
@@ -6793,6 +6807,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         }}
       >
         <Title>沿 KV 行维拼接：本地窗口 + 选中的全局行</Title>
+        <LayerCacheExample layer={layer} phase={phase} part="concat" />
         <KvRowConcat
           layer={layer}
           kvSource={kvSource}
@@ -8381,7 +8396,7 @@ export function buildGraph(
     contentHeights.get("compressor") ??
     (mode === "full" && compressionRatioForLayer(layer) === 2 ? 720 : 450);
   const indexerHeight = contentHeights.get("indexer") ?? 450;
-  const globalSelectHeight = 330;
+  const globalSelectHeight = contentHeights.get("global-select") ?? 330;
   const sourceRowHeight = hasGlobal
     ? Math.max(queryProjectionHeight, localKvProjectionHeight, compressorHeight)
     : Math.max(queryProjectionHeight, localKvProjectionHeight);
@@ -10303,7 +10318,7 @@ function DiagramCanvas({
             style={editorButton}
           />
           <a href="#model=v41&chapter=cache" style={editorButton}>
-            1201、1202 号 token 缓存示例
+            独立缓存全景（两层对照）
           </a>
           <select
             aria-label="定位模块"
@@ -10798,6 +10813,16 @@ export const DeepSeekV41Layer: React.FC<Props> = ({ initialLayer = 1 }) => {
               ? "N 行并行 · t 是其中一个序列位置"
               : "当前 1 行 · t=P+k · 历史 KV 来自缓存"}
           </span>
+          {(layer === 3 || layer === 4) && (
+            <span
+              data-inline-cache-hint
+              style={{ fontSize: 12, color: COLORS.green }}
+            >
+              {phase === "decode"
+                ? "本页各缓存模块已展开 token 1201、1202 实例；定位 Indexer 查看筛选与复用"
+                : "切换 Decode，可在本页各缓存模块查看 token 1201、1202 实例"}
+            </span>
+          )}
         </div>
         <div
           className="layer-grid"

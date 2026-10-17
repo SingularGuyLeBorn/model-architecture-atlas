@@ -182,7 +182,7 @@ function Project({
 }
 
 function Local({ layer, step }: { layer: number; step: Step }) {
-  const { token: t, previous, firstBefore, firstAfter, evicted } = step;
+  const { token: t } = step;
   return (
     <>
       <p>
@@ -226,6 +226,14 @@ function Local({ layer, step }: { layer: number; step: Step }) {
           </div>
         </section>
       </div>
+      <LocalWindow layer={layer} step={step} />
+    </>
+  );
+}
+function LocalWindow({ layer, step }: { layer: number; step: Step }) {
+  const { token: t, previous, firstBefore, firstAfter, evicted } = step;
+  return (
+    <>
       <h4>窗口更新 · 旧行直接读，只替换最旧的一行</h4>
       <div className="cache-inline cache-top">
         <div>
@@ -408,7 +416,13 @@ function idsTex(step: Step) {
   return `(${step.ids[0]},${step.ids[1]},\\ldots,${step.ids.at(-1)})`;
 }
 
-function SelectionEvidence({ step }: { step: Step }) {
+function SelectionEvidence({
+  step,
+  part = "all",
+}: {
+  step: Step;
+  part?: "all" | "scores" | "rows";
+}) {
   const { token: t, globalRows: m, ranked, ids } = step;
   const shownIds = [
     ...new Set([
@@ -429,121 +443,134 @@ function SelectionEvidence({ step }: { step: Step }) {
       data-score-columns={m}
       data-selected-ids={ids.join(",")}
     >
-      <h4>教学分数 → Top-512 → 原 G 行</h4>
+      <h4>
+        {part === "rows"
+          ? "已选 ID → 原 G 行 → 拼接位置"
+          : "教学分数 → Top-512 → 原 G 行"}
+      </h4>
       <p>
-        以下数值为教学赋值，用来演示筛选，非模型实测输出。真实分数由上方 η × A
-        得到；每个候选只有一个最终分数，分数越大越优先。
+        以下数值为教学赋值，用来演示筛选，非模型实测输出。真实分数由 Indexer 的
+        η × A 得到；每个候选只有一个最终分数，分数越大越优先。
       </p>
-      <div className="cache-projections">
-        <section>
-          <h4>① 按分数选 512 个 ID</h4>
-          <table className="cache-ranking" aria-label={`token ${t} 分数排名`}>
+      {part !== "rows" && (
+        <div className="cache-projections">
+          <section>
+            <h4>① 按分数选 512 个 ID</h4>
+            <table className="cache-ranking" aria-label={`token ${t} 分数排名`}>
+              <thead>
+                <tr>
+                  <th>名次</th>
+                  <th>原 G 行 ID</th>
+                  <th>分数</th>
+                  <th>本步</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[0, 1, "dots", 511, 512, "tail", m - 1].map((rank) =>
+                  typeof rank === "string" ? (
+                    <tr key={rank}>
+                      <td colSpan={4}>⋮</td>
+                    </tr>
+                  ) : (
+                    <tr
+                      key={rank}
+                      data-rank={rank + 1}
+                      data-selected={rank < 512}
+                    >
+                      <td>{rank + 1}</td>
+                      <td>{ranked[rank].id}</td>
+                      <td>{ranked[rank].score.toFixed(2)}</td>
+                      <td>{rank < 512 ? "选中" : "未选"}</td>
+                    </tr>
+                  ),
+                )}
+              </tbody>
+            </table>
+            <p>
+              第 512 名 {ranked[511].score.toFixed(2)} ＞ 第 513 名{" "}
+              {ranked[512].score.toFixed(2)}。本例无并列；上面省略的第 3–511
+              名全部入选，第 514–{m - 1} 名全部未选。
+            </p>
+          </section>
+          <section className="cache-query">
+            <h4>② 选中的 ID 按原位置排序</h4>
+            <Data tone="amber">
+              <M tex={`I_{3,${t}}=${idsTex(step)}`} />
+              <small>1 × 512 · 共 512 个原 G 行号</small>
+            </Data>
+            <p>
+              排列按行号递增，保留刚才选中的集合；第 1 项 ID={ids[0]}，第 2 项
+              ID=
+              {ids[1]}，末项 ID={ids.at(-1)}。省略号只省略其余 509 个已选 ID。
+            </p>
+            <M
+              tex={`G^{\\mathrm{selected}}_{3,${t}}\\in\\mathbb R^{512\\times512}`}
+            />
+            <p>
+              选中 512 行，未选 {m - 512} 行。缓存 G 仍有 {m}{" "}
+              行；未选行下次仍可参与评分。
+            </p>
+          </section>
+        </div>
+      )}
+      {part !== "scores" && (
+        <>
+          <Down label="③ 保留原 G 行号取数 · 琥珀轮廓标出本步选中行" />
+          <table
+            className="cache-selection-map"
+            aria-label={`token ${t} 原 G 行对应`}
+          >
             <thead>
               <tr>
-                <th>名次</th>
-                <th>原 G 行 ID</th>
-                <th>分数</th>
-                <th>本步</th>
+                <th>原 G 行 i</th>
+                <th>压缩来源 token</th>
+                <th>缓存向量 · 1 × 512</th>
+                <th>本步分数</th>
+                <th>读取去向</th>
               </tr>
             </thead>
             <tbody>
-              {[0, 1, "dots", 511, 512, "tail", m - 1].map((rank) =>
-                typeof rank === "string" ? (
-                  <tr key={rank}>
-                    <td colSpan={4}>⋮</td>
-                  </tr>
-                ) : (
-                  <tr
-                    key={rank}
-                    data-rank={rank + 1}
-                    data-selected={rank < 512}
-                  >
-                    <td>{rank + 1}</td>
-                    <td>{ranked[rank].id}</td>
-                    <td>{ranked[rank].score.toFixed(2)}</td>
-                    <td>{rank < 512 ? "选中" : "未选"}</td>
-                  </tr>
-                ),
-              )}
+              {shownIds.flatMap((id, index) => {
+                const j = ids.indexOf(id) + 1;
+                return [
+                  index > 0 && id > shownIds[index - 1] + 1 ? (
+                    <tr key={`gap-${id}`}>
+                      <td>⋮</td>
+                      <td>⋮</td>
+                      <td>⋮</td>
+                      <td>⋮</td>
+                      <td>⋮</td>
+                    </tr>
+                  ) : null,
+                  <tr key={id} data-candidate-id={id} data-selected={j > 0}>
+                    <td>{id}</td>
+                    <td>
+                      {2 * id - 1}、{2 * id}
+                    </td>
+                    <td>
+                      <Data>
+                        <M tex={`\\mathbf g_{3,${id}}`} />
+                      </Data>
+                    </td>
+                    <td>{step.scores[id - 1].score.toFixed(2)}</td>
+                    <td>
+                      {j
+                        ? `I 第 ${j} 项 → KV 第 ${128 + j} 行`
+                        : "未选 · 留在 G 中，本步不读取"}
+                    </td>
+                  </tr>,
+                ];
+              })}
             </tbody>
           </table>
-          <p>
-            第 512 名 {ranked[511].score.toFixed(2)} ＞ 第 513 名{" "}
-            {ranked[512].score.toFixed(2)}。本例无并列；上面省略的第 3–511
-            名全部入选，第 514–{m - 1} 名全部未选。
-          </p>
-        </section>
-        <section className="cache-query">
-          <h4>② 选中的 ID 按原位置排序</h4>
-          <Data tone="amber">
-            <M tex={`I_{3,${t}}=${idsTex(step)}`} />
-            <small>1 × 512 · 共 512 个原 G 行号</small>
-          </Data>
-          <p>
-            排列按行号递增，保留刚才选中的集合；第 1 项 ID={ids[0]}，第 2 项 ID=
-            {ids[1]}，末项 ID={ids.at(-1)}。省略号只省略其余 509 个已选 ID。
-          </p>
-          <M
-            tex={`G^{\\mathrm{selected}}_{3,${t}}\\in\\mathbb R^{512\\times512}`}
-          />
-          <p>
-            选中 512 行，未选 {m - 512} 行。缓存 G 仍有 {m}{" "}
-            行；未选行下次仍可参与评分。
-          </p>
-        </section>
-      </div>
-      <Down label="③ 保留原 G 行号取数 · 琥珀轮廓标出本步选中行" />
-      <table
-        className="cache-selection-map"
-        aria-label={`token ${t} 原 G 行对应`}
-      >
-        <thead>
-          <tr>
-            <th>原 G 行 i</th>
-            <th>压缩来源 token</th>
-            <th>缓存向量 · 1 × 512</th>
-            <th>本步分数</th>
-            <th>读取去向</th>
-          </tr>
-        </thead>
-        <tbody>
-          {shownIds.flatMap((id, index) => {
-            const j = ids.indexOf(id) + 1;
-            return [
-              index > 0 && id > shownIds[index - 1] + 1 ? (
-                <tr key={`gap-${id}`}>
-                  <td>⋮</td>
-                  <td>⋮</td>
-                  <td>⋮</td>
-                  <td>⋮</td>
-                  <td>⋮</td>
-                </tr>
-              ) : null,
-              <tr key={id} data-candidate-id={id} data-selected={j > 0}>
-                <td>{id}</td>
-                <td>
-                  {2 * id - 1}、{2 * id}
-                </td>
-                <td>
-                  <Data>
-                    <M tex={`\\mathbf g_{3,${id}}`} />
-                  </Data>
-                </td>
-                <td>{step.scores[id - 1].score.toFixed(2)}</td>
-                <td>
-                  {j
-                    ? `I 第 ${j} 项 → KV 第 ${128 + j} 行`
-                    : "未选 · 留在 G 中，本步不读取"}
-                </td>
-              </tr>,
-            ];
-          })}
-        </tbody>
-      </table>
+        </>
+      )}
       <p>
-        表按原 G 行顺序展开代表行，点串省略中间行。ID 指 G 的逻辑行号，从 1
-        开始；代码中使用零基索引和局部区偏移。token {t} 的分数向量 s 有 {m}{" "}
-        列，第 i 列就对应表中的 G 行 i。
+        {part === "scores"
+          ? "下方全局 KV 取行模块按这些 ID 展开原 G 行。"
+          : "表按原 G 行顺序展开代表行，点串省略中间行。"}
+        ID 指 G 的逻辑行号，从 1 开始；代码中使用零基索引和局部区偏移。token {t}{" "}
+        的分数向量 s 有 {m} 列，第 i 列就对应表中的 G 行 i。
       </p>
     </section>
   );
@@ -618,6 +645,42 @@ function IndexSelection({ step }: { step: Step }) {
   );
 }
 function ReadAttention({ layer, step }: { layer: number; step: Step }) {
+  const { token: t, readRows } = step;
+  return (
+    <>
+      <CacheReadRows layer={layer} step={step} />
+      <Down label="当前主 Query 读取 KV · 新算本层 Attention 输出" />
+      <div className="cache-query">
+        <M
+          tex={`\\mathbf z_{${layer},h,${t}}=\\frac{\\mathbf q'_{${layer},h,${t}}K_{${layer},${t}}^{\\mathsf T}}{\\sqrt{d_k}},\\quad d_k=512`}
+        />
+        <M
+          tex={`a_{${layer},h,${t},j}=\\frac{\\exp(z_{${layer},h,${t},j})}{\\sum_{i=1}^{${readRows}}\\exp(z_{${layer},h,${t},i})+\\exp(b_{${layer},h})}`}
+        />
+        <M
+          tex={`\\mathbf o_{${layer},h,${t}}=\\mathbf a_{${layer},h,${t}}V_{${layer},${t}}`}
+        />
+        <p>
+          h=1,…,64；b 是本层各 Head 的独立 sink 参数。此处是主 Attention
+          分数，和 Indexer 用于选行的 s 不同。
+        </p>
+      </div>
+      <Sequence>
+        {[
+          <Data key="a">64 Head 输出逆 RoPE、拼接与分组投影 → mHC 回写</Data>,
+          <Data key="f">FFN 汇合、归一化、MoE → mHC 回写</Data>,
+          <Data key="h" tone="blue">
+            <M
+              tex={`H_{${layer},${t}}^{\\mathrm{out}}=H_{${layer + 1},${t}}^{\\mathrm{in}}`}
+            />
+            <small>1 × 4 × 5120 · 同一 token 进入下一层</small>
+          </Data>,
+        ]}
+      </Sequence>
+    </>
+  );
+}
+function CacheReadRows({ layer, step }: { layer: number; step: Step }) {
   const { token: t, firstAfter, readRows } = step;
   return (
     <>
@@ -655,37 +718,117 @@ function ReadAttention({ layer, step }: { layer: number; step: Step }) {
           </p>
         </div>
       </div>
-      <Down label="当前主 Query 读取 KV · 新算本层 Attention 输出" />
-      <div className="cache-query">
-        <M
-          tex={`\\mathbf z_{${layer},h,${t}}=\\frac{\\mathbf q'_{${layer},h,${t}}K_{${layer},${t}}^{\\mathsf T}}{\\sqrt{d_k}},\\quad d_k=512`}
-        />
-        <M
-          tex={`a_{${layer},h,${t},j}=\\frac{\\exp(z_{${layer},h,${t},j})}{\\sum_{i=1}^{${readRows}}\\exp(z_{${layer},h,${t},i})+\\exp(b_{${layer},h})}`}
-        />
-        <M
-          tex={`\\mathbf o_{${layer},h,${t}}=\\mathbf a_{${layer},h,${t}}V_{${layer},${t}}`}
-        />
-        <p>
-          h=1,…,64；b 是本层各 Head 的独立 sink 参数。此处是主 Attention
-          分数，和 Indexer 用于选行的 s 不同。
-        </p>
-      </div>
-      <Sequence>
-        {[
-          <Data key="a">64 Head 输出逆 RoPE、拼接与分组投影 → mHC 回写</Data>,
-          <Data key="f">FFN 汇合、归一化、MoE → mHC 回写</Data>,
-          <Data key="h" tone="blue">
-            <M
-              tex={`H_{${layer},${t}}^{\\mathrm{out}}=H_{${layer + 1},${t}}^{\\mathrm{in}}`}
-            />
-            <small>1 × 4 × 5120 · 同一 token 进入下一层</small>
-          </Data>,
-        ]}
-      </Sequence>
     </>
   );
 }
+type LayerCachePart = "local" | "global" | "index" | "selected" | "concat";
+
+// 主逐层图和独立缓存章节共用同一数据与绘图部件，确保评分、行号和缓存时刻一致。
+export function LayerCacheExample({
+  layer,
+  phase,
+  part,
+}: {
+  layer: number;
+  phase: "prefill" | "decode";
+  part: LayerCachePart;
+}) {
+  if (phase !== "decode" || (layer !== 3 && layer !== 4)) return null;
+  return (
+    <section
+      className="cache-example layer-cache-detail"
+      data-layer-cache-example={part}
+      data-cache-layer={layer}
+    >
+      <header>
+        <strong>
+          连续两步实例 · 第 {layer} 层 {layer === 3 ? "Full" : "Reuse"}
+        </strong>
+        <p>
+          上方通用 t 在此取 1201、1202。两框是同一缓存的先后状态；G 由第 3
+          层维护，U 由各层独立维护。
+        </p>
+      </header>
+      <div className="layer-cache-steps">
+        {CACHE_STEPS.map((step) => (
+          <section
+            className="cache-structure layer-cache-step"
+            key={step.token}
+            data-layer-cache-token={step.token}
+          >
+            <h3>
+              token {step.token} · G 已有 {step.globalRows} 行
+            </h3>
+            {part === "local" && <LocalWindow layer={layer} step={step} />}
+            {part === "global" &&
+              (layer === 3 ? (
+                <Global step={step} />
+              ) : (
+                <>
+                  <h4>直接读第 3 层当时的 G</h4>
+                  <Rows
+                    name={`G_3^{\\le${step.token}}`}
+                    shape={`${step.globalRows}\\times512`}
+                    tone="green"
+                    rows={globalRows(step.globalRows)}
+                    fresh={step.appendGlobal ? "\\mathbf g_{3,601}" : undefined}
+                  />
+                  <p>
+                    {step.appendGlobal
+                      ? "第 3 层已把 token 1201、1202 合并并追加为第 601 行。"
+                      : "第 3 层只暂存 token 1201，尚未追加第 601 行。"}
+                    第 4 层共用这份 G 的存储，不生成 G₄；自己的 U₄ 仍在局部 KV
+                    分支更新。
+                  </p>
+                </>
+              ))}
+            {part === "index" &&
+              (layer === 3 ? (
+                <SelectionEvidence step={step} part="scores" />
+              ) : (
+                <div
+                  className="cache-shared"
+                  data-reused-index-step={step.token}
+                  data-reused-ids={step.ids.join(",")}
+                >
+                  <h4>读取同一 token 在第 3 层选好的行号</h4>
+                  <Data tone="amber">
+                    <M
+                      tex={`I_{4,${step.token}}\\equiv I_{3,${step.token}}=${idsTex(step)}`}
+                    />
+                    <small>共 512 个原 G 行号 · 同一组索引</small>
+                  </Data>
+                  <p>
+                    直接传入第 3 层刚得到的 I₃,{step.token}。第 4 层没有独立
+                    Indexer 参数，不计算新的索引分数或 Top-K；保留相同的 512 个
+                    ID 及其顺序。
+                  </p>
+                  <p>
+                    原 G 行 {step.ids[0]}、{step.ids[1]}、…、{step.ids.at(-1)}{" "}
+                    被读取；其余 {step.globalRows - 512} 行保留在 G
+                    中。下方取行模块展开对应关系。第 4 层自己的主 Query 和
+                    Attention 权重仍新算。
+                  </p>
+                </div>
+              ))}
+            {part === "selected" && (
+              <>
+                <p>
+                  {layer === 4
+                    ? "行号及教学分数均沿用第 3 层本步结果；此处只读选中向量。"
+                    : "读取上方 Indexer 选好的行号；ID 指向 G₃ 的原行。"}
+                </p>
+                <SelectionEvidence step={step} part="rows" />
+              </>
+            )}
+            {part === "concat" && <CacheReadRows layer={layer} step={step} />}
+          </section>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function cacheDecodeRecipe(references: Recipe["references"]): Recipe {
   const stages: Stage[] = [
     {

@@ -5,6 +5,19 @@ import {
 } from "../src/compositions/DeepSeekV41Layer";
 
 describe("Token 来源与 Prefill / Decode 粒度", () => {
+  it("逐层取行实例按实测高度推动下游，不覆盖拼接模块", () => {
+    for (const layer of [3, 4]) {
+      const graph = buildGraph(
+        layer,
+        new Map([["global-select", 2600]]),
+        "decode",
+      );
+      const selected = graph.nodes.find((node) => node.id === "global-select")!;
+      const merge = graph.nodes.find((node) => node.id === "kv-merge")!;
+      expect(selected.style?.height).toBeUndefined();
+      expect(merge.position.y).toBeGreaterThan(selected.position.y + 2600);
+    }
+  });
   it("Prefill 保留整个序列，Decode 只算全局位置 t 的一行", () => {
     expect(executionAxis("prefill")).toEqual({
       count: "N",
