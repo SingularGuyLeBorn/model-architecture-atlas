@@ -4837,6 +4837,7 @@ function SelectedGlobalRows({
                   }
                   tone="ocean"
                   selected={row.selected}
+                  selectionStyle="amber"
                   columnSubgrid
                   uniformCells
                   compact
@@ -4863,7 +4864,7 @@ function SelectedGlobalRows({
           textAlign: "center",
         }}
       >
-        海蓝：全局 G；加深 + 虚线：本次选中，取行不改变来源色
+        海蓝边框：全局 G；琥珀填色 + 虚线：本次选中
       </div>
     </div>
   );
@@ -6660,6 +6661,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     elementTex={(column) => `g_{${layer},${row},${column}}`}
                     tone="ocean"
                     selected
+                    selectionStyle="amber"
                     columnSubgrid
                     uniformCells
                     compact

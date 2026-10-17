@@ -74,6 +74,7 @@ function StoredTable({
                   scale ? `s_{${index},${j}}` : `\\bar e_{${index},${j}}`
                 }
                 selected={i === 1 || i === 2 || i === 4}
+                selectionStyle="amber"
                 tone={scale ? "ochre" : "indigo"}
                 uniformCells
                 columnSubgrid
@@ -86,7 +87,7 @@ function StoredTable({
       <small>
         {scale
           ? "每行 8 个系数 · 每个系数对应 32 列"
-          : "按 24 个哈希地址读取 · 桶地址从 0 开始"}
+          : "琥珀：本次读取 · 按 24 个哈希地址 · 桶地址从 0 开始"}
       </small>
     </div>
   );

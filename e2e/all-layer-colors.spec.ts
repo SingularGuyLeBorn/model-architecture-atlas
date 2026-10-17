@@ -98,7 +98,7 @@ test("40 层 × 两种阶段：真实数据颜色、来源和消费端连续", a
         "[data-selected-global-rows] [data-vector-cell]",
         "oceanSoft",
         layer > 2,
-        rgb(selectionPalette("ocean").background),
+        rgb(selectionPalette("ocean", "amber").background),
       );
       role(
         '[data-rmsnorm="压缩 KV"] [data-rmsnorm-row-output] [data-vector-cell]',

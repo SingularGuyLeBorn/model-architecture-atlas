@@ -99,7 +99,17 @@ test("身份色跨生成、别名、选择、拼接和 Attention 保持；状态
         "[data-selected-global-rows] [data-vector-elements]:not([data-vector-selected]) [data-vector-cell]",
       );
       expect(await fill(ordinary)).toBe(ocean);
-      expect(await fill(chosen)).not.toBe(ocean);
+      expect(await fill(chosen)).toBe("rgb(246, 229, 201)");
+      await expect(
+        rows.filter({ has: page.locator("[data-vector-cell]") }).first(),
+      ).toHaveAttribute("data-tone", "ocean");
+      if (phase === "Prefill") {
+        expect(
+          await fill(
+            page.locator("[data-selection-example] [data-vector-cell]"),
+          ),
+        ).toBe("rgb(246, 229, 201)");
+      }
       await screenshot("global-select", layer, phase);
       await focus.selectOption("kv-merge");
       for (const side of ["input", "output"]) {

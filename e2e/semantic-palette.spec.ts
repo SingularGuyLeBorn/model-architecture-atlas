@@ -152,7 +152,7 @@ test("二十色用于真实数据，压缩与反量化沿来源保持颜色", as
           const value = getComputedStyle(e).backgroundColor;
           e.remove();
           return value;
-        }, selectionPalette("ochre").background),
+        }, selectionPalette("ochre", "amber").background),
       );
       expect(
         await fill(node.locator("[data-dequant-scales] [data-vector-cell]")),

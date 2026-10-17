@@ -355,9 +355,13 @@ export function tonePalette(tone: DiagramTone) {
     : { color: COLORS[tone], background: COLORS[`${tone}Soft`] };
 }
 
-/** 同色系状态加深，不把选行变成另一类对象；深浅不是新的语义色。 */
-export function selectionPalette(tone: DiagramTone) {
+/** 选中可同色加深或琥珀填充，描边始终保留来源身份。 */
+export function selectionPalette(
+  tone: DiagramTone,
+  style: "deepen" | "amber" = "deepen",
+) {
   const palette = tonePalette(tone);
+  if (style === "amber") return { ...palette, background: COLORS.amberSoft };
   // [OM-FREEPLAY] 20% 描边色混入浅底，兼顾选区辨识与深色公式的可读性。
   const background = `#${[1, 3, 5]
     .map((i) =>
@@ -379,6 +383,7 @@ export function VectorStrip({
   tone = "neutral",
   compact = false,
   selected = false,
+  selectionStyle = "deepen",
   columns: displayedColumns,
   nameWidth,
   nameLineHeight,
@@ -394,6 +399,7 @@ export function VectorStrip({
   tone?: DiagramTone;
   compact?: boolean;
   selected?: boolean;
+  selectionStyle?: "deepen" | "amber";
   columns?: string[];
   nameWidth?: number;
   nameLineHeight?: number;
@@ -403,7 +409,9 @@ export function VectorStrip({
   uniformCells?: boolean;
   cellPadding?: number;
 }) {
-  const palette = selected ? selectionPalette(tone) : tonePalette(tone);
+  const palette = selected
+    ? selectionPalette(tone, selectionStyle)
+    : tonePalette(tone);
   const columns = displayedColumns ?? ["1", "2", "\\cdots", length];
   return (
     <div
@@ -411,6 +419,7 @@ export function VectorStrip({
       data-tone={tone}
       data-content-width={contentWidth || undefined}
       data-vector-selected={selected || undefined}
+      data-selection-style={selected ? selectionStyle : undefined}
       style={{
         minWidth: 0,
         justifySelf: "center",
