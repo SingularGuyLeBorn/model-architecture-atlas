@@ -27,6 +27,7 @@ export function Row({
   direction,
   title,
   trace,
+  columns,
 }: {
   name: string;
   size: number | string;
@@ -34,6 +35,7 @@ export function Row({
   direction?: "in" | "out";
   title?: string;
   trace?: string;
+  columns?: string[];
 }) {
   const tensor = (
     <Tensor
@@ -47,7 +49,12 @@ export function Row({
           column,
         )
       }
-      columns={["1", "2", "…", String(size)]}
+      columns={
+        columns ??
+        (Number(size) <= 3
+          ? Array.from({ length: Number(size) }, (_, i) => String(i + 1))
+          : ["1", "2", "…", String(size)])
+      }
       tone={tone}
     />
   );
@@ -77,6 +84,8 @@ export function Matrix({
   selected,
   direction,
   title,
+  rowTrace,
+  rowTone,
 }: {
   name: string;
   element: (row: string, column: string) => string;
@@ -87,6 +96,8 @@ export function Matrix({
   selected?: string;
   direction?: "in" | "out";
   title?: string;
+  rowTrace?: (row: string) => string | undefined;
+  rowTone?: (row: string) => DiagramTone;
 }) {
   const tensor = (
     <Tensor
@@ -97,6 +108,8 @@ export function Matrix({
       elementTex={element}
       tone={tone}
       selected={selected}
+      rowTrace={rowTrace}
+      rowTone={rowTone}
     />
   );
   return (
@@ -208,10 +221,12 @@ export function Sum({
   inputs,
   result,
   ellipsis = false,
+  termSelector = "[data-expanded-tensor]",
 }: {
   inputs: ReactNode[];
   result: ReactNode;
   ellipsis?: boolean;
+  termSelector?: string;
 }) {
   return (
     <div className="architecture-sum">
@@ -231,8 +246,8 @@ export function Sum({
       </div>
       <SumJunction
         count={inputs.length}
-        sourceSelector="[data-architecture-summand] [data-expanded-tensor]"
-        targetSelector="[data-architecture-sum-result] [data-expanded-tensor]"
+        sourceSelector={`[data-architecture-summand] ${termSelector}`}
+        targetSelector="[data-architecture-sum-result] [data-expanded-tensor], [data-architecture-sum-result] .data-box"
       />
       <div data-architecture-sum-result>{result}</div>
     </div>
@@ -413,5 +428,82 @@ export function Scalar({
     <Data tone={tone}>
       <M tex={tex} />
     </Data>
+  );
+}
+
+/** rotate_half 对应前后半段配对；这里的维号从 1 开始，位置从 0 开始。 */
+export function HalfRoPE({
+  input,
+  output,
+  size,
+  rotary,
+  theta,
+}: {
+  input: string;
+  output: string;
+  size: number;
+  rotary: number;
+  theta: number;
+}) {
+  const half = rotary / 2;
+  return (
+    <div className="architecture-rope">
+      <p className="architecture-note">
+        <M
+          tex={`\\phi_{t,j}=(t-1)\\,${theta}^{-2(j-1)/${rotary}},\\quad j=1,\\ldots,${half}`}
+        />
+      </p>
+      <Columns>
+        {[1, 2, half].map((j) => (
+          <div key={j}>
+            <p className="architecture-caption">
+              第 {j}、{j + half} 维
+            </p>
+            <div className="architecture-equation">
+              <Matrix
+                name={`R_{t,${j}}`}
+                shape={"2\\times2"}
+                rows={["1", "2"]}
+                columns={["1", "2"]}
+                tone="crimson"
+                element={(r, c) =>
+                  r === c
+                    ? `\\cos\\phi_{t,${j}}`
+                    : `${r === "1" ? "-" : ""}\\sin\\phi_{t,${j}}`
+                }
+              />
+              <span className="architecture-operator">×</span>
+              <Matrix
+                name={`(${input})^{(${j})}`}
+                shape={"2\\times1"}
+                rows={["1", "2"]}
+                columns={["1"]}
+                tone={architectureTone(input)}
+                element={(r) =>
+                  elementIndex(input, String(r === "1" ? j : j + half))
+                }
+              />
+              <span className="architecture-operator">=</span>
+              <Matrix
+                name={`(${output})^{(${j})}`}
+                shape={"2\\times1"}
+                rows={["1", "2"]}
+                columns={["1"]}
+                tone={architectureTone(output)}
+                element={(r) =>
+                  elementIndex(output, String(r === "1" ? j : j + half))
+                }
+              />
+            </div>
+          </div>
+        ))}
+      </Columns>
+      <p className="architecture-note">
+        <M
+          tex={`${elementIndex(output, "d")}=${elementIndex(input, "d")},\\quad d=${rotary + 1},\\ldots,${size}`}
+        />{" "}
+        · 其余维原样传递
+      </p>
+    </div>
   );
 }

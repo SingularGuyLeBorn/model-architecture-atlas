@@ -35,6 +35,8 @@ export function Tensor({
   selected,
   elementTex,
   rowLabels = true,
+  rowTrace,
+  rowTone,
 }: {
   name: string;
   shape: string;
@@ -44,6 +46,8 @@ export function Tensor({
   selected?: string;
   elementTex?: (row: string, column: string) => string;
   rowLabels?: boolean;
+  rowTrace?: (row: string) => string | undefined;
+  rowTone?: (row: string) => DiagramTone;
 }) {
   const palette = tonePalette(tone);
   const count = shape.split("\\times")[0];
@@ -71,7 +75,7 @@ export function Tensor({
         style={{
           gridTemplateColumns: matrixColumnTracks(
             columns.map((c) => (c === "…" ? "\\cdots" : c)),
-            rowLabels ? "26px" : "0px",
+            rowLabels ? "max-content" : "0px",
           ),
           width: "max-content",
           marginInline: "auto",
@@ -86,6 +90,7 @@ export function Tensor({
           ) : (
             <div
               key={index}
+              data-trace-object={rowTrace?.(row)}
               className={selected === row ? "tensor-row picked" : "tensor-row"}
               style={{
                 gridColumn: "1 / -1",
@@ -109,11 +114,15 @@ export function Tensor({
                     style={{
                       borderColor: (selected === row
                         ? selectionPalette(tone, "amber")
-                        : palette
+                        : rowTone
+                          ? tonePalette(rowTone(row))
+                          : palette
                       ).color,
                       background: (selected === row
                         ? selectionPalette(tone, "amber")
-                        : palette
+                        : rowTone
+                          ? tonePalette(rowTone(row))
+                          : palette
                       ).background,
                     }}
                   >

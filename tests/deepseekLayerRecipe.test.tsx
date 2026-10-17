@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import katex from "katex";
 import {
   deepseekLayerRecipe,
   type DeepSeekLayerId,
@@ -43,6 +44,12 @@ for (const id of ["v3", "r1", "v31", "v32"] as DeepSeekLayerId[])
             const dom = document.createElement("div");
             dom.innerHTML = html;
             expect(dom.querySelector(".katex-error")).toBeNull();
+            for (const math of dom.querySelectorAll("span[aria-label]"))
+              expect(() =>
+                katex.renderToString(math.getAttribute("aria-label")!, {
+                  throwOnError: true,
+                }),
+              ).not.toThrow();
             expect(html).not.toContain("undefined");
             return [stage.id, dom] as const;
           }),

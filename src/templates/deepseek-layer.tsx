@@ -90,7 +90,7 @@ export function deepseekLayerRecipe(
   ) => (
     <Matrix
       name={name}
-      shape={`${qHeads}\\times${width}`}
+      shape={`${qHeads}\\times ${width}`}
       rows={cols(qHeads)}
       columns={cols(width)}
       tone={tone}

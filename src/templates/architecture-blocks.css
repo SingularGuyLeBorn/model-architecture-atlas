@@ -112,3 +112,41 @@
 .architecture-swiglu > .architecture-equation {
   margin-top: 48px;
 }
+.architecture-cache-branch {
+  padding: 12px;
+  border: 1px solid #c9d0ce;
+  border-radius: 7px;
+}
+.architecture-cache-transfer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 100px;
+}
+.architecture-cache-transfer > div {
+  display: grid;
+  gap: 20px;
+}
+.architecture-score-top,
+.architecture-probability-grid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 55px;
+}
+.architecture-score-top > .architecture-object {
+  margin-inline: 0;
+}
+.architecture-layer-map {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 12px;
+}
+.architecture-layer-tile {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid #c9d0ce;
+  border-radius: 6px;
+  font-size: 13px;
+}

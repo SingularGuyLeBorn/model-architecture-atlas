@@ -6,8 +6,9 @@ import v31 from "./configs/DeepSeek-V3.1.json" with { type: "json" };
 import r1 from "./configs/DeepSeek-R1.json" with { type: "json" };
 import v32 from "./configs/DeepSeek-V3.2.json" with { type: "json" };
 import sources from "./sources.json" with { type: "json" };
+import mimo25 from "./configs/MiMo-V2.5.json" with { type: "json" };
 
-export type ModelId =
+export type DeepSeekModelId =
   | "v41"
   | "v4-flash"
   | "v4-pro"
@@ -15,6 +16,7 @@ export type ModelId =
   | "v31"
   | "v32"
   | "r1";
+export type ModelId = DeepSeekModelId | "mimo25";
 export type Chapter =
   | "overview"
   | "layer"
@@ -56,9 +58,10 @@ export const rawConfigs = {
   v31,
   v32,
   r1,
+  mimo25,
 };
 const records: {
-  id: ModelId;
+  id: DeepSeekModelId;
   name: string;
   source: string;
   family: "v3" | "v4" | "v41";
@@ -114,7 +117,7 @@ const records: {
     subtitle: "同类稀疏主干 · 更宽配置",
   },
 ];
-export const models = records.map((record) => {
+const deepseekModels = records.map((record) => {
   const raw = rawConfigs[record.id];
   const config = "text_config" in raw ? raw.text_config : raw;
   const chapters: Chapter[] =
@@ -153,6 +156,20 @@ export const models = records.map((record) => {
     provenance: sources.find((source) => source.id === record.source)!,
   };
 });
+export type DeepSeekModel = (typeof deepseekModels)[number];
+export const models = [
+  ...deepseekModels,
+  {
+    id: "mimo25" as const,
+    family: "mimo" as const,
+    name: "小米 MiMo-V2.5",
+    source: "MiMo-V2.5",
+    subtitle: "Hybrid GQA/SWA · 128-token 窗口 · MoE",
+    config: mimo25,
+    chapters: ["overview", "layer"] as Chapter[],
+    provenance: sources.find((source) => source.id === "MiMo-V2.5")!,
+  },
+];
 export type Model = (typeof models)[number];
 export const officialLinks = {
   v3: "https://github.com/deepseek-ai/DeepSeek-V3",

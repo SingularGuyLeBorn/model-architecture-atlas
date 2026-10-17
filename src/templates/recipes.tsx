@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { deepseekLayerRecipe } from "./deepseek-layer";
+import { mimoLayerRecipe, mimoOverviewRecipe } from "./mimo-layer";
 import { cacheDecodeRecipe } from "../components/CacheDecodeExample";
 import { EngramPurpose } from "../components/EngramPurpose";
 import { ReindexCandidates } from "../components/ReindexCandidates";
@@ -22,6 +23,7 @@ import {
   compressionForLayer,
   routedWeights,
   type Model,
+  type DeepSeekModel,
   type Chapter,
 } from "../data/models";
 
@@ -65,7 +67,7 @@ function Expert({
   name,
   coefficient,
 }: {
-  model: Model;
+  model: DeepSeekModel;
   name: string;
   coefficient: string;
 }) {
@@ -145,6 +147,10 @@ export function recipeFor(
   phase: Phase,
   layer: number,
 ): Recipe {
+  if (model.family === "mimo")
+    return chapter === "overview"
+      ? mimoOverviewRecipe(phase)
+      : mimoLayerRecipe(phase, layer);
   if (
     model.family === "v3" &&
     (chapter === "layer" || (model.id === "v32" && chapter === "mla"))

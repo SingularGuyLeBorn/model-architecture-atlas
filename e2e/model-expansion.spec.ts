@@ -6,6 +6,9 @@ for (const [id, layer, phase] of [
   ["r1", 4, "decode"],
   ["v31", 61, "prefill"],
   ["v32", 4, "decode"],
+  ["mimo25", 1, "prefill"],
+  ["mimo25", 2, "decode"],
+  ["mimo25", 48, "decode"],
 ] as const) {
   test(`${id} Layer ${layer} ${phase} · 内容边界、端口与截图`, async ({
     page,
@@ -43,7 +46,9 @@ for (const [id, layer, phase] of [
           `${id}/${layer}: ${await stage.getAttribute("data-stage")}`,
         ).toEqual([]);
         for (const flow of await stage.locator(".object-connections").all()) {
-          await expect(flow.locator("[data-object-link]")).toHaveCount(5);
+          await expect(flow.locator("[data-object-link]")).toHaveCount(
+            Number(await flow.getAttribute("data-object-link-count")),
+          );
           const endpoints = await flow.evaluate((root) => {
             const bounds = root.getBoundingClientRect();
             const scale = bounds.width / (root as HTMLElement).offsetWidth;
@@ -61,6 +66,17 @@ for (const [id, layer, phase] of [
                 const b = root
                   .querySelector(`[data-trace-object="${to}"]`)!
                   .getBoundingClientRect();
+                if (link.getAttribute("data-direction") === "right")
+                  return [
+                    Math.abs(start.x - (a.right - bounds.left) / scale),
+                    Math.abs(
+                      start.y - (a.top + a.height / 2 - bounds.top) / scale,
+                    ),
+                    Math.abs(end.x - (b.left - bounds.left) / scale),
+                    Math.abs(
+                      end.y - (b.top + b.height / 2 - bounds.top) / scale,
+                    ),
+                  ];
                 return [
                   Math.abs(
                     start.x - (a.left + a.width / 2 - bounds.left) / scale,
