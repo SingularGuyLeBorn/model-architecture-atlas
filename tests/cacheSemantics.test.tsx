@@ -12,7 +12,7 @@ import { rawConfigs } from "../src/data/models";
 import { explainModule } from "../src/components/ModuleInspector";
 import { buildGraph } from "../src/compositions/DeepSeekV41Layer";
 
-it("完整 40 层区间区分 G、索引来源和全部 Reuse 消费者", () => {
+it("完整 40 层的缓存共享区间", () => {
   expect(cacheSharingSegments()).toEqual([
     { start: 3, end: 8, kv: 3, index: 3 },
     { start: 9, end: 14, kv: 9, index: 9 },
@@ -23,7 +23,12 @@ it("完整 40 层区间区分 G、索引来源和全部 Reuse 消费者", () => 
     { start: 33, end: 36, kv: 21, index: 33 },
     { start: 37, end: 40, kv: 21, index: 37 },
   ]);
-  for (let layer = 1; layer <= 40; layer++) {
+});
+
+// 逐层独立验收，避免 40 次渲染共用单个用例的超时预算；保留每层全部断言。
+it.each(Array.from({ length: 40 }, (_, i) => i + 1))(
+  "第 %i 层区分 G、索引来源和全部 Reuse 消费者",
+  (layer) => {
     const root = document.createElement("div");
     root.innerHTML = renderToStaticMarkup(<CacheSharingMap layer={layer} />);
     expect(root.querySelectorAll("[data-sharing-g]")).toHaveLength(4);
@@ -44,8 +49,8 @@ it("完整 40 层区间区分 G、索引来源和全部 Reuse 消费者", () => 
     expect(
       explainModule({ kind: "cache-sharing", layer }).paragraphs.join(""),
     ).toContain(cacheSourceSummary(layer));
-  }
-});
+  },
+);
 
 it("逐层图只保留实际计算与复用入口，不被独立共享总览撑高", () => {
   for (const layer of [2, 3, 15, 26]) {
