@@ -239,7 +239,7 @@ function LocalWindow({ layer, step }: { layer: number; step: Step }) {
         <div>
           <strong>写入前 · 128 行</strong>
           <Rows
-            name={`U_${layer}^{\\mathrm{SWA},\\le${previous}}`}
+            name={`U_{${layer},${previous}}`}
             shape="128\times512"
             rows={localRows(layer, firstBefore, previous)}
             fresh={`\\mathbf u_{${layer},${evicted}}`}
@@ -258,7 +258,7 @@ function LocalWindow({ layer, step }: { layer: number; step: Step }) {
         <div>
           <strong>写入后 · 仍是 128 行</strong>
           <Rows
-            name={`U_${layer}^{\\mathrm{SWA},\\le${t}}`}
+            name={`U_{${layer},${t}}`}
             shape="128\times512"
             rows={localRows(layer, firstAfter, t)}
             fresh={`\\mathbf u_{${layer},${t}}`}
@@ -282,7 +282,7 @@ function Global({ step }: { step: Step }) {
         <Project
           token={t}
           layer={3}
-          branch="KV,c"
+          branch="KV,G"
           result={`\\mathbf v^c_{3,${t}}`}
         />
         <Project
@@ -721,114 +721,6 @@ function CacheReadRows({ layer, step }: { layer: number; step: Step }) {
     </>
   );
 }
-type LayerCachePart = "local" | "global" | "index" | "selected" | "concat";
-
-// 主逐层图和独立缓存章节共用同一数据与绘图部件，确保评分、行号和缓存时刻一致。
-export function LayerCacheExample({
-  layer,
-  phase,
-  part,
-}: {
-  layer: number;
-  phase: "prefill" | "decode";
-  part: LayerCachePart;
-}) {
-  if (phase !== "decode" || (layer !== 3 && layer !== 4)) return null;
-  return (
-    <section
-      className="cache-example layer-cache-detail"
-      data-layer-cache-example={part}
-      data-cache-layer={layer}
-    >
-      <header>
-        <strong>
-          连续两步实例 · 第 {layer} 层 {layer === 3 ? "Full" : "Reuse"}
-        </strong>
-        <p>
-          上方通用 t 在此取 1201、1202。两框是同一缓存的先后状态；G 由第 3
-          层维护，U 由各层独立维护。
-        </p>
-      </header>
-      <div className="layer-cache-steps">
-        {CACHE_STEPS.map((step) => (
-          <section
-            className="cache-structure layer-cache-step"
-            key={step.token}
-            data-layer-cache-token={step.token}
-          >
-            <h3>
-              token {step.token} · G 已有 {step.globalRows} 行
-            </h3>
-            {part === "local" && <LocalWindow layer={layer} step={step} />}
-            {part === "global" &&
-              (layer === 3 ? (
-                <Global step={step} />
-              ) : (
-                <>
-                  <h4>直接读第 3 层当时的 G</h4>
-                  <Rows
-                    name={`G_3^{\\le${step.token}}`}
-                    shape={`${step.globalRows}\\times512`}
-                    tone="green"
-                    rows={globalRows(step.globalRows)}
-                    fresh={step.appendGlobal ? "\\mathbf g_{3,601}" : undefined}
-                  />
-                  <p>
-                    {step.appendGlobal
-                      ? "第 3 层已把 token 1201、1202 合并并追加为第 601 行。"
-                      : "第 3 层只暂存 token 1201，尚未追加第 601 行。"}
-                    第 4 层共用这份 G 的存储，不生成 G₄；自己的 U₄ 仍在局部 KV
-                    分支更新。
-                  </p>
-                </>
-              ))}
-            {part === "index" &&
-              (layer === 3 ? (
-                <SelectionEvidence step={step} part="scores" />
-              ) : (
-                <div
-                  className="cache-shared"
-                  data-reused-index-step={step.token}
-                  data-reused-ids={step.ids.join(",")}
-                >
-                  <h4>读取同一 token 在第 3 层选好的行号</h4>
-                  <Data tone="amber">
-                    <M
-                      tex={`I_{4,${step.token}}\\equiv I_{3,${step.token}}=${idsTex(step)}`}
-                    />
-                    <small>共 512 个原 G 行号 · 同一组索引</small>
-                  </Data>
-                  <p>
-                    直接传入第 3 层刚得到的 I₃,{step.token}。第 4 层没有独立
-                    Indexer 参数，不计算新的索引分数或 Top-K；保留相同的 512 个
-                    ID 及其顺序。
-                  </p>
-                  <p>
-                    原 G 行 {step.ids[0]}、{step.ids[1]}、…、{step.ids.at(-1)}{" "}
-                    被读取；其余 {step.globalRows - 512} 行保留在 G
-                    中。下方取行模块展开对应关系。第 4 层自己的主 Query 和
-                    Attention 权重仍新算。
-                  </p>
-                </div>
-              ))}
-            {part === "selected" && (
-              <>
-                <p>
-                  {layer === 4
-                    ? "行号及教学分数均沿用第 3 层本步结果；此处只读选中向量。"
-                    : "读取上方 Indexer 选好的行号；ID 指向 G₃ 的原行。"}
-                </p>
-                <SelectionEvidence step={step} part="rows" />
-              </>
-            )}
-            {part === "concat" && <CacheReadRows layer={layer} step={step} />}
-          </section>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 export function cacheDecodeRecipe(references: Recipe["references"]): Recipe {
   const stages: Stage[] = [
     {

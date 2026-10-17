@@ -20,7 +20,7 @@ describe("压缩器的整行投影与单列点积", () => {
       "[data-compressor-projection]",
     )) {
       const gate = branch.dataset.compressorProjection === "gate";
-      const sup = gate ? "\\mathrm{gate}" : "KV,c";
+      const sup = gate ? "\\mathrm{gate}" : "KV,G";
       const resultSup = gate ? "\\mathrm{gate}" : "c";
       const scalar = gate ? "a" : "v";
       expect(

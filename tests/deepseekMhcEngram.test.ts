@@ -539,7 +539,7 @@ describe("mHC 与 Engram 的真实主路径", () => {
     expect(reused.edges.some((e) => e.id === "q-low-rank-indexer")).toBe(false);
     expect(
       reused.edges.find((e) => e.id === "indexer-select")?.data?.labelTex,
-    ).toContain("I_{15,t}");
+    ).toContain("I_{16,t}");
     expect(
       buildGraph(29).edges.some((e) => e.id === "compressor-indexer"),
     ).toBe(true);

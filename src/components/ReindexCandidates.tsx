@@ -1,5 +1,6 @@
 import { rawConfigs } from "../data/models";
 import { useMemo } from "react";
+import { CacheReference } from "./CacheReference";
 import {
   Box,
   MathFormula as M,
@@ -143,15 +144,13 @@ export function CandidateFilter({ layer }: { layer: number }) {
               <br />
               本层分数
             </Box>
-            <Box tone="amber">
-              <M tex="B_{21,t}\quad1\times M" />
-              <br />
-              B₂₁,t · 读取第 21 层
-            </Box>
+            <CacheReference layer={layer} source={CANDIDATE_SOURCE} kind="B" />
           </div>
           <MergeArrows count={2} />
           <Box tone="amber">
-            <M tex="\widetilde s_{l,t,i}=\begin{cases}s_{l,t,i}&B_{21,t,i}=1\\-\infty&B_{21,t,i}=0\end{cases}" />
+            <M
+              tex={`\\widetilde s_{${layer},t,i}=\\begin{cases}s_{${layer},t,i}&B_{${layer},t,i}=1\\\\-\\infty&B_{${layer},t,i}=0\\end{cases}`}
+            />
           </Box>
           <Down label="过滤后的分数 → 下方 Top-K" />
         </div>

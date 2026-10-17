@@ -37,7 +37,7 @@ it("完整 40 层区间区分 G、索引来源和全部 Reuse 消费者", () => 
       cacheSourceSummary(layer),
     );
     const graph = buildGraph(layer);
-    expect(graph.nodes.some((n) => n.id === "cache-sharing")).toBe(true);
+    expect(graph.nodes.some((n) => n.id === "cache-sharing")).toBe(false);
     expect(graph.nodes.find((n) => n.id === "compressor")?.data.mode).toBe(
       layer < 3 ? undefined : cachePolicy(layer).mode.toLowerCase(),
     );
@@ -47,13 +47,29 @@ it("完整 40 层区间区分 G、索引来源和全部 Reuse 消费者", () => 
   }
 });
 
-it("共享总览实测增高时，同列的 Engram 和全局分支避让", () => {
+it("逐层图只保留实际计算与复用入口，不被独立共享总览撑高", () => {
   for (const layer of [2, 3, 15, 26]) {
-    const graph = buildGraph(layer, new Map([["cache-sharing", 3000]]));
-    for (const node of graph.nodes.filter((n) =>
-      ["engram-lookup", "compressor"].includes(n.id),
-    )) {
-      expect(node.position.y).toBeGreaterThan(3000);
+    const graph = buildGraph(layer);
+    expect(buildGraph(layer, new Map([["cache-sharing", 3000]]))).toEqual(
+      graph,
+    );
+    expect(graph.nodes.some((n) => n.id === "cache-sharing")).toBe(false);
+    const hasGlobal = layer > 2;
+    expect(graph.edges.some((e) => e.id === "norm-compressor")).toBe(
+      cachePolicy(layer).mode === "Full",
+    );
+    expect(graph.edges.some((e) => e.id === "norm-index-weights")).toBe(
+      ["Full", "Reindex"].includes(cachePolicy(layer).mode),
+    );
+    expect(graph.edges.some((e) => e.id === "swa-merge")).toBe(true);
+    expect(graph.edges.some((e) => e.id === "merge-heads")).toBe(true);
+    if (hasGlobal) {
+      expect(
+        graph.edges.find((e) => e.id === "indexer-matrix")?.data?.labelTex,
+      ).toBe(`G_{${layer}}`);
+      expect(
+        graph.edges.find((e) => e.id === "indexer-select")?.data?.labelTex,
+      ).toBe(`I_{${layer},t}`);
     }
   }
 });

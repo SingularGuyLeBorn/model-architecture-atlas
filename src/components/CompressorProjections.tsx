@@ -23,9 +23,9 @@ export function CompressorProjections({
       <div data-compressor-parameter-origin>
         <MathFormula tex={`X_{${layer}}`} /> 是上游计算结果，取第 t 行作为输入。
         {ratio === 2
-          ? "两份 W 是分别存储和优化的独立参数，互不由对方计算而来；两条投影并行。"
-          : "W 是独立参数，直接从模型权重加载；压缩比 1 没有 gate 分支。"}
-        本层所有 token 使用同一份 W，输出随输入变化。
+          ? "两份独立参数 Wᴳ 与 Wᵍᵃᵗᵉ；均不同于本地 Wˢᵂᴬ。"
+          : "Wᴳ 是独立参数，不是本地 Wˢᵂᴬ；压缩比 1，无 gate。"}
+        上标 G 指全局 KV 分支。
       </div>
       <div
         style={{
@@ -36,7 +36,7 @@ export function CompressorProjections({
         }}
       >
         {branches.map((branch) => {
-          const sup = branch === "kv" ? "KV,c" : "\\mathrm{gate}";
+          const sup = branch === "kv" ? "KV,G" : "\\mathrm{gate}";
           const scalar = branch === "kv" ? "v" : "a";
           const resultSup = branch === "kv" ? "c" : "\\mathrm{gate}";
           const output = `\\mathbf ${scalar}_{${layer},t}^{${resultSup}}`;
@@ -47,7 +47,7 @@ export function CompressorProjections({
               style={{ display: "grid", gap: 8, minWidth: 0 }}
             >
               <ModuleHeading>
-                {branch === "kv" ? "KV 候选投影" : "Gate 分数投影"}
+                {branch === "kv" ? "全局 KV 投影 · 独立参数" : "Gate 分数投影"}
               </ModuleHeading>
               <div
                 data-compressor-projection-equation

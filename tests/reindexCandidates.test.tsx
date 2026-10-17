@@ -50,7 +50,7 @@ it("候选来源、应用位置、形状与教学声明都在图中", () => {
   expect(root.querySelector('[data-split-arrows="4"]')).not.toBeNull();
   for (const layer of REINDEX_LAYERS) {
     const html = renderToStaticMarkup(<CandidateFilter layer={layer} />);
-    expect(html).toContain("B₂₁,t");
+    expect(html).toContain(`B_{${layer}\\leftarrow21,t}:=B_{21,t}`);
     expect(html).toContain("过滤后的分数");
     expect(html).not.toContain("katex-error");
   }

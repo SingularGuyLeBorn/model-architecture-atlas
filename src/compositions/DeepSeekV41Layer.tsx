@@ -1,11 +1,11 @@
 import { frameColor } from "../components/diagram-appearance";
 import { CompressorProjections } from "../components/CompressorProjections";
 import { KvRowConcat } from "../components/KvRowConcat";
-import { LayerCacheExample } from "../components/CacheDecodeExample";
+import { CacheReference } from "../components/CacheReference";
+import { SlidingWindowRows } from "../components/SlidingWindowRows";
 import {
-  CacheModeLedger,
   GlobalCacheHistory,
-  CacheSharingMap,
+  CacheOutputScope,
   cachePolicy,
   cacheSourceSummary,
 } from "../components/CacheSemantics";
@@ -136,7 +136,6 @@ type NodeKind =
   | "engram-lookup"
   | "engram-inject"
   | "execution-guide"
-  | "cache-sharing"
   | "query-row"
   | "tensor"
   | "norm1"
@@ -323,7 +322,6 @@ const CONTENT_SIZED_KINDS = new Set<NodeKind>([
   "tokenizer",
   "embedding",
   "execution-guide",
-  "cache-sharing",
   "norm1",
   "norm2",
   "query-norm",
@@ -3141,6 +3139,7 @@ function IndexProjection({
   inputSymbol,
   outputSymbol,
   sourceNote,
+  rowIndex = "t",
 }: {
   title: string;
   input: string;
@@ -3154,8 +3153,9 @@ function IndexProjection({
   inputSymbol: string;
   outputSymbol: string;
   sourceNote?: ReactNode;
+  rowIndex?: string;
 }) {
-  const indices = rows === "1" ? ["t"] : ["1", "2", "\\vdots", rows];
+  const indices = rows === "1" ? [rowIndex] : ["1", "2", "\\vdots", rows];
   return (
     <div
       data-index-projection={title}
@@ -3541,16 +3541,12 @@ function LocalKvProjection({ layer }: { layer: number }) {
           data-local-cache-meaning
           style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 10 }}
         >
-          <strong>
-            U · 本层局部窗口 KV；Full、Reindex、Reuse 都计算当前新行。
-          </strong>
+          <strong>T · 本批新算 KV；U · 当前局部窗口缓存</strong>
           <div>
-            <MathFormula tex={`X_{${layer}}`} /> 来自本层 mHC
-            汇合及输入归一化，乘下方本层独立参数；不读取其他层的 U。
-          </div>
-          <div>
-            完整 U 表示逐 token 的 KV；Decode 仅缓存最近最多 128
-            行。保留窗口内旧行，追加当前行，满窗覆盖最旧行。
+            <MathFormula
+              tex={`${phase === "decode" ? `\\mathbf u_{${layer},t}` : `T_{${layer}}`}\\;\\longrightarrow\\;U_{${layer},t}`}
+            />{" "}
+            · 新行写入窗口；每层独立计算，不跨层复用 U
           </div>
         </div>
         <SerialFlow returnColumn>
@@ -3607,7 +3603,7 @@ function LocalKvProjection({ layer }: { layer: number }) {
                       ) : (
                         <ParameterColumn
                           key={column}
-                          tex={`\\mathbf w_{${layer},${column}}`}
+                          tex={`\\mathbf w_{${layer},${column}}^{KV,\\mathrm{SWA}}`}
                         />
                       ),
                     )}
@@ -3615,7 +3611,7 @@ function LocalKvProjection({ layer }: { layer: number }) {
                 </div>
                 <Operator tex="=" />
                 <RowMatrix
-                  tex={`\\widehat U_{${layer}}`}
+                  tex={`\\widehat T_{${layer}}`}
                   shape={`${count}\\times512`}
                   rows={rowNames("\\widehat{\\mathbf u}")}
                 />
@@ -3624,8 +3620,8 @@ function LocalKvProjection({ layer }: { layer: number }) {
             <React.Fragment key="normalization">
               <strong>② 逐行归一化 · 读取①的投影结果</strong>
               <RmsNormProcess
-                input={`\\widehat U_{${layer}}`}
-                output={`\\bar U_{${layer}}`}
+                input={`\\widehat T_{${layer}}`}
+                output={`\\bar T_{${layer}}`}
                 dimension={512}
                 rowCount={count}
                 gamma={`\\boldsymbol\\gamma_{${layer}}^{KV}`}
@@ -3651,7 +3647,7 @@ function LocalKvProjection({ layer }: { layer: number }) {
                   : "仅生成当前位置 t 的新 KV；下方写入历史窗口"}
               </div>
               <RowMatrix
-                tex={`U_{${layer}}`}
+                tex={`T_{${layer}}`}
                 shape={`${count}\\times512`}
                 rows={rowNames("\\mathbf u")}
                 rowLength="512"
@@ -3663,153 +3659,12 @@ function LocalKvProjection({ layer }: { layer: number }) {
             </React.Fragment>,
           ]}
         </SerialFlow>
-        <LayerCacheExample layer={layer} phase={phase} part="local" />
       </div>
     </div>
   );
 }
 
 type MatrixRowSpec = { row: string; selected?: boolean; ellipsis?: boolean };
-
-function RingCache({ layer }: { layer: number }) {
-  const slots = [
-    "t-127",
-    "t-126",
-    "t-125",
-    "\\cdots",
-    "t-3",
-    "t-2",
-    "t-1",
-    "t",
-  ];
-  return (
-    <div
-      data-ring-cache
-      style={{
-        width: "100%",
-        maxWidth: 240,
-        aspectRatio: "1",
-        position: "relative",
-        justifySelf: "center",
-      }}
-    >
-      <svg
-        aria-hidden
-        viewBox="0 0 240 240"
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-        }}
-      >
-        <defs>
-          <marker
-            id={`cache-write-${layer}`}
-            viewBox="0 -5 10 10"
-            refX="9"
-            refY="0"
-            markerWidth="8"
-            markerHeight="8"
-            orient="auto"
-          >
-            <path
-              d="M 1 -4 L 9 0 L 1 4"
-              fill="none"
-              stroke={COLORS.amber}
-              strokeWidth="1.5"
-            />
-          </marker>
-        </defs>
-        <circle
-          cx="120"
-          cy="120"
-          r="87.6"
-          fill="none"
-          stroke={COLORS.green}
-          strokeWidth="2"
-        />
-        <path
-          d="M 120 95 L 120 56"
-          fill="none"
-          stroke={COLORS.amber}
-          strokeWidth="2"
-          markerEnd={`url(#cache-write-${layer})`}
-        />
-      </svg>
-      {slots.map((row, index) => {
-        const angle = ((-90 + index * 45) * Math.PI) / 180;
-        const oldest = index === 0;
-        return (
-          <div
-            key={index}
-            data-cache-slot={row}
-            style={{
-              position: "absolute",
-              left: `${50 + 36.5 * Math.cos(angle)}%`,
-              top: `${50 + 36.5 * Math.sin(angle)}%`,
-              transform: "translate(-50%,-50%)",
-              width: "26.5%",
-              height: "9%",
-              boxSizing: "border-box",
-              display: "grid",
-              placeItems: "center",
-              border:
-                row === "\\cdots"
-                  ? "none"
-                  : `1.5px solid ${oldest ? COLORS.amber : COLORS.green}`,
-              borderRadius: 6,
-              background:
-                row === "\\cdots"
-                  ? "transparent"
-                  : oldest
-                    ? COLORS.amberSoft
-                    : COLORS.greenSoft,
-              color: COLORS.green,
-              fontSize: 10,
-              lineHeight: 1.2,
-            }}
-          >
-            <MathFormula
-              tex={row === "\\cdots" ? row : `\\mathbf u_{${layer},${row}}`}
-            />
-          </div>
-        );
-      })}
-      <div
-        data-cache-write-label
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "52%",
-          width: "40%",
-          transform: "translate(-50%,-50%)",
-          display: "grid",
-          gap: 4,
-          textAlign: "center",
-          color: COLORS.green,
-          fontSize: 10,
-        }}
-      >
-        <strong>128 槽</strong>
-        <MathFormula tex={`\\mathbf u_{${layer},t+1}`} />
-        <span style={{ color: COLORS.amber }}>覆盖最旧槽</span>
-      </div>
-      <strong
-        style={{
-          position: "absolute",
-          bottom: 0,
-          width: "100%",
-          textAlign: "center",
-          fontSize: 11,
-          color: COLORS.green,
-        }}
-      >
-        Decode 环形 cache
-      </strong>
-    </div>
-  );
-}
 
 function MatrixBracket({
   layer,
@@ -3928,6 +3783,7 @@ function MatrixBracket({
 }
 
 function SwaSelectionConnector({ layer }: { layer: number }) {
+  const { phase } = useExecutionAxis();
   const svgRef = useRef<SVGSVGElement>(null);
   const [path, setPath] = useState("");
   // 结果框是同一父节点下的子节点，直接订阅其局部几何；不依赖屏幕外详情 DOM。
@@ -3951,11 +3807,14 @@ function SwaSelectionConnector({ layer }: { layer: number }) {
       if (!root.width || !root.height) return;
       const sx = svg.clientWidth / root.width,
         sy = svg.clientHeight / root.height;
-      const x1 = (from.right - root.left) * sx,
+      const x1 =
+          ((phase === "decode" ? from.left : from.right) - root.left) * sx,
         y1 = (from.top + from.height / 2 - root.top) * sy;
       const x2 = targetX + targetWidth / 2,
         y2 = targetY;
-      const channelX = Math.max(x1 + 24, x2 + 24),
+      // Decode 的右侧是长度括号；从左侧绕行，保留右侧标注与下方说明的净空。
+      const channelX =
+          phase === "decode" ? x1 - 24 : Math.max(x1 + 24, x2 + 24),
         channelY = y2 - 18;
       setPath(`M ${x1} ${y1} H ${channelX} V ${channelY} H ${x2} V ${y2}`);
     };
@@ -3963,7 +3822,7 @@ function SwaSelectionConnector({ layer }: { layer: number }) {
     const resize = new ResizeObserver(measure);
     [svg, source].forEach((element) => resize.observe(element));
     return () => resize.disconnect();
-  }, [layer, targetGeometry]);
+  }, [layer, phase, targetGeometry]);
   return (
     <svg
       ref={svgRef}
@@ -4947,16 +4806,6 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
     </>
   );
 
-  if (kind === "cache-sharing")
-    return (
-      <div style={{ ...panel, height: "auto" }}>
-        <Title>40 层缓存共享 · G 来源与选行来源分开追踪</Title>
-        <div style={{ padding: 16 }}>
-          <CacheSharingMap layer={layer} />
-        </div>
-      </div>
-    );
-
   // [OM-FREEPLAY] 用 N=6、t=3 与 P=6 对照并行行数和 Decode 的全局位置，数值仅为教学示例。
   if (kind === "execution-guide")
     return (
@@ -5784,167 +5633,152 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             : "Decode：新 KV 写入本层缓存，再读取当前窗口"}
         </Title>
         <div style={{ padding: 10, display: "grid", gap: 8, minWidth: 0 }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1.7fr 20px .9fr",
-              alignItems: "start",
-              gap: 8,
-              minWidth: 0,
-            }}
-          >
-            <div style={{ minWidth: 0, display: "grid", gap: 6 }}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 8,
-                  alignItems: "baseline",
-                }}
-              >
-                <strong>
-                  {phase === "prefill"
-                    ? "完整 KV 潜向量矩阵"
-                    : "历史缓存 + 本步新行"}
-                </strong>
-                <MathFormula
-                  tex={
-                    phase === "prefill"
-                      ? `U_{${layer}}\\in\\mathbb{R}^{N\\times512}`
-                      : `\\min(128,t)\\times512`
-                  }
-                />
-              </div>
-              <MatrixBracket
-                layer={layer}
-                rows={
-                  phase === "decode"
-                    ? [
-                        { row: "r", selected: true },
-                        { row: "r+1", selected: true },
-                        { row: "", ellipsis: true },
-                        { row: "t-1", selected: true },
-                        { row: "t", selected: true },
-                      ]
-                    : [
-                        { row: "1" },
-                        { row: "", ellipsis: true },
-                        { row: "r-1" },
-                        { row: "r", selected: true },
-                        { row: "r+1", selected: true },
-                        { row: "", ellipsis: true },
-                        { row: "t", selected: true },
-                        { row: "t+1" },
-                        { row: "N" },
-                      ]
-                }
-                compact
-              />
-            </div>
-            <span />
-            <div style={{ minWidth: 0, display: "grid", gap: 8 }}>
-              <div
-                data-window-start
-                style={{
-                  minWidth: 0,
-                  width: "fit-content",
-                  maxWidth: "100%",
-                  boxSizing: "border-box",
-                  justifySelf: "center",
-                  border: `1.5px solid ${frameColor(COLORS.amber)}`,
-                  borderRadius: 8,
-                  padding: 6,
-                  background: COLORS.amberSoft,
-                  display: "grid",
-                  gap: 4,
-                  fontSize: 11,
-                  lineHeight: 1.2,
-                }}
-              >
+          {phase === "decode" ? (
+            <SlidingWindowRows layer={layer} />
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1.7fr 20px .9fr",
+                alignItems: "start",
+                gap: 8,
+                minWidth: 0,
+              }}
+            >
+              <div style={{ minWidth: 0, display: "grid", gap: 6 }}>
                 <div
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
+                    gap: 8,
                     alignItems: "baseline",
-                    gap: 5,
                   }}
                 >
-                  <strong>窗口起点 r</strong>
-                  <span style={{ fontSize: 8.5 }}>
-                    <MathFormula tex="\min(128,t)\times512" />
-                  </span>
+                  <strong>
+                    {phase === "prefill"
+                      ? "完整 KV 潜向量矩阵"
+                      : "历史缓存 + 本步新行"}
+                  </strong>
+                  <MathFormula
+                    tex={
+                      phase === "prefill"
+                        ? `T_{${layer}}\\in\\mathbb{R}^{N\\times512}`
+                        : `\\min(128,t)\\times512`
+                    }
+                  />
                 </div>
+                <MatrixBracket
+                  layer={layer}
+                  rows={[
+                    { row: "1" },
+                    { row: "", ellipsis: true },
+                    { row: "r-1" },
+                    { row: "r", selected: true },
+                    { row: "r+1", selected: true },
+                    { row: "", ellipsis: true },
+                    { row: "t", selected: true },
+                    { row: "t+1" },
+                    { row: "N" },
+                  ]}
+                  compact
+                />
+              </div>
+              <span />
+              <div style={{ minWidth: 0, display: "grid", gap: 8 }}>
                 <div
+                  data-window-start
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "3px 10px",
-                    alignItems: "center",
-                    textAlign: "center",
-                  }}
-                >
-                  <MathFormula tex="t\le128" />
-                  <MathFormula tex="r=1" />
-                  <MathFormula tex="t>128" />
-                  <MathFormula tex="r=t-127" />
-                </div>
-                <div
-                  style={{
-                    borderTop: `1px solid ${COLORS.amber}`,
-                    paddingTop: 4,
+                    minWidth: 0,
+                    width: "fit-content",
+                    maxWidth: "100%",
+                    boxSizing: "border-box",
+                    justifySelf: "center",
+                    border: `1.5px solid ${frameColor(COLORS.amber)}`,
+                    borderRadius: 8,
+                    padding: 6,
+                    background: COLORS.amberSoft,
                     display: "grid",
                     gap: 4,
+                    fontSize: 11,
+                    lineHeight: 1.2,
                   }}
                 >
-                  <span style={{ fontSize: 10 }}>行号示例 · 含起点和终点</span>
-                  {/* [OM-FREEPLAY] 用 6 与 130 两个位置举例，分别展示未满窗口和滑动后的窗口。 */}
-                  {[
-                    { t: 6, r: 1, rows: ["1", "2", "3", "\\ldots", "6"] },
-                    { t: 130, r: 3, rows: ["3", "4", "5", "\\ldots", "130"] },
-                  ].map((example) => (
-                    <div
-                      key={example.t}
-                      data-window-example={example.t}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "max-content max-content",
-                        gap: 7,
-                        alignItems: "center",
-                        fontSize: 9,
-                      }}
-                    >
-                      <MathFormula tex={`t=${example.t},\\;r=${example.r}`} />
-                      <div style={{ display: "flex", gap: 3 }}>
-                        {example.rows.map((row) => (
-                          <span
-                            key={row}
-                            style={{
-                              padding: "1px 3px",
-                              border:
-                                row === "\\ldots"
-                                  ? "none"
-                                  : `1px solid ${COLORS.amber}`,
-                              borderRadius: 3,
-                            }}
-                          >
-                            <MathFormula tex={row} />
-                          </span>
-                        ))}
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "baseline",
+                      gap: 5,
+                    }}
+                  >
+                    <strong>窗口起点 r</strong>
+                    <span style={{ fontSize: 8.5 }}>
+                      <MathFormula tex="\min(128,t)\times512" />
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "3px 10px",
+                      alignItems: "center",
+                      textAlign: "center",
+                    }}
+                  >
+                    <MathFormula tex="t\le128" />
+                    <MathFormula tex="r=1" />
+                    <MathFormula tex="t>128" />
+                    <MathFormula tex="r=t-127" />
+                  </div>
+                  <div
+                    style={{
+                      borderTop: `1px solid ${COLORS.amber}`,
+                      paddingTop: 4,
+                      display: "grid",
+                      gap: 4,
+                    }}
+                  >
+                    <span style={{ fontSize: 10 }}>
+                      行号示例 · 含起点和终点
+                    </span>
+                    {/* [OM-FREEPLAY] 用 6 与 130 两个位置举例，分别展示未满窗口和滑动后的窗口。 */}
+                    {[
+                      { t: 6, r: 1, rows: ["1", "2", "3", "\\ldots", "6"] },
+                      { t: 130, r: 3, rows: ["3", "4", "5", "\\ldots", "130"] },
+                    ].map((example) => (
+                      <div
+                        key={example.t}
+                        data-window-example={example.t}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "max-content max-content",
+                          gap: 7,
+                          alignItems: "center",
+                          fontSize: 9,
+                        }}
+                      >
+                        <MathFormula tex={`t=${example.t},\\;r=${example.r}`} />
+                        <div style={{ display: "flex", gap: 3 }}>
+                          {example.rows.map((row) => (
+                            <span
+                              key={row}
+                              style={{
+                                padding: "1px 3px",
+                                border:
+                                  row === "\\ldots"
+                                    ? "none"
+                                    : `1px solid ${COLORS.amber}`,
+                                borderRadius: 3,
+                              }}
+                            >
+                              <MathFormula tex={row} />
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-              {phase === "decode" ? (
-                <>
-                  <FlowStep>
-                    <MathFormula
-                      tex={`\\mathbf u_{${layer},t}\\;\\to\\;\\text{当前槽位}`}
-                    />
-                  </FlowStep>
-                  <RingCache layer={layer} />
-                </>
-              ) : (
                 <div
                   data-prefill-causal
                   style={{ display: "grid", gap: 6, padding: 6, fontSize: 11 }}
@@ -5983,9 +5817,9 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   </div>
                   <span>并行算各行 · 每行的可见 KV 不同</span>
                 </div>
-              )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <SwaSelectionConnector layer={layer} />
       </div>
@@ -6019,7 +5853,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             gap: 8,
           }}
         >
-          <MathFormula tex={`U_{${layer},t}^{\\mathrm{SWA}}`} />
+          <MathFormula tex={`U_{${layer},t}`} />
           <span style={{ fontSize: 10 }}>
             <MathFormula tex="\min(128,t)\times512" />
           </span>
@@ -6065,7 +5899,11 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             minWidth: 0,
           }}
         >
-          <CacheModeLedger layer={layer} />
+          {writesKv ? (
+            <strong>本层独立全局参数 · 旧 G 保留，新行追加</strong>
+          ) : (
+            <CacheReference layer={layer} source={kvSource} kind="G" />
+          )}
           {writesKv ? (
             <>
               <CompressorProjections layer={layer} ratio={ratio} />
@@ -6337,8 +6175,10 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           ) : mode === "reindex" ? (
             <div style={{ position: "relative", width: "fit-content" }}>
               <Box tone="blue">
-                <strong>读取源层 Indexer K 缓存</strong>
-                <MathFormula tex={`K_{${kvSource}}^{I\\prime}`} />
+                <strong>同源索引 Key → 本层 Indexer</strong>
+                <MathFormula
+                  tex={`K_{${layer}\\leftarrow${kvSource}}^{I\\prime}:=K_{${kvSource}}^{I\\prime}`}
+                />
               </Box>
               <Handle
                 id="to-indexer"
@@ -6349,14 +6189,13 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             </div>
           ) : (
             <Box tone="blue">
-              <strong>直接读同一份历史及已更新的 G，不复制生成新 G</strong>
-              <MathFormula tex={`G_{${kvSource}}`} />
+              <strong>送往下方全局取行</strong>
+              <MathFormula tex={`G_{${layer}}`} />
             </Box>
           )}
           {writesKv && phase === "decode" && (
             <GlobalCacheHistory layer={layer} ratio={ratio} />
           )}
-          <LayerCacheExample layer={layer} phase={phase} part="global" />
           {writesKv && phase === "prefill" && (
             <div style={{ fontSize: 13 }}>
               Prefill：由输入序列建立 G，各 Query 仅选因果可见行。Decode：旧 G
@@ -6372,10 +6211,10 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             }}
           >
             <Matrix
-              tex={`G_{${kvSource}}`}
+              tex={`G_{${layer}}`}
               shape={`M\\times512,\\;M=\\left\\lfloor\\frac{${phase === "prefill" ? "N" : "t"}}{${ratio}}\\right\\rfloor`}
-              rowTex={(row) => `\\mathbf g_{${kvSource},${row}}`}
-              elementTex={(row, column) => `g_{${kvSource},${row},${column}}`}
+              rowTex={(row) => `\\mathbf g_{${layer},${row}}`}
+              elementTex={(row, column) => `g_{${layer},${row},${column}}`}
               vectorLength="512"
               lastRow="M"
               tone="green"
@@ -6387,6 +6226,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               style={handle}
             />
           </div>
+          <CacheOutputScope layer={layer} kind="G" />
         </div>
       </div>
     );
@@ -6454,7 +6294,9 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         >
           {writesIndex ? (
             <>
-              <strong>① 三路投影 · 读入同名上游矩阵</strong>
+              <strong>
+                ① 本层 Query、Head 系数 × 索引 Key → 给 G 的各行打分
+              </strong>
               <div
                 data-index-projections
                 style={{
@@ -6521,40 +6363,38 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     title="压缩潜向量 → 索引 Key"
                     sourceNote={
                       <>
-                        来源：上方 Layer {kvSource} Compressor，读取{" "}
-                        <MathFormula tex={`X_{${kvSource}}`} />。
+                        来源：上方 Compressor 的归一化输出、RoPE 前分支。
                         <div>
-                          {compressionRatioForLayer(kvSource) === 2
-                            ? "每行先投影到 512 维，相邻两行逐元素加权汇合，再归一化；一行代表一组完整的两个 token。"
-                            : "每行投影到 512 维后归一化；压缩比 1，保留每个 token 一行。"}
+                          {phase === "decode"
+                            ? "仅处理本步新增行 i（若有）；旧 Key 直接保留。"
+                            : "按压缩行 i 生成 Key；与 G 的行号一一对应。"}
                         </div>
-                        <MathFormula tex={`\\bar G_{${kvSource}}`} /> 是 RoPE
-                        前分支；缓存分支旋转后得到{" "}
-                        <MathFormula tex={`G_{${kvSource}}`} />
-                        ，两者行号 i 对应。
                       </>
                     }
-                    input={`\\bar G_{${kvSource}}`}
+                    input={
+                      phase === "decode"
+                        ? `\\bar{\\mathbf g}_{${kvSource},i}`
+                        : `\\bar G_{${kvSource}}`
+                    }
                     inputWidth="512"
                     weight={`W_{${kvSource}}^{IK}`}
-                    output={`\\widehat K_{${kvSource}}^I`}
+                    output={
+                      phase === "decode"
+                        ? `\\widehat{\\mathbf k}_{${kvSource},i}^I`
+                        : `\\widehat K_{${kvSource}}^I`
+                    }
                     outputWidth="128"
-                    rows="M"
+                    rows={phase === "decode" ? "1" : "M"}
+                    rowIndex="i"
                   />
                 ) : (
                   <div
                     data-index-cache-origin
                     style={{ display: "grid", gap: 8 }}
                   >
-                    <div>
-                      读取 Layer {kvSource} 已生成的索引 Key 缓存；来自该层
-                      Compressor 的{" "}
-                      <MathFormula tex={`\\bar G_{${kvSource}}`} />
-                      ，与全局 <MathFormula tex={`G_{${kvSource}}`} /> 共用行号
-                      i。本层只重算 Q 和 η。
-                    </div>
+                    <CacheReference layer={layer} source={kvSource} kind="K" />
                     <RowMatrix
-                      tex={`K_{${kvSource}}^{I\\prime}`}
+                      tex={`K_{${layer}}^{I\\prime}`}
                       shape="M\times128"
                       rows={[
                         "\\mathbf k_1",
@@ -6628,8 +6468,46 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                       ? "索引 Q / K 按 32 个元素一组 FP4 量化；K 写入源层缓存"
                       : "本层 Q 按 32 个元素一组 FP4 量化；K 读取源层缓存"}
                   </FlowStep>
+                  {mode === "full" && phase === "decode" && (
+                    <div
+                      data-index-key-append
+                      style={{
+                        display: "grid",
+                        justifyItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                        }}
+                      >
+                        <RowMatrix
+                          tex={`(K_{${layer}}^{I\\prime})^{<t}`}
+                          shape="M_{old}\times128"
+                          rows={[
+                            "\\mathbf k_1",
+                            "\\mathbf k_2",
+                            "\\vdots",
+                            "\\mathbf k_{M_{old}}",
+                          ]}
+                        />
+                        <span>末尾追加</span>
+                        <Box tone="amber">
+                          <MathFormula
+                            tex={`\\mathbf k_{${layer},i}^{I\\prime}\\quad1\\times128`}
+                          />
+                          <div>本步新行（若有）</div>
+                        </Box>
+                      </div>
+                      <span>旧行原样保留 · 与 G 同步增长</span>
+                      <Operator tex="\downarrow" />
+                    </div>
+                  )}
                   <RowMatrix
-                    tex={`K_{${kvSource}}^{I\\prime}`}
+                    tex={`K_{${layer}}^{I\\prime}`}
                     shape="M\times128"
                     rows={[
                       "\\mathbf k_1",
@@ -6644,16 +6522,15 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   />
                 </div>
               </div>
-              <IndexScoreProcess layer={layer} kvSource={kvSource}>
+              <IndexScoreProcess layer={layer} kvSource={layer}>
                 {layer >= CANDIDATE_SOURCE && <CandidateFilter layer={layer} />}
-                <IndexSelection indexSource={indexSource} kvSource={kvSource} />
+                <IndexSelection indexSource={layer} kvSource={kvSource} />
               </IndexScoreProcess>
+              <CacheOutputScope layer={layer} kind="I" />
             </>
           ) : (
             <div data-index-reuse style={{ display: "grid", gap: 7 }}>
-              <strong>
-                读取 Layer {indexSource} 已选好的行号 · 与源层共用索引结果
-              </strong>
+              <CacheReference layer={layer} source={indexSource} kind="I" />
               {(phase === "prefill"
                 ? ["1", "2", "\\vdots", "t", "\\vdots", "N"]
                 : ["t"]
@@ -6663,10 +6540,10 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 ) : (
                   <VectorStrip
                     key={i}
-                    name={`I_{${indexSource},${s}}`}
+                    name={`I_{${layer},${s}}`}
                     contentWidth
-                    length={`K_{${indexSource},${s}}`}
-                    elementTex={(j) => `i_{${indexSource},${s},${j}}`}
+                    length={`K_{${layer},${s}}`}
+                    elementTex={(j) => `i_{${layer},${s},${j}}`}
                     tone="amber"
                   />
                 ),
@@ -6674,15 +6551,12 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               <FlowStep>同一组行号送往下方全局 KV 取行</FlowStep>
             </div>
           )}
-          <LayerCacheExample layer={layer} phase={phase} part="index" />
         </div>
       </div>
     );
   }
 
   if (kind === "global-select") {
-    const kvSource = globalKvSourceLayer(layer)!;
-    const indexSource = globalIndexSourceLayer(layer)!;
     return (
       <div
         style={{
@@ -6710,9 +6584,9 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           style={handle}
         />
         <Title>
-          把 <MathFormula tex={`I_{${indexSource},t}`} /> 中的{" "}
-          <MathFormula tex={`K_{${indexSource},t}\\le512`} /> 个行号，在{" "}
-          <MathFormula tex={`G_{${kvSource}}\\in\\mathbb{R}^{M\\times512}`} />{" "}
+          把 <MathFormula tex={`I_{${layer},t}`} /> 中的{" "}
+          <MathFormula tex={`K_{${layer},t}\\le512`} /> 个行号，在{" "}
+          <MathFormula tex={`G_{${layer}}\\in\\mathbb{R}^{M\\times512}`} />{" "}
           中逐行高亮
         </Title>
         <div
@@ -6725,13 +6599,13 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             minWidth: 0,
           }}
         >
-          <SelectedGlobalRows kvSource={kvSource} indexSource={indexSource} />
+          <SelectedGlobalRows kvSource={layer} indexSource={layer} />
           <Arrow />
           <div style={{ minWidth: 0, display: "grid", gap: 9 }}>
             <Box tone="green">
-              <MathFormula tex={`G_{${kvSource},t}^{\\mathrm{selected}}`} />
+              <MathFormula tex={`G_{${layer},t}^{\\mathrm{selected}}`} />
               <span style={{ display: "block", fontSize: 10 }}>
-                <MathFormula tex={`K_{${indexSource},t}\\times512`} />
+                <MathFormula tex={`K_{${layer},t}\\times512`} />
               </span>
             </Box>
             {/* [OM-FREEPLAY] 3、7、12 是说明索引与行向量对应关系的示例行号。 */}
@@ -6755,10 +6629,10 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 {[3, 7, 12].map((row) => (
                   <VectorStrip
                     key={row}
-                    name={`\\mathbf g_{${kvSource},${row}}`}
+                    name={`\\mathbf g_{${layer},${row}}`}
                     length="512"
                     nameWidth={42}
-                    elementTex={(column) => `g_{${kvSource},${row},${column}}`}
+                    elementTex={(column) => `g_{${layer},${row},${column}}`}
                     tone="green"
                     selected
                     columnSubgrid
@@ -6770,7 +6644,6 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             )}
           </div>
         </div>
-        <LayerCacheExample layer={layer} phase={phase} part="selected" />
       </div>
     );
   }
@@ -6804,7 +6677,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           <Title>SWA-only · 窗口 KV</Title>
           <div style={{ padding: 8 }}>
             <RowMatrix
-              tex={`\\mathrm{KV}_{${layer},t}=U_{${layer},t}^{\\mathrm{SWA}}`}
+              tex={`\\mathrm{KV}_{${layer},t}=U_{${layer},t}`}
               shape="\min(128,t)\times512"
               rows={[
                 `\\mathbf u_{${layer},r}`,
@@ -6829,7 +6702,6 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         }}
       >
         <Title>沿 KV 行维拼接：本地窗口 + 选中的全局行</Title>
-        <LayerCacheExample layer={layer} phase={phase} part="concat" />
         <KvRowConcat
           layer={layer}
           kvSource={kvSource}
@@ -8386,15 +8258,14 @@ export function buildGraph(
   const priorLayersY =
     firstInputY + (contentHeights.get("first-input") ?? tensorHeight) + mainGap;
   const inputY = layer === 1 ? firstInputY : priorLayersY + 120 + mainGap;
-  const sharingHeight = contentHeights.get("cache-sharing") ?? 950;
-  const engramLookupY = Math.max(inputY, sharingHeight + mainGap);
+  const engramLookupY = inputY;
   const engramY =
     engramLookupY +
     Math.max(tensorHeight, contentHeights.get("engram-lookup") ?? 1100) +
     mainGap;
   const preAY = hasEngram(layer)
     ? engramY + (contentHeights.get("engram-inject") ?? 2000) + mainGap
-    : Math.max(inputY + tensorHeight + mainGap, sharingHeight + mainGap);
+    : inputY + tensorHeight + mainGap;
   const mixAHeight = contentHeights.get("hc-mix-a") ?? 900;
   const mixFHeight = contentHeights.get("hc-mix-f") ?? 900;
   // 系数在独立的右侧支路生成，主路归一化不等待旁路卡片的显示高度。
@@ -8473,16 +8344,6 @@ export function buildGraph(
   const add2Y = moeOutputY + 100 + mainGap;
   const outputY = add2Y + add2Height + mainGap;
   const nodes: DiagramNode[] = [
-    node(
-      "cache-sharing",
-      "cache-sharing",
-      layer,
-      mode,
-      2100,
-      0,
-      1320,
-      sharingHeight,
-    ),
     node("tokenizer", "tokenizer", layer, mode, 400, 0, 800, tokenizerHeight),
     node(
       "execution-guide",
@@ -9144,17 +9005,14 @@ export function buildGraph(
       "kv",
       "swa-window",
       phase === "prefill"
-        ? `U_{${layer}}\\in\\mathbb{R}^{N\\times512}`
+        ? `T_{${layer}}\\in\\mathbb{R}^{N\\times512}`
         : `\\mathbf u_{${layer},t}\\in\\mathbb{R}^{1\\times512}`,
       { sourceHandle: "swa", targetHandle: "projected-kv" },
     ),
-    mathEdge(
-      "swa-merge",
-      "swa-result",
-      "kv-merge",
-      `U_{${layer},t}^{\\mathrm{SWA}}`,
-      { sourceHandle: "local-window", targetHandle: "local" },
-    ),
+    mathEdge("swa-merge", "swa-result", "kv-merge", `U_{${layer},t}`, {
+      sourceHandle: "local-window",
+      targetHandle: "local",
+    }),
     mathEdge("merge-heads", "kv-merge", "heads", `\\mathrm{KV}_{${layer},t}`, {
       sourceHandle: "kv",
       targetHandle: "kv",
@@ -9405,7 +9263,6 @@ export function buildGraph(
   }
   if (hasGlobal) {
     const kvSource = globalKvSourceLayer(layer)!;
-    const indexSource = globalIndexSourceLayer(layer)!;
     if (mode === "full")
       edges.push(
         mathEdge("norm-compressor", "norm1", "compressor", `X_{${layer}}`, {
@@ -9436,8 +9293,10 @@ export function buildGraph(
           "compressor",
           "indexer",
           mode === "full"
-            ? `\\bar G_{${kvSource}}`
-            : `K_{${kvSource}}^{I\\prime}\\;\\mathrm{cache}`,
+            ? phase === "decode"
+              ? `\\bar{\\mathbf g}_{${kvSource},i}`
+              : `\\bar G_{${kvSource}}`
+            : `K_{${layer}\\leftarrow${kvSource}}^{I\\prime}`,
           { sourceHandle: "to-indexer", targetHandle: "global-matrix" },
         ),
       );
@@ -9446,30 +9305,24 @@ export function buildGraph(
         "indexer-matrix",
         "compressor",
         "global-select",
-        `G_{${kvSource}}`,
+        `G_{${layer}}`,
         { sourceHandle: "global-kv-out", targetHandle: "matrix" },
       ),
     );
     edges.push(
-      mathEdge(
-        "indexer-select",
-        "indexer",
-        "global-select",
-        `I_{${indexSource},t}`,
-        {
-          sourceHandle: "indices",
-          targetHandle: "indices",
-          style: { stroke: COLORS.amber, strokeWidth: 2.2 },
-          markerEnd: architectureArrowMarker(COLORS.amber),
-        },
-      ),
+      mathEdge("indexer-select", "indexer", "global-select", `I_{${layer},t}`, {
+        sourceHandle: "indices",
+        targetHandle: "indices",
+        style: { stroke: COLORS.amber, strokeWidth: 2.2 },
+        markerEnd: architectureArrowMarker(COLORS.amber),
+      }),
     );
     edges.push(
       mathEdge(
         "select-merge",
         "global-select",
         "kv-merge",
-        `G_{${kvSource},t}^{\\mathrm{selected}}`,
+        `G_{${layer},t}^{\\mathrm{selected}}`,
         { sourceHandle: "selected", targetHandle: "global" },
       ),
     );
@@ -10381,7 +10234,6 @@ function DiagramCanvas({
             {[
               ["tokenizer", "输入与分词"],
               ["execution-guide", "Prefill / Decode 视角"],
-              ["cache-sharing", "40 层缓存共享 · G 与 ID 来源"],
               ["embedding", "Embedding 查表"],
               ["hc-expand", "首层四路初始化"],
               ["input", "四路残差输入"],
@@ -10854,8 +10706,8 @@ export const DeepSeekV41Layer: React.FC<Props> = ({ initialLayer = 1 }) => {
               style={{ fontSize: 12, color: COLORS.green }}
             >
               {phase === "decode"
-                ? "本页各缓存模块已展开 token 1201、1202 实例；定位 Indexer 查看筛选与复用"
-                : "切换 Decode，可在本页各缓存模块查看 token 1201、1202 实例"}
+                ? "本层路径已展开；局部窗口用 token 129 示意淘汰，独立缓存章节保留两步筛选例"
+                : "本批 KV 为 T，局部窗口为 U；切换 Decode 查看追加与淘汰"}
             </span>
           )}
         </div>
@@ -10905,7 +10757,7 @@ export const DeepSeekV41Layer: React.FC<Props> = ({ initialLayer = 1 }) => {
           data-layer-cache-source
           style={{ marginTop: 7, fontSize: 13, color: COLORS.green }}
         >
-          {cacheSourceSummary(layer)}。完整区间见“定位模块 → 40 层缓存共享”。
+          {cacheSourceSummary(layer)}。来源在本层入口定义，后续沿用本层别名。
         </div>
       </div>
       <div style={{ position: "relative", flex: 1, minHeight: 0 }}>

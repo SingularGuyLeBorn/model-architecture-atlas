@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   CACHE_STEPS,
   cacheDecodeRecipe,
-  LayerCacheExample,
 } from "../src/components/CacheDecodeExample";
 import { exportFileName, unionBounds } from "../src/components/diagram-svg";
 import { models, rawConfigs } from "../src/data/models";
@@ -11,46 +10,6 @@ import { recipeFor } from "../src/templates/recipes";
 import { explainModule } from "../src/components/ModuleInspector";
 
 describe("第 1201、1202 个 token 的缓存契约", () => {
-  it("逐层主图直接展开同一例子：Full 评分，Reuse 读取同一组 ID", () => {
-    for (const step of CACHE_STEPS) {
-      const full = renderToStaticMarkup(
-        <LayerCacheExample layer={3} phase="decode" part="index" />,
-      );
-      const reuse = renderToStaticMarkup(
-        <LayerCacheExample layer={4} phase="decode" part="index" />,
-      );
-      expect(full).toContain(`data-selected-ids="${step.ids.join(",")}"`);
-      expect(reuse).toContain(`data-reused-ids="${step.ids.join(",")}"`);
-      expect(reuse).not.toContain("data-rank=");
-    }
-    for (const layer of [3, 4]) {
-      for (const part of [
-        "local",
-        "global",
-        "index",
-        "selected",
-        "concat",
-      ] as const) {
-        const html = renderToStaticMarkup(
-          <LayerCacheExample layer={layer} phase="decode" part={part} />,
-        );
-        expect(html).toContain('data-layer-cache-token="1201"');
-        expect(html).toContain('data-layer-cache-token="1202"');
-        expect(html).not.toContain("katex-error");
-        expect(html).not.toContain("÷");
-        expect(
-          renderToStaticMarkup(
-            <LayerCacheExample layer={layer} phase="prefill" part={part} />,
-          ),
-        ).toBe("");
-      }
-    }
-    expect(
-      renderToStaticMarkup(
-        <LayerCacheExample layer={9} phase="decode" part="index" />,
-      ),
-    ).toBe("");
-  });
   it("窗口淘汰、分组完成和可见候选数量对齐官方配置", () => {
     const config = rawConfigs.v41.text_config;
     expect(config.kv_source_layer_ids).toContain(2);
@@ -123,7 +82,7 @@ describe("第 1201、1202 个 token 的缓存契约", () => {
       );
       expect(html).toContain("u_{4," + t + "}");
       expect(html).toContain("I_{3," + t + "}");
-      expect(html).not.toContain("W_{4}^{KV,c}");
+      expect(html).not.toContain("W_{4}^{KV,G}");
     }
     const pending = recipe.links.find(
       (l) => l.source === "global1201" && l.target === "global1202",
@@ -186,7 +145,7 @@ describe("第 1201、1202 个 token 的缓存契约", () => {
         phase: "decode",
       }).paragraphs.join("");
     expect(explain(3)).toContain("等第 1202 个 token");
-    expect(explain(4)).toContain("不生成 G₄");
+    expect(explain(4)).toContain("不生成独立 G₄");
     expect(explain(4)).toContain("同一 token");
     expect(explain(5)).not.toContain("固定例子 t=1201");
   });

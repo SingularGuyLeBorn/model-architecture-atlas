@@ -18,12 +18,12 @@ export function KvRowConcat({
   globalPort?: ReactNode;
   outputPort?: ReactNode;
 }) {
-  const k = `K_{${indexSource},t}`;
+  const k = `K_{${layer},t}`;
   const localRows = ["r", "r+1", null, "t"].map((r) =>
     r === null ? null : `\\mathbf u_{${layer},${r}}`,
   );
   const globalRows = ["1", "2", null, k].map((j) =>
-    j === null ? null : `\\mathbf g_{${kvSource},i_{${indexSource},t,${j}}}`,
+    j === null ? null : `\\mathbf g_{${layer},i_{${layer},t,${j}}}`,
   );
   const frame: CSSProperties = {
     position: "relative",
@@ -101,7 +101,12 @@ export function KvRowConcat({
     </div>
   );
   return (
-    <section data-kv-row-concat style={{ padding: 14, fontSize: 14 }}>
+    <section
+      data-kv-row-concat
+      data-kv-source={kvSource}
+      data-id-source={indexSource}
+      style={{ padding: 14, fontSize: 14 }}
+    >
       <div style={{ marginBottom: 12 }}>
         固定当前查询位置 t：
         <MathFormula tex={"m_t=\\min(128,t),\\quad r=\\max(1,t-127)"} />。
@@ -116,10 +121,7 @@ export function KvRowConcat({
       >
         <div data-concat-local style={frame}>
           {localPort}
-          <TensorHeading
-            name={`U_{${layer},t}^{\\mathrm{SWA}}`}
-            shape={"m_t\\times512"}
-          />
+          <TensorHeading name={`U_{${layer},t}`} shape={"m_t\\times512"} />
           <div>本地窗口 · 按 token 位置 r 到 t 排列</div>
           {rows(localRows, ["1", "2", "", "m_t"], "local-input")}
         </div>
@@ -166,12 +168,11 @@ export function KvRowConcat({
         <div data-concat-global style={frame}>
           {globalPort}
           <TensorHeading
-            name={`G_{${kvSource},t}^{\\mathrm{selected}}`}
+            name={`G_{${layer},t}^{\\mathrm{selected}}`}
             shape={`${k}\\times512`}
           />
           <div>
-            按已排序的选中行号 <MathFormula tex={`i_{${indexSource},t,j}`} />{" "}
-            取出的行
+            按已排序的选中行号 <MathFormula tex={`i_{${layer},t,j}`} /> 取出的行
           </div>
           {rows(globalRows, ["1", "2", "", k], "global-input")}
         </div>
@@ -189,7 +190,7 @@ export function KvRowConcat({
           tex={`(\\mathrm{KV}_{${layer},t})_{j,d}=u_{${layer},r+j-1,d},\\quad 1\\le j\\le m_t`}
         />
         <MathFormula
-          tex={`(\\mathrm{KV}_{${layer},t})_{m_t+j,d}=g_{${kvSource},i_{${indexSource},t,j},d},\\quad 1\\le j\\le ${k},\\quad d=1,\\ldots,512`}
+          tex={`(\\mathrm{KV}_{${layer},t})_{m_t+j,d}=g_{${layer},i_{${layer},t,j},d},\\quad 1\\le j\\le ${k},\\quad d=1,\\ldots,512`}
         />
         <div>
           两段内展示首、次、末行，中间行由省略号表示；实际行数不足时按实际数量排列。

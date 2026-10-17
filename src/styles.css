@@ -13,41 +13,6 @@
 .cache-structure {
   min-width: 0;
 }
-.layer-cache-detail {
-  display: block;
-  margin: 16px 10px;
-  padding-top: 14px;
-  border-top: 2px solid #b6cfc6;
-  font-size: 16px;
-  line-height: 1.5;
-}
-.layer-cache-detail > header > strong {
-  font-size: 22px;
-}
-.layer-cache-detail > header > p {
-  margin: 8px 0 16px;
-}
-.layer-cache-steps {
-  display: grid;
-  align-items: start;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 780px), 1fr));
-  gap: 18px;
-}
-.layer-cache-step {
-  border: 1px solid #b6cfc6;
-  border-radius: 10px;
-  padding: 14px;
-  container-type: inline-size;
-}
-.layer-cache-step > h3 {
-  margin: 0 0 14px;
-  font-size: 22px;
-}
-@container (max-width: 700px) {
-  .layer-cache-step .cache-projections {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
 .cache-structure h4 {
   font-size: 20px;
   margin: 12px 0;

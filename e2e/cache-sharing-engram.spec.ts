@@ -42,49 +42,7 @@ test("逐层主图的完整共享区间、Engram 收益及旁注可读且无溢�
       cacheSourceSummary(layer),
     );
   }
-  for (const layer of [8, 26, 40]) {
-    await page
-      .getByRole("button", { name: String(layer), exact: true })
-      .click();
-    await focus.selectOption("cache-sharing");
-    await canvasSettled(page);
-    const map = page.locator("[data-cache-sharing-map]");
-    const mapHeight = await map.evaluate(
-      (el) => (el as HTMLElement).offsetHeight,
-    );
-    await page.setViewportSize({
-      width: 2200,
-      height: Math.ceil(mapHeight + 650),
-    });
-    await focus.selectOption("cache-sharing");
-    await canvasSettled(page);
-    await expect(map).toBeVisible();
-    await expect(map.locator("[data-sharing-g]")).toHaveCount(4);
-    await expect(map.locator("[data-sharing-index]")).toHaveCount(8);
-    await expect(map.locator("[data-sharing-consumer]")).toHaveCount(30);
-    await expect(map.locator("[data-reindex-branch]")).toHaveCount(4);
-    await expect(map).toContainText("16384");
-    await expect(map.locator("[data-active-sharing]")).toContainText(
-      `第 ${layer} 层`,
-    );
-    await expect
-      .poll(() =>
-        map
-          .locator("div,td,strong")
-          .evaluateAll((els) =>
-            els
-              .filter(
-                (el) =>
-                  el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 2,
-              )
-              .map((el) => el.textContent?.slice(0, 50)),
-          ),
-      )
-      .toEqual([]);
-    await expect(map.locator(".katex-error")).toHaveCount(0);
-    await map.screenshot({ path: `artifacts/sharing-layer${layer}.png` });
-    await page.setViewportSize({ width: 2200, height: 1700 });
-  }
+  await expect(page.locator("[data-cache-sharing-map]")).toHaveCount(0);
   for (const layer of [2, 15]) {
     await page
       .getByRole("button", { name: String(layer), exact: true })
@@ -202,7 +160,11 @@ test("Full 与四个 Reindex 的真实选行节点显式应用共享候选，旁
         "data-candidate-filter",
         String(layer),
       );
-      await expect(filter).toContainText("B₂₁,t");
+      if (layer === 21) await expect(filter).toContainText("B₂₁,t");
+      else
+        await expect(
+          filter.locator('[data-cache-reference="B"]'),
+        ).toHaveAttribute("data-reference-source", "21");
       await expect(node.locator(".katex-error")).toHaveCount(0);
       await expect
         .poll(() =>
@@ -228,13 +190,7 @@ test("Full 与四个 Reindex 的真实选行节点显式应用共享候选，旁
       });
     }
   }
-  await page
-    .getByRole("combobox", { name: "定位模块" })
-    .selectOption("cache-sharing");
-  await canvasSettled(page);
-  const example = page.locator("[data-reindex-candidates]");
-  await example.screenshot({ path: "artifacts/reindex-shared-example.png" });
-  await example.locator("> strong").click();
+  await page.locator("[data-candidate-filter] > strong").click();
   await expect(page.getByLabel("模块解释", { exact: true })).toContainText(
     "同一份候选掩码",
   );

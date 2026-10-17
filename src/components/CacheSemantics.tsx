@@ -48,6 +48,28 @@ export function cacheSourceSummary(layer: number) {
   return `第 ${layer} 层 ${p.mode}：G 来自第 ${p.kv} 层（供 ${p.kv}–${kvEnd} 层）；ID 来自第 ${p.index} 层（供 ${p.index}–${indexEnd} 层）；U 始终本层计算`;
 }
 
+export function CacheOutputScope({
+  layer,
+  kind,
+}: {
+  layer: number;
+  kind: "G" | "I";
+}) {
+  const spans = cacheSharingSegments().filter(
+    (s) => (kind === "G" ? s.kv : s.index) === layer,
+  );
+  if (!spans.length) return null;
+  return (
+    <div
+      data-cache-output-scope={kind}
+      style={{ fontSize: 13, textAlign: "center" }}
+    >
+      <M tex={kind === "G" ? `G_{${layer}}` : `I_{${layer},t}`} /> → 第 {layer}–
+      {spans.at(-1)!.end} 层共用{kind === "I" ? "本 token 行号" : "全局缓存"}
+    </div>
+  );
+}
+
 export function CacheSharingMap({ layer }: { layer: number }) {
   const segments = cacheSharingSegments();
   const owners = [...new Set(segments.map((s) => s.kv))];
@@ -223,15 +245,17 @@ export function cacheExplanation(layer: number) {
   const p = cachePolicy(layer);
   return [
     REINDEX_EXPLANATION,
-    `U 是本层逐 token 的 KV 表示；Decode 只缓存最近最多 128 行，称为本层 SWA 局部窗口缓存。$X_{${layer}}$ 乘本层独立参数 $W_{${layer}}^{KV,\\mathrm{SWA}}$，再经 RMSNorm、RoPE 生成 U。每种模式都为当前 token 新算本地 KV，历史窗口行直接读取；窗口满后覆盖最旧行。`,
+    `T 是本批新算的本地 KV 矩阵，行向量记为 u；U 只表示当前局部窗口缓存，最多 128 行。$X_{${layer}}$ 乘本层独立参数 $W_{${layer}}^{KV,\\mathrm{SWA}}$，再经 RMSNorm、RoPE 生成当前新行，按时间顺序写入 U。每种模式都为当前 token 新算本地 KV，历史窗口行直接读取；窗口满后覆盖最旧行。`,
+    "本层的 U 与选中 G 行沿行拼成 KV，主 Query 对拼接后的全部行做 Attention 打分与 Value 加权。Indexer 只给 G 的行打分，不筛选 U。第 1、2 层没有 G，也没有 Indexer；它们的 Attention 仅使用本层 U，U 始终表示局部窗口。第 3–20 层的 G 每两个 token 合成一行；第 21–40 层读第 21 层比例 1 的 G，每个 token 一行，但仍只选最多 512 个全局行。都不等于读取每层所有原始历史 KV。",
+    "t=129 的窗口图把 token 1 的本层 KV 变灰，表示已退出有效 U；token 2–128 直接保留，当前 token 129 新算一行并追加，括号内恰好 128 行。灰行只是淘汰示意，实际窗口不持久保留全部旧行。退出 U 不代表对应信息从 G 或当前隐藏状态中也被删除；后续 token 不再经本层局部窗口直接读取该原始 KV。",
     "G 是全局分支 KV 缓存：全局表示可覆盖局部窗口之外的因果历史，只在指定层间共享，压缩表示会损失部分原始信息。只有 Full 来源层独立生成 G；指定后续层读取同一对象。压缩比 2 时由候选内容与 gate 权重逐列合并两行，比例 1 时仅投影和归一化、不做行池化；随后主分支做 RoPE 并存储。",
     p.mode === "SWA-only"
       ? `第 ${layer} 层是 SWA-only：只有自己的 U，没有 G 分支。`
-      : `第 ${layer} 层是 ${p.mode}：${p.mode === "Full" ? `维护自己的 $G_{${p.kv}}$，生成当前新增的全局行并计算本次选行结果` : `读取来源 Full 层的 $G_{${p.kv}}$，不生成独立的 $G_{${layer}}$；${p.mode === "Reindex" ? `读取源层索引 Key，用当前层输入重新打分，生成 $I_{${layer},t}$` : `同时沿用第 ${p.index} 层为当前 token 算出的 $I_{${p.index},t}$`}`}。主 Query、局部 KV、Attention 权重与输出仍由本层计算。`,
+      : `第 ${layer} 层是 ${p.mode}：${p.mode === "Full" ? `维护自己的 $G_{${p.kv}}$，生成当前新增的全局行并计算本次选行结果` : `读取来源 Full 层的 $G_{${p.kv}}$，定义本层引用别名 $G_{${layer}\\leftarrow${p.kv}}:=G_{${p.kv}}$，随后简写为 $G_{${layer}}$；没有独立的本层全局参数或新存储；${p.mode === "Reindex" ? `读取源层索引 Key，用当前层输入重新打分，生成 $I_{${layer},t}$` : `同时沿用第 ${p.index} 层为当前 token 算出的 $I_{${p.index},t}$`}`}。主 Query、局部 KV、Attention 权重与输出仍由本层计算。`,
     "Full 不跨层借用别人的 G，但同样沿 token 复用自己的历史 G。Decode 保留旧行，只计算当前 token 的候选；组完成才追加新行，未完成只暂存，不重算全部历史。Full 表示完整全局生成与索引路径，仍按稀疏选行读取。Prefill 则为输入序列建立缓存并应用因果可见性。",
     "G 的来源与选行结果的来源分开追踪：第 3、9、15、21 层生成 G；第 25、29、33、37 层只重新选行，不生成新 G。后续 Reuse 读取最近来源 Full 的 G 和最近索引来源的行号。G、U 是 KV 表示；索引 Key、Top-K 行号及压缩暂存是不同对象。",
     cacheSourceSummary(layer) +
-      "。主图的“40 层缓存共享”按完整共享区间列出每个消费者，不仅展示第 3、4 层。第 21–40 层一直读取 G₂₁；第 25、29、33、37 层分别更新选行 ID，其后 Reuse 层沿用最近一组 ID。切换到新 Full 不会销毁前一个 Full 留给下一 token 的历史缓存。",
+      "。各层真实入口定义来源别名，出口标明共享范围，不再在主图另外放全层共享大块。第 21–40 层一直读取 G₂₁；第 25、29、33、37 层分别更新选行 ID，其后 Reuse 层沿用最近一组 ID。切换到新 Full 不会销毁前一个 Full 留给下一 token 的历史缓存。",
   ];
 }
 

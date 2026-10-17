@@ -43,13 +43,13 @@ describe("KV 行拼接保留来源和行位置", () => {
     );
     expect(tex).toContain("m_t=\\min(128,t),\\quad r=\\max(1,t-127)");
     expect(tex).toContain("m_t\\times512");
-    expect(tex).toContain(`L_t=m_t+K_{${indexSource},t}`);
-    expect(tex).toContain(`\\mathbf g_{${kvSource},i_{${indexSource},t,1}}`);
+    expect(tex).toContain(`L_t=m_t+K_{${layer},t}`);
+    expect(tex).toContain(`\\mathbf g_{${layer},i_{${layer},t,1}}`);
     expect(tex).toContain(
       `(\\mathrm{KV}_{${layer},t})_{j,d}=u_{${layer},r+j-1,d},\\quad 1\\le j\\le m_t`,
     );
     expect(tex).toContain(
-      `(\\mathrm{KV}_{${layer},t})_{m_t+j,d}=g_{${kvSource},i_{${indexSource},t,j},d},\\quad 1\\le j\\le K_{${indexSource},t},\\quad d=1,\\ldots,512`,
+      `(\\mathrm{KV}_{${layer},t})_{m_t+j,d}=g_{${layer},i_{${layer},t,j},d},\\quad 1\\le j\\le K_{${layer},t},\\quad d=1,\\ldots,512`,
     );
     expect(root.textContent).not.toContain("÷");
   });

@@ -1,84 +1,153 @@
-import { test, expect } from "@playwright/test";
-import { CACHE_STEPS } from "../src/components/CacheDecodeExample";
+import { test, expect, type Page, type Locator } from "@playwright/test";
 
-test("原逐层 URL 直接显示两步缓存实例，Full 与 Reuse 的 ID 一致", async ({
+async function settled(page: Page) {
+  let prior = "",
+    n = 0;
+  await expect
+    .poll(
+      async () => {
+        const value = await page
+          .locator(".react-flow__viewport")
+          .getAttribute("style");
+        n = value === prior ? n + 1 : 0;
+        prior = value ?? "";
+        return n;
+      },
+      { intervals: [100, 150, 200] },
+    )
+    .toBeGreaterThanOrEqual(3);
+}
+async function noOverflow(node: Locator) {
+  await expect(node.locator(".katex-error")).toHaveCount(0);
+  await expect
+    .poll(() =>
+      node.locator("div,section").evaluateAll((els) =>
+        els
+          .filter(
+            (el) =>
+              el.clientWidth > 0 &&
+              !el.classList.contains("react-flow__handle") &&
+              !el.hasAttribute("data-boundary-connectable") &&
+              // 端口圆心在边界上，命中区有意越过外框；检查其余真实内容子框。
+              !Array.from(el.children).some((child) =>
+                child.classList.contains("react-flow__handle"),
+              ) &&
+              el.scrollWidth > el.clientWidth + 2,
+          )
+          .filter((el) => {
+            const bounds = el.getBoundingClientRect();
+            const tolerance = (bounds.width / el.clientWidth) * 2;
+            // scrollWidth 还会计入后代端口的命中区；只把实际内容越界判为溢出。
+            return Array.from(el.querySelectorAll("div,section,p,span")).some(
+              (child) =>
+                !child.closest(".react-flow__handle") &&
+                child.getBoundingClientRect().right > bounds.right + tolerance,
+            );
+          })
+          .map((el) => ({
+            tag: el.tagName,
+            class: el.className,
+            width: el.clientWidth,
+            scroll: el.scrollWidth,
+            text: el.textContent?.slice(0, 60),
+          })),
+      ),
+    )
+    .toEqual([]);
+}
+test("逐层实际入口定义别名，窗口淘汰、取行与 Attention 连续可读", async ({
   page,
 }) => {
-  test.setTimeout(180000);
+  test.setTimeout(300000);
   const errors: string[] = [];
-  page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
-  });
+  page.on("pageerror", (e) => errors.push(e.message));
   await page.setViewportSize({ width: 2200, height: 1800 });
   await page.goto("/?revision=inspector-prose#model=v41&chapter=layer");
   await page.getByRole("button", { name: "收起左栏", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Decode · 单步一行", exact: true })
+    .click();
   const focus = page.getByRole("combobox", { name: "定位模块" });
-  for (const layer of [3, 4]) {
+  for (const layer of [1, 2, 3, 4, 21, 25, 26, 40]) {
     await page
       .getByRole("button", { name: String(layer), exact: true })
       .click();
-    await page
-      .getByRole("button", { name: "Decode · 单步一行", exact: true })
-      .click();
-    await expect(page.locator("[data-inline-cache-hint]")).toContainText(
-      "本页各缓存模块已展开",
-    );
-    for (const [id, part] of [
-      ["kv", "local"],
-      ["compressor", "global"],
-      ["indexer", "index"],
-      ["global-select", "selected"],
-      ["kv-merge", "concat"],
+    await expect(page.locator('[data-id="cache-sharing"]')).toHaveCount(0);
+    for (const id of [
+      "swa-window",
+      ...(layer > 2 ? ["compressor", "indexer", "global-select"] : []),
+      "kv-merge",
     ]) {
       await focus.selectOption(id);
-      const node = page.locator(`.react-flow__node[data-id="${id}"]`);
-      const example = node.locator(`[data-layer-cache-example="${part}"]`);
-      await expect(example).toHaveCount(1);
-      await expect(example.locator("[data-layer-cache-token]")).toHaveCount(2);
-      await expect(node.locator(".katex-error")).toHaveCount(0);
-      await expect
-        .poll(() =>
-          example.locator("div,section,td").evaluateAll((items) =>
-            items
-              .filter(
-                (el) =>
-                  el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 2,
-              )
-              .map((el) => ({
-                text: el.textContent?.slice(0, 70),
-                width: el.clientWidth,
-                scroll: el.scrollWidth,
-              })),
-          ),
-        )
-        .toEqual([]);
-      if (id === "indexer") {
-        for (const step of CACHE_STEPS) {
-          const block = example.locator(
-            `[data-layer-cache-token="${step.token}"]`,
-          );
+      await settled(page);
+      const node = page.locator('.react-flow__node[data-id="' + id + '"]');
+      await expect(node).toBeVisible();
+      if (id === "swa-window") {
+        await expect(node.locator('[data-window-token="1"]')).toHaveAttribute(
+          "data-window-state",
+          "old",
+        );
+        await expect(node.locator('[data-window-token="129"]')).toHaveAttribute(
+          "data-window-state",
+          "new",
+        );
+        await expect(node.locator("[data-window-bracket]")).toContainText(
+          "128 行",
+        );
+        await expect(node.locator("[data-ring-cache]")).toHaveCount(0);
+      }
+      if (id === "compressor") {
+        if ([3, 21].includes(layer)) {
           await expect(
-            block.locator(
-              layer === 3 ? "[data-selected-ids]" : "[data-reused-ids]",
-            ),
-          ).toHaveAttribute(
-            layer === 3 ? "data-selected-ids" : "data-reused-ids",
-            step.ids.join(","),
-          );
-          if (layer === 3) {
-            await expect(block.locator('[data-rank="512"]')).toHaveAttribute(
-              "data-selected",
-              "true",
-            );
-            await expect(block.locator('[data-rank="513"]')).toHaveAttribute(
-              "data-selected",
-              "false",
-            );
-          }
+            node.locator("[data-compressor-projections]"),
+          ).toHaveCount(1);
+          await expect(
+            node.locator("[data-projection-weight]").first(),
+          ).toContainText("KV,G");
+        } else {
+          await expect(
+            node.locator('[data-cache-reference="G"]'),
+          ).toHaveAttribute("data-reference-source", layer === 4 ? "3" : "21");
+          await expect(
+            node.locator("[data-compressor-projections]"),
+          ).toHaveCount(0);
         }
       }
-      // 截图直接来自用户指定的逐层页；放大视口容纳整框，不改变图内尺寸。
+      if (id === "indexer") {
+        if ([4, 26, 40].includes(layer)) {
+          await expect(
+            node.locator('[data-cache-reference="I"]'),
+          ).toHaveAttribute(
+            "data-reference-source",
+            layer === 4 ? "3" : layer === 26 ? "25" : "37",
+          );
+          await expect(node.locator("[data-index-projections]")).toHaveCount(0);
+        } else {
+          await expect(node.locator("[data-index-projections]")).toHaveCount(1);
+          if ([3, 21].includes(layer)) {
+            const keyProjection = node.locator(
+              '[data-index-projection="压缩潜向量 → 索引 Key"]',
+            );
+            await expect(keyProjection).toContainText("旧 Key 直接保留");
+            await expect(
+              keyProjection.locator('[aria-label="1\\\\times512"]'),
+            ).toHaveCount(1);
+            await expect(node.locator("[data-index-key-append]")).toContainText(
+              "旧行原样保留",
+            );
+            const keyFormulas = await node
+              .locator("[data-index-key-append] annotation")
+              .allTextContents();
+            expect(keyFormulas).toContain("M_{old}\\times128");
+            expect(keyFormulas).toContain("\\downarrow");
+          }
+          await expect(node.locator("[data-index-score-axes]")).toContainText(
+            "被评分",
+          );
+        }
+      }
+      await node.screenshot({ path: "artifacts/per-layer-current.png" });
+      await noOverflow(node);
       const height = await node.evaluate(
         (el) => (el as HTMLElement).offsetHeight,
       );
@@ -87,34 +156,51 @@ test("原逐层 URL 直接显示两步缓存实例，Full 与 Reuse 的 ID 一�
         height: Math.ceil(height + 700),
       });
       await focus.selectOption(id);
+      await settled(page);
       await node.screenshot({
-        path: `artifacts/inline-layer${layer}-${id}.png`,
-      });
-      await example.screenshot({
-        path: `artifacts/inline-layer${layer}-${id}-detail.png`,
+        path: "artifacts/per-layer-" + layer + "-" + id + ".png",
       });
       await page.setViewportSize({ width: 2200, height: 1800 });
-      if (id === "indexer") {
-        await focus.selectOption(id);
-        const detailBox = (await example.boundingBox())!;
-        await page.mouse.move(2100, 600);
-        await page.mouse.wheel(0, detailBox.y - 400);
-        await expect(example).toBeInViewport();
-        await page.screenshot({
-          path: `artifacts/inline-layer${layer}-page.png`,
-        });
-      }
-      await expect(page).toHaveURL(
-        /revision=inspector-prose#model=v41&chapter=layer$/,
-      );
     }
-    await page
-      .getByRole("button", { name: "Prefill · 整段矩阵", exact: true })
-      .click();
-    await focus.selectOption("indexer");
-    await expect(
-      page.locator('[data-id="indexer"] [data-layer-cache-example]'),
-    ).toHaveCount(0);
   }
+  for (const phase of ["Prefill · 整段矩阵", "Decode · 单步一行"]) {
+    await page.getByRole("button", { name: phase, exact: true }).click();
+    await page.getByRole("button", { name: "25", exact: true }).click();
+    for (const id of ["kv", "q", "heads"]) {
+      await focus.selectOption(id);
+      await settled(page);
+      const node = page.locator('.react-flow__node[data-id="' + id + '"]');
+      await noOverflow(node);
+      if (id === "kv") {
+        await expect(node.locator("[data-local-cache-meaning]")).toContainText(
+          "T · 本批新算 KV",
+        );
+        await expect(node).toContainText("KV,");
+      }
+      const height = await node.evaluate(
+        (el) => (el as HTMLElement).offsetHeight,
+      );
+      await page.setViewportSize({
+        width: 2200,
+        height: Math.ceil(height + 700),
+      });
+      await focus.selectOption(id);
+      await settled(page);
+      await node.screenshot({
+        path:
+          "artifacts/per-layer-25-" +
+          id +
+          "-" +
+          (phase.startsWith("Decode") ? "decode" : "prefill") +
+          ".png",
+      });
+      await page.setViewportSize({ width: 2200, height: 1800 });
+    }
+  }
+  await page.setViewportSize({ width: 900, height: 1200 });
+  await focus.selectOption("swa-window");
+  await settled(page);
+  await noOverflow(page.locator('.react-flow__node[data-id="swa-window"]'));
+  await page.screenshot({ path: "artifacts/per-layer-narrow.png" });
   expect(errors).toEqual([]);
 });
