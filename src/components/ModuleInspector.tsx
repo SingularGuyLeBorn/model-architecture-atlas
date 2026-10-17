@@ -73,7 +73,7 @@ const TITLES: Record<string, string> = {
   "query-row": "Query · 第 t 行怎样分成 Head",
   "projection-kv": "本层独立 KV · 投影、归一化与位置旋转",
   "swa-window": "SWA · 当前 Query 的因果窗口",
-  "swa-output": "SWA-only · 只读取本地窗口",
+  "swa-output": "局部窗口 · 所选 KV 行组成 U",
   "kv-merge": "KV 拼接 · 本地窗口与选中全局行",
   "global-select": "全局 KV · 用行号取行",
   compressor: "Compressor · 生成共享全局 KV",
@@ -239,6 +239,12 @@ export function explainModule(data: ExplainedModule): ModuleExplanation {
         ? `全局 KV · ${cachePolicy(data.layer).mode} · G 来源第 ${cachePolicy(data.layer).kv} 层`
         : (TITLES[data.kind] ?? data.title ?? "模块内的矩阵与运算"),
     paragraphs: [
+      ...(["swa-window", "swa-output"].includes(data.kind) &&
+      data.phase !== "decode"
+        ? [
+            "Prefill 中，本批每个位置先各自生成一条 u 行，组成矩阵 T。对当前位置 t，r=max(1,t−127)，只取 T 的第 r 到 t 行组成 U；U 内保留原来的 u 行与元素下标。这是多行的集合命名，被选行直接读取。每个 Query 都按自己的位置取因果窗口。",
+          ]
+        : []),
       ...(["kv", "attention", "query"].includes(group ?? "")
         ? [
             "小写粗体 u 表示一个 token 在本层生成的单条 KV 行，形状为 1×512；大写 U 表示多个这样的行组成的窗口矩阵，形状为 min(128,t)×512。U 的每一行保留该行的 u 名称与元素下标，因此新行追加是增加一行数据，没有把单个向量改名成整个矩阵。",

@@ -470,6 +470,7 @@ it("回到已测量层时，先恢复子节点高度再匹配父框几何，避�
     15,
     new Map([
       ["q-rmsnorm", 777],
+      ["swa-result", 300],
       ["norm1", 880],
       ["q-head-1", 300],
       ["q-head-2", 300],
@@ -497,6 +498,9 @@ it("回到已测量层时，先恢复子节点高度再匹配父框几何，避�
   );
   const result = buildMeasuredGraph(15, "prefill", cache);
   expect(result.nodes.every((node) => node.measured)).toBe(true);
+  expect(
+    result.nodes.find((node) => node.id === "swa-window")!.data.swaResultHeight,
+  ).toBe(300);
   expect(
     result.nodes.find((node) => node.id === "q")!.data.queryNormHeight,
   ).toBe(777);

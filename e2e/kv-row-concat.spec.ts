@@ -36,8 +36,17 @@ test("KV 拼接过程、来源、内部端口和下游间距", async ({ page }) 
     const tex = await node
       .locator("[aria-label]")
       .evaluateAll((els) => els.map((el) => el.getAttribute("aria-label")));
-    expect(tex).toContain(`G_{${kvSource},t}^{\\mathrm{selected}}`);
-    expect(tex).toContain(`K_{${indexSource},t}\\times512`);
+    // 图内使用已定义的本层别名；来源由入口与语义属性独立追踪。
+    expect(tex).toContain(`G_{${layer},t}^{\\mathrm{selected}}`);
+    expect(tex).toContain(`K_{${layer},t}\\times512`);
+    await expect(node.locator("[data-kv-row-concat]")).toHaveAttribute(
+      "data-kv-source",
+      String(kvSource),
+    );
+    await expect(node.locator("[data-kv-row-concat]")).toHaveAttribute(
+      "data-id-source",
+      String(indexSource),
+    );
     const overflow = await node
       .locator(
         "[data-kv-row-concat], [data-concat-local], [data-concat-global], [data-concat-output], [data-concat-row]",

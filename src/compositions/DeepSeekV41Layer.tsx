@@ -1,4 +1,6 @@
 import { frameColor } from "../components/diagram-appearance";
+import { VariableSearch } from "../components/VariableSearch";
+import type { VariableLocation } from "../components/variable-search";
 import { CompressorProjections } from "../components/CompressorProjections";
 import {
   CompressorPooling,
@@ -201,6 +203,7 @@ type DiagramData = {
   expertId?: number;
   phase?: ExecutionPhase;
   queryNormHeight?: number;
+  swaResultHeight?: number;
   sublayer?: "A" | "F";
 };
 type DiagramNode = Node<DiagramData>;
@@ -342,6 +345,7 @@ const CONTENT_SIZED_KINDS = new Set<NodeKind>([
   "query-norm",
   "projection-kv",
   "swa-window",
+  "swa-output",
   "heads",
   "kv-merge",
   "concat",
@@ -5622,7 +5626,8 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         style={{
           ...panel,
           height: "auto",
-          paddingBottom: phase === "prefill" ? 112 : 0,
+          paddingBottom:
+            phase === "prefill" ? (data.swaResultHeight ?? 175) + 28 : 0,
           borderColor: frameColor(COLORS.green),
         }}
       >
@@ -5641,6 +5646,12 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             : "Decode：新 KV 写入本层缓存，再读取当前窗口"}
         </Title>
         <div style={{ padding: 10, display: "grid", gap: 8, minWidth: 0 }}>
+          {phase === "prefill" && (
+            <div style={{ fontSize: 11, color: COLORS.green }}>
+              u：本层一条 KV 行；T：本批全部行；U：从 T
+              取出的当前窗口，行内元素不变。
+            </div>
+          )}
           {phase === "decode" ? (
             <SlidingWindowRows
               layer={layer}
@@ -5859,7 +5870,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
         style={{
           ...panel,
           borderColor: frameColor(COLORS.amber),
-          background: COLORS.greenSoft,
+          background: COLORS.card,
           padding: 9,
           display: "grid",
           gap: 6,
@@ -5884,11 +5895,16 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             <MathFormula tex="\min(128,t)\times512" />
           </span>
         </div>
-        <span style={{ fontSize: 11, color: COLORS.green }}>
-          {mode === "swa"
-            ? "本层窗口 → Attention 的 K 和 V"
-            : "窗口 KV · 送往下方 KV 拼接"}
-        </span>
+        <MatrixBracket
+          layer={layer}
+          compact
+          rows={[
+            { row: "r" },
+            { row: "r+1" },
+            { row: "", ellipsis: true },
+            { row: "t" },
+          ]}
+        />
       </div>
     );
   }
@@ -8193,6 +8209,7 @@ export function buildGraph(
     20;
   const localKvProjectionHeight = contentHeights.get("kv") ?? 464;
   const swaHeight = contentHeights.get("swa-window") ?? 530;
+  const swaResultHeight = contentHeights.get("swa-result") ?? 175;
   const compressorHeight =
     contentHeights.get("compressor") ??
     (mode === "full" && compressionRatioForLayer(layer) === 2 ? 720 : 450);
@@ -8540,9 +8557,9 @@ export function buildGraph(
               layer,
               mode,
               10,
-              swaHeight - 100,
+              swaHeight - swaResultHeight - 12,
               (((hasGlobal ? 780 : 900) - 56) * 1.7) / 2.6,
-              82,
+              swaResultHeight,
             ),
             parentId: "swa-window",
             extent: "parent" as const,
@@ -9250,7 +9267,14 @@ export function buildGraph(
     );
   }
   return {
-    nodes: nodes.map((item) => ({ ...item, data: { ...item.data, phase } })),
+    nodes: nodes.map((item) => ({
+      ...item,
+      data: {
+        ...item.data,
+        phase,
+        ...(item.id === "swa-window" ? { swaResultHeight } : {}),
+      },
+    })),
     edges,
   };
 }
@@ -9446,10 +9470,55 @@ export function applySavedLayout(
 function DiagramCanvas({
   layer,
   phase,
+  onLayerChange,
 }: {
   layer: number;
   phase: ExecutionPhase;
+  onLayerChange: (layer: number) => void;
 }) {
+  const [searchTarget, setSearchTarget] = useState<VariableLocation | null>(
+    null,
+  );
+  const searchPositionRef = useRef("");
+  const getSearchEntries = useCallback(() => {
+    const entries: VariableLocation[] = [];
+    for (let index = 1; index <= 40; index++) {
+      const graph = buildGraph(index, new Map(), phase);
+      const byId = new Map(graph.nodes.map((node) => [node.id, node]));
+      const add = (id: string, tex?: string) => {
+        if (!tex) return;
+        let node = byId.get(id);
+        while (node?.parentId) node = byId.get(node.parentId);
+        if (node)
+          entries.push({
+            layer: index,
+            nodeId: node.id,
+            title: explainModule(node.data).title,
+            tex,
+          });
+      };
+      for (const edge of graph.edges) {
+        add(edge.source, edge.data?.labelTex);
+        add(edge.target, edge.data?.labelTex);
+      }
+      for (const node of graph.nodes) {
+        add(node.id, node.data.tex);
+        for (const tex of [
+          ...(node.data.matrixRows ?? []),
+          ...(node.data.vectorCells ?? []),
+          ...(node.data.matrixRowCells?.flat() ?? []),
+        ])
+          add(node.id, tex);
+      }
+      add("kv", `\\mathbf u_{${index},t}`);
+      add("kv", `W_{${index}}^{KV,\\mathrm{SWA}}`);
+      add("swa-window", `T_${index}`);
+      add("swa-window", `U_{${index},t}`);
+      add("kv-merge", `\\mathrm{KV}_{${index},t}`);
+      if (index > 2) add("compressor", `G_${index}`);
+    }
+    return entries;
+  }, [phase]);
   const geometryCache = useContext(GeometryCacheContext)!;
   const initialGraph = useMemo(
     () => buildMeasuredGraph(layer, phase, geometryCache),
@@ -9714,6 +9783,31 @@ function DiagramCanvas({
     .filter((item) => isContentSized(item.data))
     .map((item) => `${item.id}:${item.measured?.height ?? 0}`)
     .join("|");
+  // 定位跟随目标的实测几何；用户开始平移/缩放/拖动后即释放，不覆盖人工操作。
+  useEffect(() => {
+    if (!searchTarget || searchTarget.layer !== layer) return;
+    const target = nodes.find(
+      (node) =>
+        node.id === searchTarget.nodeId &&
+        node.data.layer === layer &&
+        node.data.phase === phase,
+    );
+    const flow = flowRef.current;
+    if (!target || !flow) return;
+    const key = `${layer}:${phase}:${target.id}:${target.position.x}:${target.position.y}`;
+    if (searchPositionRef.current === key) return;
+    searchPositionRef.current = key;
+    flow
+      .setViewport(
+        {
+          x: 30 - target.position.x * 0.8,
+          y: 85 - target.position.y * 0.8,
+          zoom: 0.8,
+        },
+        { duration: 0 },
+      )
+      .catch(() => {});
+  }, [nodes, searchTarget, layer, phase]);
   useEffect(() => {
     const nodes = nodesRef.current;
     const previous = measuredLayoutRef.current;
@@ -9742,10 +9836,20 @@ function DiagramCanvas({
         const heightDelta =
           Number(baseline?.style?.height ?? 0) -
           Number(old?.style?.height ?? 0);
-        if (!delta && !heightDelta) return item;
+        const contentChanged =
+          item.data.swaResultHeight !== baseline?.data.swaResultHeight;
+        if (!delta && !heightDelta && !contentChanged) return item;
         return {
           ...item,
           position: { ...item.position, y: item.position.y + delta },
+          ...(item.id === "swa-window"
+            ? {
+                data: {
+                  ...item.data,
+                  swaResultHeight: baseline?.data.swaResultHeight,
+                },
+              }
+            : {}),
           ...(heightDelta
             ? {
                 style: {
@@ -10136,6 +10240,7 @@ function DiagramCanvas({
             defaultValue=""
             style={editorButton}
             onChange={(event) => {
+              setSearchTarget(null);
               const target = nodesRef.current.find(
                 (node) => node.id === event.target.value,
               );
@@ -10196,6 +10301,14 @@ function DiagramCanvas({
                 </option>
               ))}
           </select>
+          <VariableSearch
+            getEntries={getSearchEntries}
+            onSelect={(entry) => {
+              searchPositionRef.current = "";
+              setSearchTarget(entry);
+              onLayerChange(entry.layer);
+            }}
+          />
           <button
             type="button"
             onClick={saveLayout}
@@ -10304,6 +10417,9 @@ function DiagramCanvas({
               onInit={(instance) => {
                 flowRef.current = instance;
               }}
+              onMoveStart={(event) => {
+                if (event) setSearchTarget(null);
+              }}
               nodes={nodes}
               edges={edges}
               // 内部数据框的连接必须画在分组背景上方，不能被父框遮掉引入段及箭头。
@@ -10365,7 +10481,10 @@ function DiagramCanvas({
                 finishConnection(event);
                 setClickConnectionPreview(null);
               }}
-              onNodeDragStart={beginHistory}
+              onNodeDragStart={() => {
+                setSearchTarget(null);
+                beginHistory();
+              }}
               onNodeClick={(event, node) => {
                 const root = (event.target as Element).closest(
                   ".react-flow__node",
@@ -10686,7 +10805,7 @@ export const DeepSeekV41Layer: React.FC<Props> = ({ initialLayer = 1 }) => {
       </div>
       <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
         <GeometryCacheContext.Provider value={geometryCache}>
-          <DiagramCanvas layer={layer} phase={phase} />
+          <DiagramCanvas layer={layer} phase={phase} onLayerChange={setLayer} />
         </GeometryCacheContext.Provider>
       </div>
     </div>
