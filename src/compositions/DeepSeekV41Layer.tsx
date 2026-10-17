@@ -8121,7 +8121,17 @@ function DiagramNodeView({ id, data, selected }: NodeProps<DiagramNode>) {
   );
 }
 
-const NodeView = memo(DiagramNodeView);
+// 世界坐标由 React Flow 外壳更新；内部内容只依赖数据、选择与尺寸。
+// 可见性和端口几何已有独立 store 订阅，移动/dragging 标记不必再重绘整块内容。
+const NodeView = memo(
+  DiagramNodeView,
+  (a, b) =>
+    a.id === b.id &&
+    a.data === b.data &&
+    a.selected === b.selected &&
+    a.width === b.width &&
+    a.height === b.height,
+);
 const nodeTypes = { diagram: NodeView };
 const edgeTypes = { "editable-orthogonal": EditableOrthogonalEdge };
 

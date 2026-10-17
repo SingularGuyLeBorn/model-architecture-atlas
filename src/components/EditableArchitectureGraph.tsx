@@ -251,7 +251,7 @@ const resizeHandleStyle: CSSProperties = {
   background: "#37685a",
 };
 
-export function EightResizeHandles({
+function EightResizeHandlesView({
   minWidth,
   minHeight,
 }: {
@@ -292,6 +292,9 @@ export function EightResizeHandles({
     </>
   );
 }
+
+// 拖动只改变节点坐标；尺寸约束未变时无需重建八个缩放控件。
+export const EightResizeHandles = memo(EightResizeHandlesView);
 
 function DelayedConnectionPort({
   id,
@@ -363,11 +366,7 @@ function DelayedConnectionPort({
   );
 }
 
-export function EightConnectionPorts({
-  color = "#37685a",
-}: {
-  color?: string;
-}) {
+function EightConnectionPortsView({ color = "#37685a" }: { color?: string }) {
   return (
     <>
       {PORTS.map((port) => (
@@ -382,6 +381,9 @@ export function EightConnectionPorts({
     </>
   );
 }
+
+// 端口仍保留自己的连接状态订阅，父节点移动不重复渲染固定端口样式。
+export const EightConnectionPorts = memo(EightConnectionPortsView);
 
 export function EditableConnectionLine({
   fromX,
