@@ -2,8 +2,8 @@
 
 ## 当前云端站点
 
-- 主站：https://a7126f04.pinme.dev
-- 上次 PinMe 版本：https://697ca74c.pinme.dev（旧链接保留旧版本）
+- 主站：https://32c925b5.pinme.dev
+- 上次 PinMe 版本：https://a7126f04.pinme.dev（旧链接保留旧版本）
 - 旧版备用：https://model-architecture-atlas.justfox32.chatgpt.site（本次未更新）
 - 托管：PinMe 主站、Sites 备用；静态产物目录为 `dist/`。
 - 访问：两个网站均开放匿名访问；GitHub 仓库为公开仓库。
@@ -26,7 +26,7 @@ pinme upload dist
 
 发布者需要登录 PinMe，访问网站的读者不需要登录。凭据过期时重新执行 `pinme login`，不要把 AppKey 写入仓库。以每次上传输出的 URL 为准，不假定后续上传会更新原地址；域名绑定可能涉及余额，需单独确认。
 
-2026-10-17 最新发布的线上产物对应应用源码提交 `3b35f93`：包含二十种语义色、选区描边与净空，以及 Engram 哈希地址→同号双表选行→分块反量化的完整接线。发布核对入口为 `node scripts/verify-published.mjs https://a7126f04.pinme.dev`，检查线上脚本与本机构建一致，再实际操作搜索、Prefill 窗口、KV 拼接、Decode 窗口，以及第 2、15 层两种模式的 Engram 并保存截图。该检查不等于全套浏览器测试或跨运营商可用性验证。
+2026-10-18 最新发布的线上产物对应应用源码提交 `962f49d`：包含压缩乘积向量边框、选行模块溢出修复，以及 mHC 运算符与相邻框的间距调整。发布核对入口为 `node scripts/verify-published.mjs https://32c925b5.pinme.dev`，已确认线上脚本与本机构建一致，并实际操作搜索、Prefill 窗口、KV 拼接、Decode 窗口，以及第 2、15 层两种模式的 Engram 并保存截图。该检查不等于全套浏览器测试或跨运营商可用性验证。发布时 GitHub 基础检查已通过，性能测试仍有失败，浏览器分组尚未全部结束。
 
 大陆不同运营商的可用性尚未完成验证；本机请求成功不代表所有大陆网络均可直连。官方用法见 [PinMe 项目](https://github.com/glitternetwork/pinme)。
 
