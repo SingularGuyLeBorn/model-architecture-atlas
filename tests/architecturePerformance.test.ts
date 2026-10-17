@@ -7,6 +7,7 @@ import {
   pathWithLabelGap,
   planArchitectureRoutes,
   routesForStore,
+  sharedRouteLength,
   type EditableEdge,
 } from "../src/components/EditableArchitectureGraph";
 import {
@@ -324,6 +325,29 @@ describe("架构图增量路由", () => {
             Math.min(a.x, b.x) < 110;
       expect(crosses).toBe(false);
     }
+  });
+  it("另一条线改道占用旧通道时，缓存自动线重新避让而人工线保持原样", () => {
+    const f = fixture();
+    const first = planArchitectureRoutes(f.owner, f.nodes, f.edges, f.getNode);
+    const edges = f.edges.map((edge) =>
+      edge.id === "cd"
+        ? {
+            ...edge,
+            data: {
+              waypoints: [
+                { x: 650, y: 160 },
+                { x: 50, y: 160 },
+                { x: 50, y: 300 },
+                { x: 650, y: 300 },
+              ],
+            },
+          }
+        : edge,
+    );
+    const next = planArchitectureRoutes(f.owner, f.nodes, edges, f.getNode);
+    expect(next.get("ab")).not.toBe(first.get("ab"));
+    expect(sharedRouteLength(next.get("ab")!, next.get("cd")!)).toBe(0);
+    expect(next.get("cd")).toContainEqual({ x: 50, y: 160 });
   });
   it("不同画布的路由缓存隔离", () => {
     const f = fixture();

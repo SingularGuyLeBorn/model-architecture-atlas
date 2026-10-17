@@ -588,6 +588,11 @@ function routeScore(
       if (crossings * 100_000_000 + crowding + complexity >= upperBound)
         return Infinity;
     }
+  }
+  // 端口引入段允许穿出自己的框，但仍须避让其他导线，不能只给框外中段计拥挤成本。
+  for (let index = 0; index < completePoints.length - 1; index += 1) {
+    const start = completePoints[index],
+      end = completePoints[index + 1];
     const horizontal = start.y === end.y;
     for (const segment of reserved) {
       const otherHorizontal = segment.start.y === segment.end.y;
@@ -806,31 +811,45 @@ function defaultOrthogonalPoints(
       channels: number[],
       coordinate: number,
       direction: number,
-    ) =>
-      [...channels]
-        // 先排除会让端口倒车的候选，再取最近通道，避免扩大组合搜索。
-        .filter((value) => !direction || (value - coordinate) * direction >= 0)
-        .sort((a, b) => Math.abs(a - coordinate) - Math.abs(b - coordinate))
-        .slice(0, 4);
+      currentBends: number[],
+    ) => [
+      ...new Set([
+        ...[...channels]
+          // 先排除会让端口倒车的候选，再取最近通道，避免扩大组合搜索。
+          .filter(
+            (value) => !direction || (value - coordinate) * direction >= 0,
+          )
+          .sort((a, b) => Math.abs(a - coordinate) - Math.abs(b - coordinate))
+          .slice(0, 4),
+        // 已找到路线的远端转弯也是有效通道；只取最近四条会丢掉绕过宽模块的入口。
+        ...currentBends.filter(
+          (value) => !direction || (value - coordinate) * direction >= 0,
+        ),
+      ]),
+    ];
     const exitYs = nearest(
         horizontalChannels,
         sourceY,
         ports ? Math.sign(sourceY - ports.source.y) : 0,
+        best.map((point) => point.y),
       ),
       entryYs = nearest(
         horizontalChannels,
         targetY,
         ports ? Math.sign(targetY - ports.target.y) : 0,
+        best.map((point) => point.y),
       ),
       exitXs = nearest(
         verticalChannels,
         sourceX,
         ports ? Math.sign(sourceX - ports.source.x) : 0,
+        best.map((point) => point.x),
       ),
       entryXs = nearest(
         verticalChannels,
         targetX,
         ports ? Math.sign(targetX - ports.target.x) : 0,
+        best.map((point) => point.x),
       );
     for (const x of nearX)
       for (const exitY of exitYs)
@@ -1043,7 +1062,7 @@ export function automaticOrthogonalPoints(
     targetPosition,
     targetFrames,
   );
-  // 连续拖动先延用旧通道，只调整两端。仍逐段检查障碍、拥挤和端口方向；
+  // 连续拖动先延用旧通道，只调整两端。不得穿框、增加线间冲突或倒转端口方向；
   // 通道失效才重新搜索，不能为每个像素枚举整张图的所有候选。
   if (previous && previous.length > 2) {
     const body = simplifyOrthogonalPoints(
@@ -1060,9 +1079,16 @@ export function automaticOrthogonalPoints(
       ...body,
       { x: targetX, y: targetY },
     ]);
+    const cost = routeScore(body, [], [], Infinity, complete);
+    const wireCost = routeScore(body, [], reserved, Infinity, complete) - cost;
+    const oldBody = previous.slice(1, -1);
+    const oldWireCost =
+      routeScore(oldBody, [], reserved, Infinity, previous) -
+      routeScore(oldBody, [], [], Infinity, previous);
     if (
       !hasRouteBacktrack(complete) &&
-      routeScore(body, obstacles, reserved) === routeScore(body, [], [])
+      routeScore(body, obstacles, []) === routeScore(body, [], []) &&
+      wireCost <= oldWireCost
     )
       return complete;
   }
@@ -1680,6 +1706,12 @@ export function planArchitectureRoutes(
       );
       const blocked =
         blockedByLabel ||
+        // 缓存只代表上次合法：别的线改道后，旧线也必须重新校验共线重叠。
+        [...routes].some(
+          ([id, other]) =>
+            (!localEdit || cached?.routes.get(id) !== other) &&
+            sharedRouteLength(previous, other) > 0,
+        ) ||
         changedFrames.some(
           ([id, frame]) =>
             !excluded.has(id) &&
