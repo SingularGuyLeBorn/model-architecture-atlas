@@ -176,7 +176,7 @@ test("选区配色成套、虚线四侧净空、邻行与裁切实测", async ({
   page,
 }, testInfo) => {
   test.setTimeout(180000);
-  await page.setViewportSize({ width: 3200, height: 2600 });
+  await page.setViewportSize({ width: 4000, height: 3400 });
   await page.goto("/#model=v41&chapter=layer");
   await page.getByRole("button", { name: "收起左栏", exact: true }).click();
   const reports = [];
@@ -250,8 +250,8 @@ test("选区配色成套、虚线四侧净空、邻行与裁切实测", async ({
         return (
           b.x >= 0 &&
           b.y >= 0 &&
-          b.x + b.width <= 3200 &&
-          b.y + b.height <= 2600
+          b.x + b.width <= 4000 &&
+          b.y + b.height <= 3400
         );
       })
       .toBe(true);

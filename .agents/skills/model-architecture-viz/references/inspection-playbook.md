@@ -32,7 +32,7 @@
 | 10 端口、线路、标签 | `e2e/full-route-audit.spec.ts`、`e2e/edge-label-audit.spec.ts`、`e2e/sum-source-attachment.spec.ts` | 绕路理由、箭翼、入口变量能否跟踪 |
 | 11–12 缓存与复用 | `tests/cacheDecode.test.tsx`、`tests/cacheSemantics.test.tsx`、`tests/perLayerCache.test.tsx`、`e2e/layer-two-swa.spec.ts` | 本层时间轴与跨层来源是否分清 |
 | 13 候选、分数、ID | `tests/reindexCandidates.test.tsx`、`e2e/indexer-origins.spec.ts` | 选行对象与原 G 行的视觉对应 |
-| 14 Engram | `tests/engramPurpose.test.tsx`、`e2e/engram-gate.spec.ts`、`e2e/compressor-structure.spec.ts` | 收益比较口径，反量化是否只是黑箱标签 |
+| 14 Engram | `tests/engramPurpose.test.tsx`、`e2e/engram-gate.spec.ts`、`e2e/compressor-structure.spec.ts`、`e2e/engram-addresses.spec.ts` | 收益比较口径，地址是否接到两表同号行，反量化是否只是黑箱标签 |
 | 15 SVG与可还原边界 | `e2e/cache-svg.spec.ts` | 离线外观、文字、屏幕外内容与编辑器限制 |
 | 17 手势、状态、性能 | `e2e/interaction-budget.spec.ts`、`e2e/wire-drag-topology.spec.ts`、`e2e/editing-regression.spec.ts`、`e2e/internal-selection.spec.ts` | 连续操作的视觉稳定性、目标是否被面板遮盖 |
 

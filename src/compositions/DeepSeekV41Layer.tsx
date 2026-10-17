@@ -20,8 +20,7 @@ import {
   cacheSourceSummary,
 } from "../components/CacheSemantics";
 import { EngramPurpose } from "../components/EngramPurpose";
-import { EngramDequantization } from "../components/EngramDequantization";
-import { EngramHash } from "../components/EngramHash";
+import { EngramAddressFlow } from "../components/EngramAddressFlow";
 import {
   CandidateFilter,
   CANDIDATE_SOURCE,
@@ -2473,8 +2472,7 @@ export function EngramLookup({
           : "Decode：追加当前压缩 ID，读取已缓存的至多 3 个历史 ID。"}{" "}
         序列开头补 PAD；图像位置截断回看。
       </span>
-      <EngramHash layer={layer} />
-      <EngramDequantization layer={layer} rows={rows} />
+      <EngramAddressFlow layer={layer} rows={rows} />
       <FlowStep>
         <MathFormula
           tex={`\\mathbf e_{${layer},t}\\in\\mathbb R^{1\\times6144}`}

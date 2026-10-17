@@ -2,6 +2,33 @@
   "scope": "本轮可见会话截图；原图逐字节复制。正例只证明正文指定局部，不代表整图合格。",
   "assets": [
     {
+      "id": "engram-addresses-connected",
+      "file": "counterexamples/engram-addresses-connected.png",
+      "source": "artifacts/engram-addresses-2-Prefill.png",
+      "sourceKind": "local-check",
+      "role": "scoped-positive",
+      "cases": ["14"],
+      "sha256": "c2fec0210231f88faaaa9d425281da15f4c804f83394ad60a0aaf9ea5df94665"
+    },
+    {
+      "id": "engram-hash-connected",
+      "file": "counterexamples/engram-hash-connected.png",
+      "source": "artifacts/engram-hash-2-Prefill.png (822bc90)",
+      "sourceKind": "local-check",
+      "role": "scoped-positive",
+      "cases": ["14"],
+      "sha256": "a9ad14c1cabbdf3221bcb1027b2bba3154992b07c812445cd186646104754f0a"
+    },
+    {
+      "id": "engram-hash-disconnected",
+      "file": "counterexamples/engram-hash-disconnected.png",
+      "source": "codex-clipboard-3442f0e5-f3b8-4518-b359-2af08b323b25.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": ["14"],
+      "sha256": "90236b9aa39f186ad841925fe32891df2939696539ecc4d5ae7bb1d023163111"
+    },
+    {
       "id": "score-caption",
       "file": "counterexamples/score-caption.png",
       "source": "codex-clipboard-aab15522-aec8-4d75-852a-4afa73109f22.png",

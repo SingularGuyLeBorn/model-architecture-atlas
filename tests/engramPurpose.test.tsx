@@ -31,11 +31,11 @@ it("主图与独立章节说明 Engram 收益、成本、参数身份，不引�
       const table = root.querySelector("[data-engram-table]")!;
       expect(
         table.querySelectorAll("[data-matrix-ellipsis-column]"),
-      ).toHaveLength(3);
+      ).toHaveLength(9);
       const cells = [
         ...table.querySelectorAll<HTMLElement>("[data-vector-cell]"),
       ];
-      expect(cells).toHaveLength(15);
+      expect(cells).toHaveLength(33);
       for (const cell of cells) {
         expect(cell.style.background).toBe(
           cell.closest("[data-vector-selected]")

@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 
-test("Engram 参数表与本次读出横排，选中行使用不同填充色", async ({ page }) => {
+test("Engram 双表横排，选中行使用不同填充色，反量化接入结果矩阵", async ({
+  page,
+}) => {
   await page.goto("/?revision=inspector-prose#model=v41&chapter=layer");
   await page.getByRole("button", { name: "收起左栏", exact: true }).click();
   for (const [layer, phase, width] of [
@@ -26,33 +28,21 @@ test("Engram 参数表与本次读出横排，选中行使用不同填充色", a
     ).toHaveAttribute("d", /^M /);
     const metrics = await layout.evaluate((root) => {
       const table = root.querySelector("[data-engram-table]")!;
-      const result = root.querySelector("[data-engram-read-result]")!;
+      const result = root.querySelector("[data-engram-scale-table]")!;
       const a = table.getBoundingClientRect(),
         b = result.getBoundingClientRect();
       const cells = [...table.querySelectorAll("[data-vector-cell]")];
       const connections = [
         ...root.querySelectorAll<SVGPathElement>("[data-stage-transfer] path"),
-      ].map((path, index) => {
+      ].map((path) => {
         const source = root
-          .querySelector(
-            [
-              "[data-engram-table]",
-              "[data-engram-scale-table]",
-              "[data-dequant-output] [data-expanded-tensor]",
-            ][index],
-          )!
+          .querySelector("[data-dequant-output] [data-expanded-tensor]")!
           .getBoundingClientRect();
         const start = path
           .getPointAtLength(0)
           .matrixTransform(path.getScreenCTM()!);
         const target = root
-          .querySelector(
-            [
-              "[data-dequant-values] [data-expanded-tensor]",
-              "[data-dequant-scales] [data-expanded-tensor]",
-              "[data-engram-read-result] [data-expanded-tensor]",
-            ][index],
-          )!
+          .querySelector("[data-engram-read-result] [data-expanded-tensor]")!
           .getBoundingClientRect();
         // 最后一段为开放箭翼；路径中间的第一个 M 后是连续数据线。
         const segments = path.getAttribute("d")!.split(" M ");
@@ -101,7 +91,7 @@ test("Engram 参数表与本次读出横排，选中行使用不同填充色", a
       };
     });
     expect(metrics.sideBySide).toBe(true);
-    expect(metrics.connections).toHaveLength(3);
+    expect(metrics.connections).toHaveLength(1);
     for (const connection of metrics.connections) {
       expect(connection.sourceGap).toBeLessThan(2);
       expect(connection.targetGap).toBeLessThan(2);
@@ -111,7 +101,7 @@ test("Engram 参数表与本次读出横排，选中行使用不同填充色", a
     expect(metrics.widthRange).toBeLessThan(1);
     expect(metrics.overflow).toBe(0);
     await expect(layout.locator("[data-matrix-ellipsis-column]")).toHaveCount(
-      6,
+      18,
     );
     await expect(layout.locator(".katex-error")).toHaveCount(0);
     await layout.screenshot({

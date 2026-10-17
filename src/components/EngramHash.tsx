@@ -140,6 +140,7 @@ function HashBranch({ layer, n }: { layer: number; n: number }) {
             display: "grid",
             gridTemplateColumns: "max-content 60px 56px 24px max-content",
             alignItems: "center",
+            minHeight: 184,
           }}
         >
           <div style={{ display: "grid", gap: 8 }}>
@@ -193,39 +194,62 @@ function HashBranch({ layer, n }: { layer: number; n: number }) {
         <div
           style={{
             display: "grid",
+            gridTemplateColumns: "max-content max-content",
+            gridTemplateRows: "24px repeat(2,32px) 20px 32px",
             gap: 6,
             paddingLeft: 28,
             justifySelf: "center",
           }}
         >
-          {[1, 2, 8].map((h) => (
-            <Fragment key={h}>
-              {h === 8 && (
-                <div style={{ textAlign: "center" }}>
-                  <M tex="\vdots" />
-                </div>
-              )}
-              <div
-                data-hash-head={h}
-                style={{ display: "flex", alignItems: "center", gap: 5 }}
-              >
-                <span data-hash-port={`head-${h}`}>
-                  <M tex="\bmod" />
-                </span>
-                <Box tone="indigo">
-                  <M tex={`p_{${n},${h}}`} />
-                </Box>
-                <Operator tex="+" />
-                <Box tone="indigo">
-                  <M tex={`o_{${n},${h}}`} />
-                </Box>
-                <Operator tex="=" />
+          {[1, 2, 8].map((h, i) => (
+            <div
+              key={h}
+              data-hash-head={h}
+              style={{
+                gridColumn: 1,
+                gridRow: i === 2 ? 5 : i + 2,
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              <span data-hash-port={`head-${h}`}>
+                <M tex="\bmod" />
+              </span>
+              <Box tone="indigo">
+                <M tex={`p_{${n},${h}}`} />
+              </Box>
+              <Operator tex="+" />
+              <Box tone="indigo">
+                <M tex={`o_{${n},${h}}`} />
+              </Box>
+              <Operator tex="=" />
+            </div>
+          ))}
+          <div
+            data-engram-address-vector={n}
+            style={{
+              gridColumn: 2,
+              gridRow: "1 / 6",
+              display: "grid",
+              gridTemplateRows: "subgrid",
+              paddingInline: 7,
+              border: `1px solid ${frameColor(COLORS.amber)}`,
+              borderRadius: 6,
+              justifyItems: "center",
+              alignItems: "center",
+            }}
+          >
+            <M tex={`\\mathbf b_${n}\\quad 8\\times1`} />
+            {[1, 2, 8].map((h) => (
+              <Fragment key={h}>
+                {h === 8 && <M tex="\vdots" />}
                 <Box tone="amber">
                   <M tex={`b_{${n},${h}}`} />
                 </Box>
-              </div>
-            </Fragment>
-          ))}
+              </Fragment>
+            ))}
+          </div>
         </div>
         <svg
           aria-hidden
@@ -268,7 +292,6 @@ function HashBranch({ layer, n }: { layer: number; n: number }) {
           ))}
         </svg>
       </div>
-      <small style={{ textAlign: "right" }}>8 个头 → 8 个行号</small>
     </div>
   );
 }
@@ -303,10 +326,6 @@ export function EngramHash({ layer }: { layer: number }) {
           <HashBranch key={n} layer={layer} n={n} />
         ))}
       </div>
-      <small style={{ textAlign: "center" }}>
-        同一 u 分给 8 个头；p 是模数，o 是桶起始偏移。3 × 8 = 24
-        个行号，同号读取下方数值表与缩放系数表。
-      </small>
     </div>
   );
 }
