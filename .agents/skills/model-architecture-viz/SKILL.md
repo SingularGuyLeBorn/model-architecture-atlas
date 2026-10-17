@@ -13,6 +13,7 @@ description: 为 Transformer、Attention、MoE、CNN、扩散模型等创建或�
 2. 将对象分为：张量/向量/元素、参数、运算、分支、聚合、缓存、残差。不能确定来源与去向的线不画。
 3. 对模型特有的 Compressor、Indexer、缓存复用、Top-K 等机制，先核对论文、官方代码或配置。禁止为了补图自行发明中间概念、形状和权重。
 4. 完整阅读 [结构语义契约](references/structure-semantics.md) 和 [React Flow 与自适应布局](references/react-flow-layout.md)。两份契约的规则均为强制要求；本入口不重复其实现细则与验收序列。
+5. 修图前按症状查阅[图文反例库](references/counterexamples.md)对应类别；用户指出“共性问题”时，覆盖同类公共组件与手写实现。检查方法与现有测试入口见[检查方法与覆盖边界](references/inspection-playbook.md)。反例是历史证据，不代表当前页面仍有该错误，也不替代上述契约。
 
 ## 核心原则
 

@@ -1,0 +1,293 @@
+{
+  "scope": "本轮可见会话截图；原图逐字节复制。正例只证明正文指定局部，不代表整图合格。",
+  "assets": [
+    {
+      "id": "score-caption",
+      "file": "counterexamples/score-caption.png",
+      "source": "codex-clipboard-aab15522-aec8-4d75-852a-4afa73109f22.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "01"
+      ],
+      "sha256": "018699311fca0f1be2c13af753adfb4f8ccf792327e9649e30aed08f82f37ea7"
+    },
+    {
+      "id": "vector-caption",
+      "file": "counterexamples/vector-caption.png",
+      "source": "codex-clipboard-bf5741df-8b21-453b-bcb5-4a20995015f1.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "01"
+      ],
+      "sha256": "387d7b28f0c37ab92010da59d47a4bbc99242fef3e3dbad3935492b1b6cb2529"
+    },
+    {
+      "id": "cache-caption",
+      "file": "counterexamples/cache-caption.png",
+      "source": "codex-clipboard-03e617b0-03d7-4f81-b95b-1792209996cf.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "01"
+      ],
+      "sha256": "7b12c47f1fab8b57e716de4b216f92047ec974648e614f442568c51df2dea7b6"
+    },
+    {
+      "id": "wide-kv-rows",
+      "file": "counterexamples/wide-kv-rows.png",
+      "source": "codex-clipboard-08fbc328-0b2f-439a-baa2-5b6a4a68e9ca.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "02"
+      ],
+      "sha256": "a783bb1fceea54c37b5a0eb80e4c2a36609d2b5085dd96e9279cd1aaa5c28e9c"
+    },
+    {
+      "id": "empty-window",
+      "file": "counterexamples/empty-window.png",
+      "source": "codex-clipboard-86331ba7-60eb-4395-99cc-cb8e77d867f4.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "02"
+      ],
+      "sha256": "4b17c8b478872dbb479851509dcf24537b1960f54739213149fe8ae97264f746"
+    },
+    {
+      "id": "mhc-staggered",
+      "file": "counterexamples/mhc-staggered.png",
+      "source": "codex-clipboard-42df011c-7bd2-412a-8555-645a6118e74f.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "03"
+      ],
+      "sha256": "26f840ae40da7ef099740bfc0e10e6db9e894a324874fab6a62ffb6cce624ac3"
+    },
+    {
+      "id": "mhc-writeback-space",
+      "file": "counterexamples/mhc-writeback-space.png",
+      "source": "codex-clipboard-a6e5df8d-b414-4a25-b78a-3394475b0121.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "03"
+      ],
+      "sha256": "0a9ab9e74e9b137f5c396b6c793fe72474afceb3ee56563cc816a2046460ae35"
+    },
+    {
+      "id": "engram-vertical",
+      "file": "counterexamples/engram-vertical.png",
+      "source": "codex-clipboard-0f0867cf-804b-4453-8b92-525e3ce350ba.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "03",
+        "14"
+      ],
+      "sha256": "99a6bf187cb8ecaf06af73940bc1c52adead17670e682c7a3c23456af8c76946"
+    },
+    {
+      "id": "projection-vertical",
+      "file": "counterexamples/projection-vertical.png",
+      "source": "codex-clipboard-692bc3b2-3ffc-44fd-ae87-6f73c992eff1.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "03"
+      ],
+      "sha256": "32647cdb6bbd1ec7b142dc92a400fbdeb7edc27932af3fb019253074d16a60dc"
+    },
+    {
+      "id": "indexer-tail-vertical",
+      "file": "counterexamples/indexer-tail-vertical.png",
+      "source": "codex-clipboard-4c3c2c79-c7c1-4705-88c6-5541d7c78f0d.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "03"
+      ],
+      "sha256": "463050a1a3d6deabda6c04ebf32f9f7879914519a8282e678bcc4c9ea383dc54"
+    },
+    {
+      "id": "compressor-prose",
+      "file": "counterexamples/compressor-prose.png",
+      "source": "codex-clipboard-397382df-2cde-4845-9216-14c387f60a8d.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "04"
+      ],
+      "sha256": "fd66c0d9f9eff2f0634a5fd318c6db3157818077d48dcf0758d70635ece9a585"
+    },
+    {
+      "id": "detached-sharing",
+      "file": "counterexamples/detached-sharing.png",
+      "source": "codex-clipboard-aaeb1760-7e8e-4bd5-b572-196c1614c055.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "04",
+        "12"
+      ],
+      "sha256": "492f7072eebc2f36c1adbf5d6f5e8e4ccab85ef7ddaa7a21b63e2003403f3983"
+    },
+    {
+      "id": "unframed-branches",
+      "file": "counterexamples/unframed-branches.png",
+      "source": "codex-clipboard-7eb1154f-24e6-4184-be0c-64c415b6200d.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "05"
+      ],
+      "sha256": "8f04be6d89e2ddfc709043d14383f00b77fe61808ffa4b55e00bc514aac26722"
+    },
+    {
+      "id": "unary-arrows",
+      "file": "counterexamples/unary-arrows.png",
+      "source": "codex-clipboard-4edfcf50-f64a-4625-955f-b73bedfbf5aa.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "06"
+      ],
+      "sha256": "c46411c72cc7fe510f2473ade2554d666d35e9924c645b3ce0ad737a5b18a254"
+    },
+    {
+      "id": "rms-split",
+      "file": "counterexamples/rms-split.png",
+      "source": "codex-clipboard-be821ef0-c840-43fd-9c8f-7eba53a2a28d.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "06"
+      ],
+      "sha256": "299b3f679c91969ebcdb7abff94fdfda1b77b6b7518770c6959532f8d30b86dd"
+    },
+    {
+      "id": "formula-wrap",
+      "file": "counterexamples/formula-wrap.png",
+      "source": "codex-clipboard-87d942d4-a885-497d-81a6-58772c8d6ae1.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "07"
+      ],
+      "sha256": "c95e69ead8d1055a29ceacf0281fd3179dd0df28e74c1ec0e097e7906155b985"
+    },
+    {
+      "id": "containment",
+      "file": "counterexamples/containment.png",
+      "source": "codex-clipboard-9bbeba88-498f-490b-8424-eab5b7ce85d6.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "07"
+      ],
+      "sha256": "c2e42e922787036c8cf008efee19e990403453b4c86cbad0e0431592ec057dea"
+    },
+    {
+      "id": "concat-rename",
+      "file": "counterexamples/concat-rename.png",
+      "source": "codex-clipboard-755eb637-c9b6-4119-ade8-182638c787e2.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "08"
+      ],
+      "sha256": "2de2cb570770b62c0ce139c2e2fae355d03fb43e69969de2ac0b3f6914d566e4"
+    },
+    {
+      "id": "probability-colors",
+      "file": "counterexamples/probability-colors.png",
+      "source": "codex-clipboard-cd9225e5-e678-4b0a-b65e-6ab54e46fd1b.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "09"
+      ],
+      "sha256": "38334a6106809dea4cbeb072e3fd42535afefc8356563a33dff7eb70181efe2a"
+    },
+    {
+      "id": "selection-colors",
+      "file": "counterexamples/selection-colors.png",
+      "source": "codex-clipboard-e4610182-56a6-42d1-953e-74006dbc141b.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "09"
+      ],
+      "sha256": "5431b439df8c8a6f5bb2ae9922b6602aadbe4dc9d59268d10724d7f516121d3b"
+    },
+    {
+      "id": "wrong-exit",
+      "file": "counterexamples/wrong-exit.png",
+      "source": "codex-clipboard-fbad12b8-3871-498c-99eb-4e2bc4c64b13.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "10"
+      ],
+      "sha256": "be686e7a703973e6e8691b0a0037d32c967315489c5d3398939c399a05d1cc28"
+    },
+    {
+      "id": "kv-without-window",
+      "file": "counterexamples/kv-without-window.png",
+      "source": "codex-clipboard-2e07fe12-b6d1-4ab4-a26f-9740d56e07a2.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "11"
+      ],
+      "sha256": "a745ee841b751754cbb59457b29b76fe4f75cd62709efd6a7b1a423c6f0a4aa4"
+    },
+    {
+      "id": "candidate-wall",
+      "file": "counterexamples/candidate-wall.png",
+      "source": "codex-clipboard-775d4b9e-50c9-4eba-84d3-210e7df72551.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "13"
+      ],
+      "sha256": "cbf7f3f6acac33ba79d1372989cd1ad952114bc7b3a076a1e8a387554d2386f1"
+    },
+    {
+      "id": "engram-prose",
+      "file": "counterexamples/engram-prose.png",
+      "source": "codex-clipboard-ef42fb56-25e6-47be-9f78-25ad2c92a2bf.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": [
+        "14"
+      ],
+      "sha256": "a4aa4af07f2d0b955a56e0aabce2e739a5605e1177f5ce4f2b1003c72eb199a1"
+    },
+    {
+      "id": "score-caption-corrected",
+      "file": "counterexamples/score-caption-corrected.png",
+      "source": "artifacts/candidate-score-caption-25.png",
+      "sourceKind": "local-check",
+      "role": "scoped-positive",
+      "cases": [
+        "01"
+      ],
+      "sha256": "d07ecb32f38272efab1c51f5da3bea036d9831ba63ccf412d3e246e962adb19d"
+    },
+    {
+      "id": "mhc-preparation-corrected",
+      "file": "counterexamples/mhc-preparation-corrected.png",
+      "source": "artifacts/mhc-compact-preparation.png",
+      "sourceKind": "local-check",
+      "role": "scoped-positive",
+      "cases": [
+        "03"
+      ],
+      "sha256": "3c5de682f35e17d43677aa2ea404641ed712c61c1d6e4d8fbce78ad4f5ef7db6"
+    }
+  ]
+}
