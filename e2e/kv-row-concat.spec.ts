@@ -61,7 +61,9 @@ test("KV 拼接过程、来源、内部端口和下游间距", async ({ page }) 
     expect(fills["local-input"]).toBe(fills["local-output"]);
     expect(fills["global-input"]).toBe(fills["global-output"]);
     expect(fills["local-input"]).not.toBe(fills["global-input"]);
-    expect(fills["global-input"]).toBe(selectedFill);
+    // 取行恢复常态填充，保持同一海蓝身份；选区加深不作为新身份。
+    expect(fills["global-input"]).not.toBe(selectedFill);
+    expect(fills["global-input"]).toBe("rgb(197, 226, 252)");
     const tex = await node
       .locator("[aria-label]")
       .evaluateAll((els) => els.map((el) => el.getAttribute("aria-label")));

@@ -288,6 +288,28 @@
         "03"
       ],
       "sha256": "3c5de682f35e17d43677aa2ea404641ed712c61c1d6e4d8fbce78ad4f5ef7db6"
+    },
+    {
+      "id": "cache-identity-corrected",
+      "file": "counterexamples/cache-identity-corrected.png",
+      "source": "artifacts/identity-29-Prefill-kv-merge.png",
+      "sourceKind": "local-check",
+      "role": "scoped-positive",
+      "cases": [
+        "09"
+      ],
+      "sha256": "ff07683cd2e6a12e3061b4d695f1ef341e03864fec73c370e126b60b5b9a549c"
+    },
+    {
+      "id": "selection-identity-corrected",
+      "file": "counterexamples/selection-identity-corrected.png",
+      "source": "artifacts/identity-3-Decode-global-select.png",
+      "sourceKind": "local-check",
+      "role": "scoped-positive",
+      "cases": [
+        "09"
+      ],
+      "sha256": "156b90422a5848d1ce7caaadfc669176a36e662e8ea397d1421d12c40d9db773"
     }
   ]
 }

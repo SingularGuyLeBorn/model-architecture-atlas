@@ -1,4 +1,8 @@
-import { MathFormula as M, COLORS } from "./diagram-primitives";
+import {
+  MathFormula as M,
+  tonePalette,
+  CACHE_TONES,
+} from "./diagram-primitives";
 
 /** 引用同一对象，不复制缓存、不创建本层参数；下标先展示来源再局部简写。 */
 export function CacheReference({
@@ -10,6 +14,15 @@ export function CacheReference({
   source: number;
   kind: "G" | "K" | "I" | "B";
 }) {
+  const palette = tonePalette(
+    kind === "G"
+      ? CACHE_TONES.global
+      : kind === "I"
+        ? "amber"
+        : kind === "B"
+          ? "violet"
+          : "green",
+  );
   const symbol = (index: string) =>
     kind === "K"
       ? `K_{${index}}^{I\\prime}`
@@ -31,10 +44,10 @@ export function CacheReference({
     >
       <div
         style={{
-          border: `1px solid ${COLORS.blue}`,
+          border: `1px solid ${palette.color}`,
           borderRadius: 6,
           padding: "6px 10px",
-          background: COLORS.blueSoft,
+          background: palette.background,
         }}
       >
         <M tex={`${explicit}:=${from}`} />

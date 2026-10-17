@@ -74,8 +74,7 @@ function StoredTable({
                   scale ? `s_{${index},${j}}` : `\\bar e_{${index},${j}}`
                 }
                 selected={i === 1 || i === 2 || i === 4}
-                selectedTone={scale ? "ochre" : "amber"}
-                tone="indigo"
+                tone={scale ? "ochre" : "indigo"}
                 uniformCells
                 columnSubgrid
                 compact
@@ -141,7 +140,7 @@ export function EngramDequantization({
                 nameWidth={0}
                 length="256"
                 elementTex={(d) => `\\bar e_{b,${d}}`}
-                tone="amber"
+                tone="indigo"
                 uniformCells
                 compact
               />
@@ -186,7 +185,7 @@ export function EngramDequantization({
                   <M tex={`s_{b,${k}}`} />
                 </Box>
                 <Operator tex="\times" />
-                <Box tone="amber" expanded>
+                <Box tone="indigo" expanded>
                   <VectorStrip
                     name=""
                     nameWidth={0}
@@ -198,7 +197,7 @@ export function EngramDequantization({
                       String(k * 32),
                     ]}
                     elementTex={(d) => `\\bar e_{b,${d}}`}
-                    tone="amber"
+                    tone="indigo"
                     uniformCells
                     compact
                   />
@@ -256,6 +255,7 @@ export function EngramDequantization({
       </div>
       <HorizontalTransfer
         sourceSelector="[data-engram-table]"
+        color={COLORS.indigo}
         targetSelector="[data-dequant-values] [data-expanded-tensor]"
         leftSelector="[data-engram-table]"
         rightSelector="[data-engram-dequantization]"

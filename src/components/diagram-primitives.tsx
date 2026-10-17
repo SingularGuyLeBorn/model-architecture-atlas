@@ -33,6 +33,7 @@ export type DiagramTone =
   | "sand"
   | "mint"
   | "crimson"
+  | "ocean"
   | "cyan";
 export const COLORS = {
   paper: "#ffffff",
@@ -84,7 +85,16 @@ export const COLORS = {
   mintSoft: "#c2f0cf", // mHC sigmoid 中间结果
   crimson: "#a13e58",
   crimsonSoft: "#f3c2d3", // RMSNorm 可学习缩放 γ
+  // [OM-FREEPLAY] 全局缓存专用海蓝，避免与输入蓝、本地绿共用身份。
+  ocean: "#246aab",
+  oceanSoft: "#c5e2fc",
 };
+
+/** 对象身份映射；选中、追加状态不能覆盖这些来源色。 */
+export const CACHE_TONES = {
+  local: "green",
+  global: "ocean",
+} as const;
 
 export const COMPRESSION_TONES = {
   candidate: "forest",
@@ -117,15 +127,21 @@ export function Box({
   children,
   tone = "neutral",
   expanded = false,
+  selected = false,
 }: {
   children: ReactNode;
   tone?: DiagramTone;
   expanded?: boolean;
+  selected?: boolean;
 }) {
-  const { color, background } = tonePalette(tone);
+  const { color, background } = selected
+    ? selectionPalette(tone)
+    : tonePalette(tone);
   return (
     <div
       data-expanded-tensor={expanded || undefined}
+      data-tone={tone}
+      data-semantic-selected={selected || undefined}
       style={{
         minWidth: 0,
         width: "fit-content",
@@ -328,6 +344,23 @@ export function tonePalette(tone: DiagramTone) {
     : { color: COLORS[tone], background: COLORS[`${tone}Soft`] };
 }
 
+/** 同色系状态加深，不把选行变成另一类对象；深浅不是新的语义色。 */
+export function selectionPalette(tone: DiagramTone) {
+  const palette = tonePalette(tone);
+  // [OM-FREEPLAY] 20% 描边色混入浅底，兼顾选区辨识与深色公式的可读性。
+  const background = `#${[1, 3, 5]
+    .map((i) =>
+      Math.round(
+        parseInt(palette.background.slice(i, i + 2), 16) * 0.8 +
+          parseInt(palette.color.slice(i, i + 2), 16) * 0.2,
+      )
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+  return { color: palette.color, background };
+}
+
 export function VectorStrip({
   name,
   length,
@@ -335,7 +368,6 @@ export function VectorStrip({
   tone = "neutral",
   compact = false,
   selected = false,
-  selectedTone = "amber",
   columns: displayedColumns,
   nameWidth,
   nameLineHeight,
@@ -351,7 +383,6 @@ export function VectorStrip({
   tone?: DiagramTone;
   compact?: boolean;
   selected?: boolean;
-  selectedTone?: DiagramTone;
   columns?: string[];
   nameWidth?: number;
   nameLineHeight?: number;
@@ -361,11 +392,12 @@ export function VectorStrip({
   uniformCells?: boolean;
   cellPadding?: number;
 }) {
-  const palette = tonePalette(selected ? selectedTone : tone);
+  const palette = selected ? selectionPalette(tone) : tonePalette(tone);
   const columns = displayedColumns ?? ["1", "2", "\\cdots", length];
   return (
     <div
       data-vector-elements
+      data-tone={tone}
       data-content-width={contentWidth || undefined}
       data-vector-selected={selected || undefined}
       style={{
@@ -710,10 +742,12 @@ export function RowMatrix({
             <div
               key={index}
               style={{
-                border: `1px solid ${selected === index ? COLORS.amber : palette.color}`,
+                border: `1px solid ${palette.color}`,
                 borderRadius: 4,
                 background:
-                  selected === index ? COLORS.amberSoft : palette.background,
+                  selected === index
+                    ? selectionPalette(tone).background
+                    : palette.background,
                 padding: "4px 2px",
                 textAlign: "center",
                 fontSize: 10,

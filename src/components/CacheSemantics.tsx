@@ -1,7 +1,13 @@
 import type { ReactNode } from "react";
 import { rawConfigs } from "../data/models";
 import { ReindexCandidates, REINDEX_EXPLANATION } from "./ReindexCandidates";
-import { MathFormula as M, Box, RowMatrix } from "./diagram-primitives";
+import {
+  MathFormula as M,
+  Box,
+  RowMatrix,
+  COLORS,
+  CACHE_TONES,
+} from "./diagram-primitives";
 
 // 层号在界面从 1 开始，来源配置从 0 开始；图和旁注共用同一份关系。
 export function cachePolicy(layer: number) {
@@ -350,17 +356,17 @@ export function GlobalCacheHistory({
     r === "\\vdots" ? r : "\\mathbf g_{" + layer + "," + r + "}",
   );
   const frame = {
-    border: "1px solid #578d7f",
+    border: `1px solid ${COLORS[CACHE_TONES.global]}`,
     borderRadius: 7,
     padding: 10,
     display: "grid",
     gap: 7,
   };
   const rowStyle = {
-    border: "1px solid #578d7f",
+    border: `1px solid ${COLORS[CACHE_TONES.global]}`,
     borderRadius: 4,
     padding: "6px 10px",
-    background: "#dceee3",
+    background: COLORS.oceanSoft,
     textAlign: "center" as const,
   };
   const transfer = (label: string) => (
@@ -369,7 +375,7 @@ export function GlobalCacheHistory({
         alignSelf: "center",
         textAlign: "center",
         fontSize: 12,
-        color: "#327463",
+        color: COLORS.ocean,
       }}
     >
       <span>{label}</span>
@@ -416,7 +422,7 @@ export function GlobalCacheHistory({
             tex={"G_{" + layer + "}^{<t}"}
             shape="M_{old}\times512"
             rows={historyRows}
-            tone="green"
+            tone={CACHE_TONES.global}
           />
           <small>历史直接读 · 不重算</small>
         </div>
@@ -447,7 +453,7 @@ export function GlobalCacheHistory({
           <div
             data-global-new-row
             style={{
-              borderTop: "1px dashed #b57d2b",
+              borderTop: "1px dashed #246aab",
               paddingTop: 8,
               alignSelf: "center",
               display: "grid",
@@ -457,8 +463,8 @@ export function GlobalCacheHistory({
             <div
               style={{
                 ...rowStyle,
-                background: "#dceee3",
-                borderColor: "#b57d2b",
+                background: COLORS.oceanSoft,
+                borderColor: COLORS.ocean,
               }}
             >
               <M tex={"\\mathbf g_{" + layer + ",i}\\quad1\\times512"} />
@@ -476,7 +482,7 @@ export function GlobalCacheHistory({
             gridRow: 2,
           }}
         >
-          <Box tone="green">
+          <Box tone={CACHE_TONES.global}>
             <M tex={"\\mathbf g_{" + layer + ",i}\\quad1\\times512"} />
           </Box>
           <small>来自本层 RoPE</small>

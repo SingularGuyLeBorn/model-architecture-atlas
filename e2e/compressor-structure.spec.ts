@@ -106,7 +106,7 @@ test("Engram 参数表与本次读出横排，选中行使用不同填充色", a
       expect(connection.sourceGap).toBeLessThan(2);
       expect(connection.targetGap).toBeLessThan(2);
     }
-    expect(metrics.selectedColors).toEqual(["rgb(246, 229, 201)"]);
+    expect(metrics.selectedColors).toEqual(["rgb(195, 203, 230)"]);
     expect(metrics.unselectedColors).toEqual(["rgb(223, 228, 247)"]);
     expect(metrics.widthRange).toBeLessThan(1);
     expect(metrics.overflow).toBe(0);

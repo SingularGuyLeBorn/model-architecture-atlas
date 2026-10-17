@@ -173,9 +173,10 @@ export function SlidingWindowRows({
                   style={
                     {
                       ...rowStyle,
-                      color: t === "t" ? COLORS.amber : COLORS.green,
-                      "--row-fill":
-                        t === "t" ? COLORS.amberSoft : COLORS.greenSoft,
+                      color: COLORS.green,
+                      borderTop:
+                        t === "t" ? `1px dashed ${COLORS.green}` : undefined,
+                      "--row-fill": COLORS.greenSoft,
                     } as React.CSSProperties
                   }
                 >
@@ -194,7 +195,7 @@ export function SlidingWindowRows({
             data-window-new-kv
             style={{
               position: "relative",
-              border: "1px solid " + COLORS.amber,
+              border: "1px solid " + COLORS.green,
               borderRadius: 7,
               padding: 8,
               display: "grid",
@@ -210,8 +211,8 @@ export function SlidingWindowRows({
                   gridTemplateColumns:
                     "repeat(2,minmax(max-content,1fr)) 16px minmax(max-content,1fr)",
                   gap: 4,
-                  color: COLORS.amber,
-                  "--row-fill": COLORS.amberSoft,
+                  color: COLORS.green,
+                  "--row-fill": COLORS.greenSoft,
                 } as React.CSSProperties
               }
             >
@@ -220,7 +221,7 @@ export function SlidingWindowRows({
           </div>
         </div>
         <small
-          style={{ color: COLORS.amber, alignSelf: "end", textAlign: "center" }}
+          style={{ color: COLORS.green, alignSelf: "end", textAlign: "center" }}
         >
           追加
         </small>
@@ -239,7 +240,7 @@ export function SlidingWindowRows({
           <path
             d={appendPath}
             fill="none"
-            stroke={COLORS.amber}
+            stroke={COLORS.green}
             strokeWidth="1.5"
           />
         </svg>

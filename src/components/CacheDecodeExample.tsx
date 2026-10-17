@@ -83,6 +83,7 @@ function Rows({
               key={index}
               className="cache-row"
               data-new-row={row.tex === fresh || undefined}
+              style={{ outlineColor: tonePalette(row.tone ?? tone).color }}
             >
               <small>{row.label}</small>
               <span
@@ -104,11 +105,12 @@ function localRows(layer: number, first: number, last: number) {
   return [first, first + 1, "dots", last].map((i) => ({
     tex: i === "dots" ? "dots" : `\\mathbf u_{${layer},${i}}`,
     label: `token ${i}`,
-    tone: "blue" as const,
+    tone: "green" as const,
   }));
 }
 function globalRows(count: number) {
   return [1, 2, "dots", count - 1, count].map((i) => ({
+    tone: "ocean" as const,
     tex: i === "dots" ? "dots" : `\\mathbf g_{3,${i}}`,
     label:
       i === "dots"
@@ -203,10 +205,10 @@ function Local({ layer, step }: { layer: number; step: Step }) {
             layer={layer}
             branch="KV,\mathrm{SWA}"
             result={`\\widehat{\\mathbf u}_{${layer},${t}}`}
-            resultTone="blue"
+            resultTone="green"
           />
           <Down label={`RMSNorm → token ${t} 的 RoPE → FP8 存储`} />
-          <Data tone="blue">
+          <Data tone="green">
             <M tex={`\\mathbf u_{${layer},${t}}\\in\\mathbb R^{1\\times512}`} />
           </Data>
         </section>
@@ -353,7 +355,7 @@ function Global({ step }: { step: Step }) {
                 <span>RMSNorm</span>
                 <M tex="\longrightarrow" />
               </div>
-              <Data>
+              <Data tone="ocean">
                 <M tex="\widehat{\mathbf g}_{3,601}" />
                 <small>1 × 512 · RoPE 前</small>
               </Data>
@@ -393,7 +395,7 @@ function Global({ step }: { step: Step }) {
         <Rows
           name={`G_3^{\\le${t}}`}
           shape={`${m}\\times512`}
-          tone="green"
+          tone="ocean"
           rows={globalRows(m)}
           fresh={appendGlobal ? "\\mathbf g_{3,601}" : undefined}
         />
@@ -403,6 +405,7 @@ function Global({ step }: { step: Step }) {
           tone="cyan"
           rows={globalRows(m).map((row) => ({
             ...row,
+            tone: "cyan" as const,
             tex: row.tex.replace("\\mathbf g", "\\mathbf k^{I\\prime}"),
           }))}
           fresh={appendGlobal ? "\\mathbf k^{I\\prime}_{3,601}" : undefined}
@@ -522,7 +525,7 @@ function SelectionEvidence({
       )}
       {part !== "scores" && (
         <>
-          <Down label="③ 保留原 G 行号取数 · 琥珀轮廓标出本步选中行" />
+          <Down label="③ 保留原 G 行号取数 · 同色加深与轮廓标出本步选中行" />
           <table
             className="cache-selection-map"
             aria-label={`token ${t} 原 G 行对应`}
@@ -549,13 +552,18 @@ function SelectionEvidence({
                       <td>⋮</td>
                     </tr>
                   ) : null,
-                  <tr key={id} data-candidate-id={id} data-selected={j > 0}>
+                  <tr
+                    key={id}
+                    data-candidate-id={id}
+                    data-selected={j > 0}
+                    style={{ outlineColor: tonePalette("ocean").color }}
+                  >
                     <td>{id}</td>
                     <td>
                       {2 * id - 1}、{2 * id}
                     </td>
                     <td>
-                      <Data>
+                      <Data tone="ocean" selected={j > 0}>
                         <M tex={`\\mathbf g_{3,${id}}`} />
                       </Data>
                     </td>
@@ -696,11 +704,12 @@ function CacheReadRows({ layer, step }: { layer: number; step: Step }) {
         <Rows
           name={`KV_{${layer},${t}}`}
           shape={`${readRows}\\times512`}
-          tone="green"
+          tone="neutral"
           rows={[
             ...localRows(layer, firstAfter, t),
             { tex: "separator", label: "" },
             ...[0, 1, "dots", 511].map((j) => ({
+              tone: "ocean" as const,
               tex:
                 j === "dots" ? "dots" : `\\mathbf g_{3,${step.ids[Number(j)]}}`,
               label:
@@ -738,7 +747,7 @@ export function cacheDecodeRecipe(references: Recipe["references"]): Recipe {
         <Frame
           notes={[
             "固定官方 V4.1 场景：第 3 层 Full，第 4 层 Reuse；SWA 容量 128，压缩比 2，索引 Top-K 上限 512。图中层、token、G 行号从 1 开始。",
-            "蓝色 U 是每层自己的局部 KV，绿色 G 是第 3 层生成的全局表示，青色索引 Key 用于候选匹配。全局指序列范围可超出窗口，所属序列和源层明确。",
+            "绿色 U 是每层自己的局部 KV，海蓝 G 是第 3 层生成的全局表示，青色索引 Key 用于候选匹配。全局指序列范围可超出窗口，所属序列和源层明确。",
             "只展开第 3、4 层；token 1201 仍须通过其余层并完成本步，才进入 token 1202 的处理。两个 token 的层内输入各走自己的前向路径。",
           ]}
         >
@@ -755,7 +764,7 @@ export function cacheDecodeRecipe(references: Recipe["references"]): Recipe {
             <Rows
               name="G_3^{\le1200}"
               shape="600\times512"
-              tone="green"
+              tone="ocean"
               rows={globalRows(600)}
             />
           </div>

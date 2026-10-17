@@ -28,7 +28,7 @@
 | 06 简单算术、归约 | `e2e/compact-normalization.spec.ts`、`tests/deepseekRmsNorm.test.ts` | 过度拆解与遗漏运算之间的界限 |
 | 07 裁切、末列、公式 | `e2e/residual-containment.spec.ts`、`e2e/matrix-grid.spec.ts`、`tests/mathMarkup.test.tsx` | 分数与下标可读性、真实裁切 |
 | 08 符号与拼接 | `tests/headGroupConcat.test.tsx`、`tests/diagramNotation.test.tsx`、`e2e/concat-and-route-regression.spec.ts` | 原块在结果中是否一眼可认 |
-| 09 颜色 | `tests/diagramAppearance.test.ts`、`tests/mhcColors.test.tsx`、`e2e/semantic-palette.spec.ts`、`e2e/compact-semantic-regression.spec.ts` | 色系相近难辨、同对象跨模块连续性 |
+| 09 颜色 | `tests/diagramAppearance.test.ts`、`tests/mhcColors.test.tsx`、`e2e/semantic-palette.spec.ts`、`e2e/color-identity.spec.ts`、`e2e/compact-semantic-regression.spec.ts` | 色系相近难辨、同对象跨模块连续性 |
 | 10 端口、线路、标签 | `e2e/full-route-audit.spec.ts`、`e2e/edge-label-audit.spec.ts`、`e2e/sum-source-attachment.spec.ts` | 绕路理由、箭翼、入口变量能否跟踪 |
 | 11–12 缓存与复用 | `tests/cacheDecode.test.tsx`、`tests/cacheSemantics.test.tsx`、`tests/perLayerCache.test.tsx`、`e2e/layer-two-swa.spec.ts` | 本层时间轴与跨层来源是否分清 |
 | 13 候选、分数、ID | `tests/reindexCandidates.test.tsx`、`e2e/indexer-origins.spec.ts` | 选行对象与原 G 行的视觉对应 |
@@ -40,7 +40,7 @@
 
 `candidate-score-caption` 比较说明与框的上下边界、框内文本、公式之外的额外高度，并覆盖多个 Reindex 层。这比只检查“本层分数”四个字存在更接近用户要求，但仍需看截图。
 
-`semantic-palette` 在真实逐层页面扫描压缩器、mHC、Attention、Engram 和 KV 拼接的数据公式所在元素，不把图例或透明容器计入色数；输出已定义/实际使用色系及逐模块清单，并核对压缩生成、暂存、消费与量化 scale 的连续颜色。颜色数达标仍需打开模块截图，检查相邻色的辨识度。
+`semantic-palette` 在真实逐层页面扫描压缩器、mHC、Attention、Engram 和 KV 拼接的数据公式所在元素，不把图例或透明容器计入色数；输出已定义/实际使用色系及逐模块清单，并核对压缩生成、暂存、消费与量化 scale 的连续颜色。`color-identity` 另追踪 Full、Reuse、Reindex 与 SWA-only 的缓存来源色，比较选区加深、追加不换色、混合 K/V 及 Value 消费。颜色数达标仍需打开模块截图，检查相邻色的辨识度。
 
 `interaction-budget` 测输入事件到 DOM 更新及其后下一 rAF 的反馈代理，记录 P95、最大值和样本数。不能只报 DOM 耗时，也不能把下一 rAF 说成显示器实际呈现。帧间隔和反馈延迟分开报告。
 

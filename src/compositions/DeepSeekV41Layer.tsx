@@ -42,6 +42,7 @@ import {
   Title,
   ModuleHeading,
   tonePalette,
+  selectionPalette,
   VectorStrip,
   Matrix,
   RowMatrix,
@@ -510,12 +511,14 @@ function AttentionTensor({
   columns,
   scalar,
   tone = "green",
+  rowTone,
 }: {
   tex: string;
   rows: string;
   columns: string;
   scalar: (row: string, column: string) => string;
   tone?: DiagramTone;
+  rowTone?: (row: string) => DiagramTone;
 }) {
   const palette = tonePalette(tone);
   const { phase } = useExecutionAxis();
@@ -533,7 +536,7 @@ function AttentionTensor({
         justifySelf: "center",
         minWidth: 0,
         padding: 8,
-        border: `1.5px solid ${frameColor(palette.color)}`,
+        border: `1.5px solid ${frameColor(rowTone ? COLORS.line : palette.color)}`,
         borderRadius: 8,
         background: "transparent",
         display: "grid",
@@ -564,6 +567,7 @@ function AttentionTensor({
         {rowLabels.map((row) => (
           <div
             key={row}
+            data-kv-row-tone={rowTone?.(row)}
             style={{
               display: "grid",
               gridColumn: "1 / -1",
@@ -583,11 +587,11 @@ function AttentionTensor({
                   background:
                     row === "\\vdots" || column === "\\cdots"
                       ? "transparent"
-                      : palette.background,
+                      : tonePalette(rowTone?.(row) ?? tone).background,
                   border:
                     row === "\\vdots" || column === "\\cdots"
                       ? undefined
-                      : `1px solid ${palette.color}`,
+                      : `1px solid ${tonePalette(rowTone?.(row) ?? tone).color}`,
                   borderRadius: 4,
                 }}
               >
@@ -644,6 +648,7 @@ export function RmsNormProcess({
   horizontalReduction = false,
   outputHandle,
   inputTone = "blue",
+  outputTone = "green",
 }: {
   input: string;
   output: string;
@@ -656,6 +661,7 @@ export function RmsNormProcess({
   horizontalReduction?: boolean;
   outputHandle?: string;
   inputTone?: DiagramTone;
+  outputTone?: DiagramTone;
 }) {
   const { phase } = useExecutionAxis();
   const row =
@@ -988,7 +994,7 @@ export function RmsNormProcess({
                 rows={["\\mathbf y_{" + row + "}"]}
                 rowLength={String(dimension)}
                 elementTex={(_, column) => "y_{" + row + "," + column + "}"}
-                tone="green"
+                tone={outputTone}
               />
               {rowCount === "1" && outputHandle && (
                 <Handle
@@ -1022,7 +1028,7 @@ export function RmsNormProcess({
               style={{ position: "relative", justifySelf: "center" }}
             >
               <small>各行独立计算，按原行序组成</small>
-              {matrix(output, "y", "green")}
+              {matrix(output, "y", outputTone)}
               {outputHandle && (
                 <Handle
                   id={outputHandle}
@@ -2828,6 +2834,7 @@ function RotaryProcess({
   dimension = 512,
   compact = false,
   inputTone = "blue",
+  outputTone = "green",
 }: {
   input: string;
   output: string;
@@ -2836,7 +2843,8 @@ function RotaryProcess({
   inverse?: boolean;
   dimension?: 128 | 512;
   compact?: boolean;
-  inputTone?: "blue" | "green";
+  inputTone?: DiagramTone;
+  outputTone?: DiagramTone;
 }) {
   const compressed = modeForLayer(layer) !== "swa";
   const unchanged = dimension - 64;
@@ -2884,7 +2892,7 @@ function RotaryProcess({
           <MathFormula tex={input} />
         </Box>
         <Operator tex="\to" />
-        <Box tone="green">
+        <Box tone={outputTone}>
           <MathFormula tex={output} />
         </Box>
       </div>
@@ -2951,7 +2959,7 @@ function RotaryProcess({
                 }}
               >
                 {["a'", "b'"].map((name) => (
-                  <Box key={name} tone="green">
+                  <Box key={name} tone={outputTone}>
                     <MathFormula tex={`${name}_{${pair}}`} />
                   </Box>
                 ))}
@@ -2986,10 +2994,10 @@ function RotaryProcess({
           }}
         >
           <div style={{ display: "grid", gap: 3 }}>
-            <Box tone="green">
+            <Box tone={outputTone}>
               <MathFormula tex="a'_j" />
             </Box>
-            <Box tone="green">
+            <Box tone={outputTone}>
               <MathFormula tex="b'_j" />
             </Box>
           </div>
@@ -3065,6 +3073,7 @@ function IndexProjection({
   outputSymbol,
   sourceNote,
   rowIndex = "t",
+  inputTone = "blue",
 }: {
   title: string;
   input: string;
@@ -3079,6 +3088,7 @@ function IndexProjection({
   outputSymbol: string;
   sourceNote?: ReactNode;
   rowIndex?: string;
+  inputTone?: DiagramTone;
 }) {
   const indices = rows === "1" ? [rowIndex] : ["1", "2", "\\vdots", rows];
   return (
@@ -3108,7 +3118,7 @@ function IndexProjection({
               ? i
               : `\\boldsymbol{${inputSymbol}}_{${layer},${i}}`,
           )}
-          tone="blue"
+          tone={inputTone}
         />
         <Operator tex="\times" />
         <div
@@ -3226,7 +3236,7 @@ export function IndexSelection({
                 }}
               >
                 <span>行 {i + 1}</span>
-                <Box tone={i === 0 || i === 2 ? "amber" : "blue"}>
+                <Box tone="blue" selected={i === 0 || i === 2}>
                   <MathFormula tex={i === 4 ? "-\\infty" : String(score)} />
                 </Box>
               </div>
@@ -3840,6 +3850,8 @@ function SwaSelectionConnector({ layer }: { layer: number }) {
 
 function Head({ index, layer }: { index: number; layer: number }) {
   const { phase, count, rows, token } = useExecutionAxis(layer);
+  const cacheRowTone = (row: string): DiagramTone =>
+    row === "L_t" && layer > 2 ? "ocean" : "green";
   const queryRow = `\\mathbf q_{${layer},${index},${token}}`;
   const rotatedQuery = `\\mathbf q'_{${layer},${index},${token}}`;
   return (
@@ -3882,6 +3894,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
       <RotaryProcess
         input={queryRow}
         output={rotatedQuery}
+        outputTone="blue"
         position={`${token}-1`}
         layer={layer}
       />
@@ -3906,6 +3919,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
           rows="L_t"
           columns="512"
           scalar={(row, column) => `k_{${row},${column}}`}
+          rowTone={cacheRowTone}
         />
         <Operator tex="=" />
         <AttentionTensor
@@ -3913,6 +3927,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
           rows="L_t"
           columns="512"
           scalar={(row, column) => `v_{${row},${column}}`}
+          rowTone={cacheRowTone}
         />
       </div>
       {phase === "decode" && (
@@ -4001,7 +4016,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
                 <MathFormula tex={`q'_{${column}}`} />
               </Box>
               <Operator tex="\times" />
-              <Box tone="green">
+              <Box tone="neutral">
                 <MathFormula tex={`k_{i,${column}}`} />
               </Box>
             </div>
@@ -4131,6 +4146,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
                 rows="1"
                 columns="512"
                 scalar={(_, column) => `v_{${row},${column}}`}
+                tone={cacheRowTone(row)}
               />
             </div>
           ))}
@@ -4702,7 +4718,7 @@ function SelectedGlobalRows({
             <span
               key={`${row.label}-${index}`}
               style={{
-                color: row.selected ? COLORS.blue : COLORS.muted,
+                color: row.selected ? COLORS.ocean : COLORS.muted,
                 fontWeight: row.selected ? 800 : 500,
               }}
             >
@@ -4754,9 +4770,8 @@ function SelectedGlobalRows({
                   elementTex={(column) =>
                     `g_{${kvSource},${row.label},${column}}`
                   }
-                  tone="green"
+                  tone="ocean"
                   selected={row.selected}
-                  selectedTone="blue"
                   columnSubgrid
                   uniformCells
                   compact
@@ -4777,13 +4792,13 @@ function SelectedGlobalRows({
       <div
         style={{
           paddingLeft: 52,
-          color: COLORS.blue,
+          color: COLORS.ocean,
           fontSize: 10.5,
           fontWeight: 800,
           textAlign: "center",
         }}
       >
-        蓝色虚线行被选中；蓝色沿取行结果进入下方拼接
+        海蓝：全局 G；加深 + 虚线：本次选中，取行不改变来源色
       </div>
     </div>
   );
@@ -4919,7 +4934,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               s === "\\vdots" ? (
                 <MathFormula key={i} tex="\cdots" />
               ) : (
-                <Box key={i} tone={s === "t" ? "amber" : "blue"}>
+                <Box key={i} tone="blue" selected={s === "t"}>
                   <MathFormula tex={`v_{${s}}`} />
                 </Box>
               ),
@@ -5178,7 +5193,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             name={`\\widetilde{\\mathbf q}_{${layer},${token}}`}
             length="32768"
             elementTex={(c) => `\\widetilde q_{${layer},${token},${c}}`}
-            tone="green"
+            tone="blue"
             selected
           />
           <span style={{ fontSize: 12 }}>
@@ -5331,9 +5346,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                       style={{
                         minHeight: 18,
                         border:
-                          row === "\\vdots"
-                            ? undefined
-                            : `1px solid ${data.matrixSelectedRow === index ? COLORS.amber : color}`,
+                          row === "\\vdots" ? undefined : `1px solid ${color}`,
                         borderRadius: 5,
                         background:
                           row === "\\vdots"
@@ -5341,7 +5354,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                             : data.matrixRowCells?.[index]
                               ? "transparent"
                               : data.matrixSelectedRow === index
-                                ? COLORS.amberSoft
+                                ? selectionPalette(tone).background
                                 : background,
                         display: "grid",
                         gridTemplateColumns: data.matrixRowCells?.[index]
@@ -5578,6 +5591,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           gamma={`\\boldsymbol\\gamma_{${layer},1}`}
           rowIndex={phase === "decode" ? token : undefined}
           label="Attention 输入"
+          outputTone="blue"
           horizontal
         />
       </div>
@@ -5595,6 +5609,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           rowCount={count}
           gamma={`\\boldsymbol\\gamma_{${layer},2}`}
           label="FFN 输入"
+          outputTone="blue"
           horizontal
         />
       </div>
@@ -5613,6 +5628,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           gamma={`\\boldsymbol\\gamma_{${layer}}^Q`}
           rowIndex={phase === "decode" ? token : undefined}
           label="Query 低秩投影"
+          outputTone="blue"
           horizontal
         />
         <FlowStep>归一化结果进入下方升维投影</FlowStep>
@@ -6051,6 +6067,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     rowIndex="i"
                     gamma={`\\boldsymbol\\gamma_{${layer}}^c`}
                     label="压缩 KV"
+                    outputTone="ocean"
                     inputTone={
                       ratio === 2
                         ? COMPRESSION_TONES.pooled
@@ -6073,7 +6090,8 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   >
                     <RotaryProcess
                       input={`\\bar{\\mathbf g}_{${layer},i}`}
-                      inputTone="green"
+                      inputTone="ocean"
+                      outputTone="ocean"
                       output={`\\mathbf g_{${layer},i}`}
                       position={`(i-1)\\cdot ${ratio}`}
                       layer={layer}
@@ -6108,7 +6126,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
             </>
           ) : mode === "reindex" ? (
             <div style={{ position: "relative", width: "fit-content" }}>
-              <Box tone="blue">
+              <Box tone="green">
                 <strong>同源索引 Key → 本层 Indexer</strong>
                 <MathFormula
                   tex={`K_{${layer}\\leftarrow${kvSource}}^{I\\prime}:=K_{${kvSource}}^{I\\prime}`}
@@ -6122,7 +6140,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               />
             </div>
           ) : (
-            <Box tone="blue">
+            <Box tone="ocean">
               <strong>送往下方全局取行</strong>
               <MathFormula tex={`G_{${layer}}`} />
             </Box>
@@ -6149,7 +6167,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 elementTex={(row, column) => `g_{${layer},${row},${column}}`}
                 vectorLength="512"
                 lastRow="M"
-                tone="green"
+                tone="ocean"
               />
               <Handle
                 id="global-kv-out"
@@ -6294,6 +6312,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     inputSymbol={"\\bar g"}
                     outputSymbol={"\\widehat k^I"}
                     title="压缩潜向量 → 索引 Key"
+                    inputTone="ocean"
                     sourceNote={
                       <>
                         来源：上方 Compressor 的归一化输出、RoPE 前分支。
@@ -6371,6 +6390,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                       rowIndex="i"
                       gamma={`\\boldsymbol\\gamma_{${kvSource}}^{IK}`}
                       label="Indexer 的 K"
+                      inputTone="green"
                       horizontal
                     />
                     <Operator tex="\to" />
@@ -6514,7 +6534,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           id="selected"
           type="source"
           position={Position.Bottom}
-          style={{ ...handle, background: COLORS.blue }}
+          style={{ ...handle, background: COLORS.ocean }}
         />
         <Title>
           把 <MathFormula tex={`I_{${layer},t}`} /> 中的{" "}
@@ -6535,7 +6555,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
           <SelectedGlobalRows kvSource={layer} indexSource={layer} />
           <Arrow />
           <div style={{ minWidth: 0, display: "grid", gap: 9 }}>
-            <Box tone="blue">
+            <Box tone="ocean">
               <MathFormula tex={`G_{${layer},t}^{\\mathrm{selected}}`} />
               <span style={{ display: "block", fontSize: 10 }}>
                 <MathFormula tex={`K_{${layer},t}\\times512`} />
@@ -6566,9 +6586,8 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     length="512"
                     nameWidth={42}
                     elementTex={(column) => `g_{${layer},${row},${column}}`}
-                    tone="green"
+                    tone="ocean"
                     selected
-                    selectedTone="blue"
                     columnSubgrid
                     uniformCells
                     compact
@@ -6654,7 +6673,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
               id="global"
               type="target"
               position={Position.Left}
-              style={{ ...handle, background: COLORS.blue }}
+              style={{ ...handle, background: COLORS.ocean }}
             />
           }
           outputPort={
@@ -8654,7 +8673,7 @@ export function buildGraph(
       matrixRows: matrixRows("\\widehat{\\mathbf q}").map((s) =>
         s === "\\vdots" ? s : `${s}^{r}`,
       ),
-      tone: "green",
+      tone: "blue",
     }),
     {
       ...node(
@@ -8684,7 +8703,7 @@ export function buildGraph(
       matrixRows: matrixRows("\\mathbf q").map((s) =>
         s === "\\vdots" ? s : `${s}^{r}`,
       ),
-      tone: "green",
+      tone: "blue",
     }),
     structureNode({
       id: "q-mul-up",
@@ -8743,7 +8762,7 @@ export function buildGraph(
       height: queryLayout.resultHeight,
       title: "升维输出矩阵",
       tex: `\\widetilde Q_{${layer}}\\in\\mathbb R^{${count}\\times(64\\cdot512)}`,
-      tone: "green",
+      tone: "blue",
       matrixRows: rows.map((s) =>
         s === "\\vdots" ? s : `\\widetilde{\\mathbf q}_{${layer},${s}}`,
       ),
@@ -8760,7 +8779,7 @@ export function buildGraph(
       kind: "structure-group",
       tex: `\\widetilde{\\mathbf q}_{${layer},${token}}`,
       title: `④ 沿特征轴分 64 块 · token 位置 ${token} 不变`,
-      tone: "green",
+      tone: "blue",
     }),
     structureNode({
       id: "q-head-1",
@@ -8773,7 +8792,7 @@ export function buildGraph(
       height: 64,
       title: "Head 1 · 1–512",
       tex: `\\mathbf q_{${layer},1,${token}}`,
-      tone: "green",
+      tone: "blue",
     }),
     structureNode({
       id: "q-head-2",
@@ -8786,7 +8805,7 @@ export function buildGraph(
       height: 64,
       title: "Head 2 · 513–1024",
       tex: `\\mathbf q_{${layer},2,${token}}`,
-      tone: "green",
+      tone: "blue",
     }),
     structureNode({
       id: "q-head-more",
@@ -8811,7 +8830,7 @@ export function buildGraph(
       height: 64,
       title: "Head 64 · 32257–32768",
       tex: `\\mathbf q_{${layer},64,${token}}`,
-      tone: "green",
+      tone: "blue",
     }),
   );
   if (hasGlobal) {
@@ -9250,7 +9269,15 @@ export function buildGraph(
               ? `\\bar{\\mathbf g}_{${kvSource},i}`
               : `\\bar G_{${kvSource}}`
             : `K_{${layer}\\leftarrow${kvSource}}^{I\\prime}`,
-          { sourceHandle: "to-indexer", targetHandle: "global-matrix" },
+          {
+            sourceHandle: "to-indexer",
+            targetHandle: "global-matrix",
+            style: { stroke: mode === "full" ? COLORS.ocean : COLORS.green },
+            data: { color: mode === "full" ? COLORS.ocean : COLORS.green },
+            markerEnd: architectureArrowMarker(
+              mode === "full" ? COLORS.ocean : COLORS.green,
+            ),
+          },
         ),
       );
     edges.push(
@@ -9259,7 +9286,13 @@ export function buildGraph(
         "compressor",
         "global-select",
         `G_{${layer}}`,
-        { sourceHandle: "global-kv-out", targetHandle: "matrix" },
+        {
+          sourceHandle: "global-kv-out",
+          targetHandle: "matrix",
+          style: { stroke: COLORS.ocean },
+          data: { color: COLORS.ocean },
+          markerEnd: architectureArrowMarker(COLORS.ocean),
+        },
       ),
     );
     edges.push(
@@ -9279,9 +9312,9 @@ export function buildGraph(
         {
           sourceHandle: "selected",
           targetHandle: "global",
-          style: { stroke: COLORS.blue },
-          data: { color: COLORS.blue },
-          markerEnd: architectureArrowMarker(COLORS.blue),
+          style: { stroke: COLORS.ocean },
+          data: { color: COLORS.ocean },
+          markerEnd: architectureArrowMarker(COLORS.ocean),
         },
       ),
     );

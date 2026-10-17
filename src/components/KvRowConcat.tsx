@@ -1,5 +1,10 @@
 import type { CSSProperties, ReactNode } from "react";
-import { COLORS, MathFormula, TensorHeading } from "./diagram-primitives";
+import {
+  COLORS,
+  CACHE_TONES,
+  MathFormula,
+  TensorHeading,
+} from "./diagram-primitives";
 import { frameColor } from "./diagram-appearance";
 
 /** 行拼接复用原始行符号；只改变行位置，不生成新的元素值。 */
@@ -27,7 +32,7 @@ export function KvRowConcat({
   );
   const frame: CSSProperties = {
     position: "relative",
-    border: `1.5px solid ${frameColor(COLORS.green)}`,
+    border: `1.5px solid ${frameColor(COLORS[CACHE_TONES.local])}`,
     borderRadius: 8,
     padding: 12,
     minWidth: "max-content",
@@ -37,10 +42,12 @@ export function KvRowConcat({
     positions: string[],
     region: string,
   ) => {
-    const color = region.startsWith("global") ? COLORS.blue : COLORS.green;
+    const color = region.startsWith("global")
+      ? COLORS[CACHE_TONES.global]
+      : COLORS[CACHE_TONES.local];
     const fill = region.startsWith("global")
-      ? COLORS.blueSoft
-      : COLORS.greenSoft;
+      ? COLORS[`${CACHE_TONES.global}Soft`]
+      : COLORS[`${CACHE_TONES.local}Soft`];
     return (
       <div
         data-concat-rows={region}
@@ -123,7 +130,10 @@ export function KvRowConcat({
       </div>
     );
   };
-  const transfer = (label: string, color: string = COLORS.green) => (
+  const transfer = (
+    label: string,
+    color: string = COLORS[CACHE_TONES.local],
+  ) => (
     <div
       style={{
         alignSelf: "center",
@@ -155,9 +165,11 @@ export function KvRowConcat({
         <MathFormula tex={"m_t=\\min(128,t),\\quad r=\\max(1,t-127)"} />。
         每个小框是一条完整的 512 维行向量。
         <div data-kv-source-legend style={{ marginTop: 5 }}>
-          <span style={{ color: COLORS.green }}>绿色：本地 U</span>
+          <span style={{ color: COLORS[CACHE_TONES.local] }}>绿色：本地 U</span>
           {" · "}
-          <span style={{ color: COLORS.blue }}>蓝色：选中的全局 G 行</span>
+          <span style={{ color: COLORS[CACHE_TONES.global] }}>
+            海蓝：全局 G（选行后仍同色）
+          </span>
         </div>
       </div>
       <div
@@ -202,7 +214,7 @@ export function KvRowConcat({
             data-concat-output-global
             style={{
               padding: 12,
-              borderTop: `1.5px solid ${frameColor(COLORS.blue)}`,
+              borderTop: `1.5px solid ${frameColor(COLORS[CACHE_TONES.global])}`,
             }}
           >
             <div style={{ fontWeight: 600 }}>下段 · 紧接选中的全局行</div>
@@ -217,7 +229,10 @@ export function KvRowConcat({
         </div>
         <div
           data-concat-global
-          style={{ ...frame, borderColor: frameColor(COLORS.blue) }}
+          style={{
+            ...frame,
+            borderColor: frameColor(COLORS[CACHE_TONES.global]),
+          }}
         >
           {globalPort}
           <TensorHeading
@@ -229,7 +244,7 @@ export function KvRowConcat({
           </div>
           {rows(globalRows, ["1", "2", "", k], "global-input")}
         </div>
-        {transfer("接在下方", COLORS.blue)}
+        {transfer("接在下方", COLORS[CACHE_TONES.global])}
       </div>
       <div
         data-concat-mapping

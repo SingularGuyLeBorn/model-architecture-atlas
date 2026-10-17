@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from "@playwright/test";
-import { COLORS } from "../src/components/diagram-primitives";
+import { COLORS, selectionPalette } from "../src/components/diagram-primitives";
 
 test("二十色用于真实数据，压缩与反量化沿来源保持颜色", async ({
   page,
@@ -79,6 +79,18 @@ test("二十色用于真实数据，压缩与反量化沿来源保持颜色", as
           ),
         ),
       ).toBe(palette.forest);
+      const globalOutput = node.locator(
+        '[data-rmsnorm="压缩 KV"] [data-rmsnorm-row-output] [data-vector-cell]',
+      );
+      expect(await fill(globalOutput)).toBe(palette.ocean);
+      if (phase === "Prefill")
+        expect(
+          await fill(
+            node.locator(
+              '[data-rmsnorm="压缩 KV"] [data-rmsnorm-output] [data-vector-cell]',
+            ),
+          ),
+        ).toBe(palette.ocean);
       const input = node.locator(
         '[data-rmsnorm="压缩 KV"] [data-rmsnorm-stage="root"] [data-vector-cell]',
       );
@@ -132,7 +144,16 @@ test("二十色用于真实数据，压缩与反量化沿来源保持颜色", as
             '[data-engram-scale-table] [data-vector-selected="true"] [data-vector-cell]',
           ),
         ),
-      ).toBe(palette.ochre);
+      ).toBe(
+        await page.evaluate((hex) => {
+          const e = document.createElement("span");
+          e.style.background = hex;
+          document.body.append(e);
+          const value = getComputedStyle(e).backgroundColor;
+          e.remove();
+          return value;
+        }, selectionPalette("ochre").background),
+      );
       expect(
         await fill(node.locator("[data-dequant-scales] [data-vector-cell]")),
       ).toBe(palette.ochre);

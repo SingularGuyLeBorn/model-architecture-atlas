@@ -20,6 +20,7 @@ import {
   SumJunction,
   SplitArrows,
   tonePalette,
+  selectionPalette,
   matrixColumnTracks,
   MatrixEllipsis,
   type DiagramTone,
@@ -152,11 +153,13 @@ export function Vector({
 export function Data({
   children,
   tone = "green",
+  selected = false,
 }: {
   children: ReactNode;
   tone?: DiagramTone;
+  selected?: boolean;
 }) {
-  const palette = tonePalette(tone);
+  const palette = selected ? selectionPalette(tone) : tonePalette(tone);
   return (
     <div
       className="data-box"

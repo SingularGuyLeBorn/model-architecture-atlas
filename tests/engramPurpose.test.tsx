@@ -39,7 +39,7 @@ it("主图与独立章节说明 Engram 收益、成本、参数身份，不引�
       for (const cell of cells) {
         expect(cell.style.background).toBe(
           cell.closest("[data-vector-selected]")
-            ? "rgb(246, 229, 201)"
+            ? "rgb(195, 203, 230)"
             : "rgb(223, 228, 247)",
         );
       }
