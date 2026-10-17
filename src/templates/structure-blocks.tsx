@@ -20,6 +20,8 @@ import {
   SumJunction,
   SplitArrows,
   tonePalette,
+  matrixColumnTracks,
+  MatrixEllipsis,
   type DiagramTone,
 } from "../components/diagram-primitives";
 
@@ -59,18 +61,31 @@ export function Tensor({
           <M tex={shape} />
         </small>
       </header>
-      <div className="tensor-rows">
+      <div
+        className="tensor-rows"
+        style={{
+          gridTemplateColumns: matrixColumnTracks(
+            columns.map((c) => (c === "…" ? "\\cdots" : c)),
+            "26px",
+          ),
+          width: "max-content",
+          marginInline: "auto",
+        }}
+      >
         {rows.map((row, index) =>
           row === "…" ? (
-            <div key={index} className="ellipsis">
-              ⋮
-            </div>
+            <MatrixEllipsis
+              key={index}
+              columns={columns.map((c) => (c === "…" ? "\\cdots" : c))}
+            />
           ) : (
             <div
               key={index}
               className={selected === row ? "tensor-row picked" : "tensor-row"}
               style={{
-                gridTemplateColumns: `26px ${columns.map((col, i) => (col === "…" ? "14px" : i === columns.length - 1 ? "minmax(0,1.55fr)" : "minmax(0,1fr)")).join(" ")}`,
+                gridColumn: "1 / -1",
+                gridTemplateColumns: "subgrid",
+                alignItems: "stretch",
               }}
             >
               <small>

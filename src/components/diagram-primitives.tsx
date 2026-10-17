@@ -172,6 +172,91 @@ export function ModuleHeading({ children }: { children: ReactNode }) {
   );
 }
 
+/** 独立支路有自己的透明边界；不是张量，也不承担输入输出端口。 */
+export function BranchFrame({
+  title,
+  children,
+}: {
+  title: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      data-branch-frame
+      style={{
+        border: `1px solid ${COLORS.line}`,
+        borderRadius: 8,
+        padding: 10,
+        display: "grid",
+        gap: 8,
+        minWidth: "min-content",
+        height: "100%",
+        boxSizing: "border-box",
+      }}
+    >
+      <strong
+        data-branch-title
+        style={{ borderBottom: `1px solid ${COLORS.line}`, paddingBottom: 6 }}
+      >
+        {title}
+      </strong>
+      {children}
+    </section>
+  );
+}
+
+/** 省略的同构对象占据整个所属轨道，点串在该区域中心，而非标题旁。 */
+export function StructureEllipsis({
+  vertical = false,
+}: {
+  vertical?: boolean;
+}) {
+  return (
+    <span
+      data-structure-ellipsis
+      style={{
+        display: "grid",
+        placeItems: "center",
+        alignSelf: "stretch",
+        justifySelf: "stretch",
+        color: COLORS.muted,
+      }}
+    >
+      <MathFormula tex={vertical ? "\\vdots" : "\\cdots"} />
+    </span>
+  );
+}
+
+/** 可复用的向量容器：标题、维度与代表元素放在同一个透明框内。 */
+export function ExpandedVector({
+  name,
+  length,
+  elementTex,
+  tone = "green",
+  title,
+}: {
+  name: string;
+  length: string;
+  elementTex: (column: string) => string;
+  tone?: DiagramTone;
+  title?: string;
+}) {
+  return (
+    <Box tone={tone} expanded>
+      {title && <strong>{title}</strong>}
+      <TensorHeading name={name} shape={`1\\times${length}`} />
+      <VectorStrip
+        name=""
+        nameWidth={0}
+        length={length}
+        elementTex={elementTex}
+        tone={tone}
+        uniformCells
+      />
+    </Box>
+  );
+}
+
 export function tonePalette(tone: DiagramTone) {
   return tone === "neutral"
     ? { color: COLORS.line, background: COLORS.card }
@@ -264,7 +349,9 @@ export function VectorStrip({
                   contentWidth
                     ? column === "\\cdots"
                       ? "24px"
-                      : "max-content"
+                      : uniformCells
+                        ? "minmax(max-content,1fr)"
+                        : "max-content"
                     : column === "\\cdots"
                       ? ".55fr"
                       : "minmax(0,1fr)",
@@ -820,12 +907,54 @@ export function SerialFlow({
   );
 }
 
-export function SumJunction({ count }: { count: number }) {
+export function SumJunction({
+  count,
+  sourceSelector,
+  targetSelector,
+}: {
+  count: number;
+  sourceSelector?: string;
+  targetSelector?: string;
+}) {
   const marker = `sum-arrow-${useId().replace(/:/g, "")}`;
   const { ref, width } = useDiagramSize();
   const radius = count > 2 ? 32 : 18;
   const centerY = radius + 24;
   const height = radius * 2 + 42;
+  const [ports, setPorts] = useState<{
+    sources: { x: number; y: number }[];
+    target: { x: number; y: number };
+  }>();
+  useLayoutEffect(() => {
+    const root = ref.current,
+      parent = root?.parentElement;
+    if (!root || !parent || !sourceSelector || !targetSelector) return;
+    const sources = [...parent.querySelectorAll<HTMLElement>(sourceSelector)];
+    const target = parent.querySelector<HTMLElement>(targetSelector);
+    if (sources.length !== count || !target) return;
+    const measure = () => {
+      const bounds = root.getBoundingClientRect();
+      if (!bounds.width || !root.offsetWidth) return;
+      const scale = bounds.width / root.offsetWidth;
+      const point = (element: HTMLElement, bottom: boolean) => {
+        const r = element.getBoundingClientRect();
+        return {
+          x: (r.left + r.width / 2 - bounds.left) / scale,
+          y: ((bottom ? r.bottom : r.top) - bounds.top) / scale,
+        };
+      };
+      const next = {
+        sources: sources.map((el) => point(el, true)),
+        target: point(target, false),
+      };
+      setPorts((current) =>
+        JSON.stringify(current) === JSON.stringify(next) ? current : next,
+      );
+    };
+    const observer = new ResizeObserver(measure);
+    [root, parent, ...sources, target].forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [count, sourceSelector, targetSelector, ref]);
   return (
     <div
       ref={ref}
@@ -835,7 +964,12 @@ export function SumJunction({ count }: { count: number }) {
       <svg
         data-merge-arrows={count}
         aria-hidden
-        style={{ width: "100%", height, display: "block" }}
+        style={{
+          width: "100%",
+          height,
+          display: "block",
+          overflow: ports ? "visible" : undefined,
+        }}
       >
         <defs>
           <marker
@@ -856,7 +990,7 @@ export function SumJunction({ count }: { count: number }) {
           </marker>
         </defs>
         {Array.from({ length: count }, (_, i) => {
-          const sourceX = ((i + 0.5) * width) / count;
+          const sourceX = ports?.sources[i].x ?? ((i + 0.5) * width) / count;
           const sourceOffset = sourceX - width / 2;
           // 中间输入直达上边；两侧来源分别接左右边，外侧横段低于内侧，互不交叉。
           const straight = Math.abs(sourceOffset) < radius - 8;
@@ -876,7 +1010,7 @@ export function SumJunction({ count }: { count: number }) {
               key={i}
               data-sum-input={i}
               data-sum-input-arrow={i}
-              d={`M${sourceX} 0 V${y}${straight ? "" : ` H${x}`}`}
+              d={`M${sourceX} ${ports?.sources[i].y ?? 0} V${y}${straight ? "" : ` H${x}`}`}
               markerEnd={`url(#${marker})`}
               fill="none"
               stroke={COLORS.cyan}
@@ -885,12 +1019,13 @@ export function SumJunction({ count }: { count: number }) {
             />
           );
         })}
-        <line
+        <path
           data-sum-output
-          x1="50%"
-          x2="50%"
-          y1={centerY + radius}
-          y2={height - 1}
+          d={
+            ports && Math.abs(ports.target.x - width / 2) > 0.5
+              ? `M${width / 2} ${centerY + radius} V${(centerY + radius + ports.target.y) / 2} H${ports.target.x} V${ports.target.y}`
+              : `M${width / 2} ${centerY + radius} V${ports?.target.y ?? height - 1}`
+          }
           markerEnd={`url(#${marker})`}
           fill="none"
           stroke={COLORS.cyan}

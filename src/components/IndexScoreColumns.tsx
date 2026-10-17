@@ -5,6 +5,7 @@ import {
   Operator,
   RowMatrix,
   StackedSum,
+  StructureEllipsis,
   VectorStrip,
 } from "./diagram-primitives";
 import { Fragment } from "react";
@@ -113,7 +114,7 @@ export function IndexScoreColumns({ layer }: { layer: number }) {
     >
       {["1", "2", "M"].map((column, index) => (
         <Fragment key={column}>
-          {index === 2 && <Operator tex="\cdots" />}
+          {index === 2 && <StructureEllipsis />}
           <section
             data-index-score-column={column}
             style={{

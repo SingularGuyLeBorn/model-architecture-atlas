@@ -613,7 +613,7 @@ export function MhcSinkhorn({ children }: { children: ReactNode }) {
             e₁ⱼ；它们的和 d₁ 是本行共用的分母。
           </span>
           <MathFormula tex="m_1=\max(a^C_{11},a^C_{12},a^C_{13},a^C_{14})" />
-          <MathFormula tex="e_{1j}=\exp(a^C_{1j}-m_1),\quad j=1,2,3,4" />
+          <MathFormula tex="e_{1j}=e^{\boxed{a^C_{1j}}-\boxed{m_1}},\quad j=1,2,3,4" />
           <div data-mhc-row-denominator style={{ display: "grid" }}>
             <div style={grid4}>
               {copies.map((j) => (

@@ -1,5 +1,7 @@
 import { frameColor } from "../components/diagram-appearance";
 import { CompressorProjections } from "../components/CompressorProjections";
+import { CompressorPooling } from "../components/CompressorPooling";
+import { exponentialTex } from "../components/exponential-notation";
 import { CompressorStageConnector } from "../components/CompressorStageConnector";
 import { KvRowConcat } from "../components/KvRowConcat";
 import { CacheReference } from "../components/CacheReference";
@@ -4057,9 +4059,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
               key={tex}
               style={{ display: "grid", justifyItems: "center", gap: 4 }}
             >
-              <Box tone="amber">
-                <MathFormula tex={`e^{${tex}}`} />
-              </Box>
+              <MathFormula tex={exponentialTex(tex)} />
               <span style={{ fontSize: 11 }}>
                 {i === 3
                   ? "可学习 sink · 值向量为 0"
@@ -4087,9 +4087,7 @@ function Head({ index, layer }: { index: number; layer: number }) {
           alignItems: "center",
         }}
       >
-        <Box tone="amber">
-          <MathFormula tex="\frac{e^{z_i}}{D}" />
-        </Box>
+        <MathFormula tex={`\\frac{${exponentialTex("z_i")}}{\\boxed{D}}`} />
         <Operator tex="=" />
         <Box tone="green">
           <MathFormula tex="a_i" />
@@ -6009,186 +6007,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                         </span>
                       </div>
                     )}
-                    <ModuleHeading>
-                      压缩权重 α 的来源 · 同一列的两个 gate 分数做 Softmax
-                    </ModuleHeading>
-                    <div
-                      data-compressor-gate-origin
-                      style={{ textAlign: "center", fontSize: 13 }}
-                    >
-                      第 i 组包含 token 2i−1 和 2i；上方两次投影分别提供候选内容
-                      vᶜ 与 gate 分数 a。 α
-                      随输入计算，不是另一组独立参数，也不是候选 KV。
-                    </div>
-                    <Box tone="amber" expanded>
-                      <strong>
-                        输出两条 1 × 512 权重行 · 每一列单独归一化
-                      </strong>
-                      <br />
-                      <MathFormula
-                        tex={`[\\boldsymbol\\alpha_{${layer},i,1};\\boldsymbol\\alpha_{${layer},i,2}]=\\operatorname{softmax}_{\\mathrm{row}}([\\mathbf a^{\\mathrm{gate}}_{${layer},2i-1};\\mathbf a^{\\mathrm{gate}}_{${layer},2i}])`}
-                      />
-                    </Box>
-                    <div
-                      data-compressor-gate-columns
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                          "max-content max-content 16px max-content",
-                        gap: 8,
-                        justifyContent: "center",
-                        alignItems: "center",
-                      }}
-                    >
-                      {["1", "2", "\\cdots", "512"].map((d) =>
-                        d === "\\cdots" ? (
-                          <MathFormula key={d} tex={d} />
-                        ) : (
-                          <div
-                            key={d}
-                            data-compressor-gate-column={d}
-                            style={{
-                              display: "grid",
-                              gap: 7,
-                              justifyItems: "center",
-                            }}
-                          >
-                            <strong>第 {d} 列 · 两个 token 之间分配权重</strong>
-                            <Box tone="plum" expanded>
-                              <span>输入 · 上方 Gate 投影的同列分数</span>
-                              {["2i-1", "2i"].map((t) => (
-                                <div
-                                  key={t}
-                                  style={{
-                                    display: "grid",
-                                    justifyItems: "center",
-                                    paddingTop: 5,
-                                  }}
-                                >
-                                  <Box tone="plum">
-                                    <MathFormula
-                                      tex={`a^{\\mathrm{gate}}_{${layer},${t},${d}}`}
-                                    />
-                                  </Box>
-                                </div>
-                              ))}
-                            </Box>
-                            <div style={{ color: COLORS.amber }}>
-                              Softmax · 只归一化这两个数
-                            </div>
-                            <Box tone="amber" expanded>
-                              <strong>输出 · 归一化压缩权重</strong>
-                              {[1, 2].map((row) => (
-                                <div
-                                  key={row}
-                                  style={{
-                                    padding: "5px 0",
-                                    display: "grid",
-                                    justifyItems: "center",
-                                  }}
-                                >
-                                  <Box tone="amber">
-                                    <MathFormula
-                                      tex={`\\alpha_{${layer},i,${row},${d}}=\\frac{\\exp(a^{\\mathrm{gate}}_{${layer},${row === 1 ? "2i-1" : "2i"},${d}})}{\\exp(a^{\\mathrm{gate}}_{${layer},2i-1,${d}})+\\exp(a^{\\mathrm{gate}}_{${layer},2i,${d}})}`}
-                                    />
-                                  </Box>
-                                </div>
-                              ))}
-                            </Box>
-                            <MathFormula
-                              tex={`\\alpha_{${layer},i,1,${d}}+\\alpha_{${layer},i,2,${d}}=1`}
-                            />
-                          </div>
-                        ),
-                      )}
-                    </div>
-                    <ModuleHeading>
-                      权重 × 候选内容 · 对齐同一列，合并两行
-                    </ModuleHeading>
-                    <div style={{ textAlign: "center", fontSize: 13 }}>
-                      绿色 vᶜ 是内容，琥珀色 α 是权重；⊙ 表示对应元素相乘，512
-                      列分别使用自己的权重。
-                    </div>
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(2,minmax(0,1fr))",
-                        alignItems: "center",
-                        gap: 5,
-                      }}
-                    >
-                      {[1, 2].map((row) => (
-                        <div
-                          key={row}
-                          data-compressor-weighted-row={row}
-                          style={{ display: "grid", gap: 5 }}
-                        >
-                          <div
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns:
-                                "max-content 24px max-content",
-                              gap: 12,
-                              justifyContent: "center",
-                              alignItems: "center",
-                            }}
-                          >
-                            <div
-                              data-compressor-weight-role
-                              style={{ justifySelf: "center" }}
-                            >
-                              <Box tone="amber">
-                                <strong>压缩权重</strong>
-                                <TensorHeading
-                                  name={`\\boldsymbol\\alpha_{${layer},i,${row}}`}
-                                  shape="1\times512"
-                                />
-                              </Box>
-                            </div>
-                            <Operator tex="\odot" />
-                            <div
-                              data-compressor-content-role
-                              style={{ justifySelf: "center" }}
-                            >
-                              <Box tone="green">
-                                <strong>候选 KV 内容</strong>
-                                <TensorHeading
-                                  name={`\\mathbf v_{${layer},${row === 1 ? "2i-1" : "2i"}}^c`}
-                                  shape="1\times512"
-                                />
-                              </Box>
-                            </div>
-                          </div>
-                          <Operator tex="\downarrow" />
-                          <VectorStrip
-                            name=""
-                            nameWidth={0}
-                            length="512"
-                            tone="green"
-                            elementTex={(j) =>
-                              `\\alpha_{${layer},i,${row},${j}}\\cdot v^c_{${layer},${row === 1 ? "2i-1" : "2i"},${j}}`
-                            }
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    <SumJunction count={2} />
-                    <div
-                      data-compressor-pool-result
-                      style={{ width: "fit-content", justifySelf: "center" }}
-                    >
-                      <Box tone="green">
-                        <MathFormula
-                          tex={`\\widehat{\\mathbf g}_{${layer},i}`}
-                        />{" "}
-                        · 本组逐元素加权和
-                        <div>
-                          <MathFormula
-                            tex={`\\widehat g_{${layer},i,d}=\\alpha_{${layer},i,1,d}\\cdot v^c_{${layer},2i-1,d}+\\alpha_{${layer},i,2,d}\\cdot v^c_{${layer},2i,d},\\quad d=1,\\ldots,512`}
-                          />
-                        </div>
-                      </Box>
-                    </div>
+                    <CompressorPooling layer={layer} />
                   </div>
                 ) : (
                   <Box tone="amber">

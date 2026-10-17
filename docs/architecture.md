@@ -5,7 +5,7 @@
 1. **配置**：从官方配置提取维度、层数、专家数和压缩模式。V4.1 的文本配置位于 text_config，不能误用视觉参数。
 2. **语义**：Recipe 包含 Stage 与显式 links。每条边写出 source、target、变量；独立分支位于同一拓扑层。
 3. **布局**：React Flow 测量节点高度，layoutStages 用同层最大高度排下一层；不能按文字长度猜高度。
-4. **渲染**：共享 Tensor、Vector、Projection、Parallel、Silu、Add 以及圆形 Σ。复制图元不是扩展模板的方式。
+4. **渲染**：共享 Tensor、Vector、Projection、Parallel、Silu、Add 以及无填色方形 Σ。复制图元不是扩展模板的方式。
 
 ## 组件
 
@@ -15,6 +15,23 @@
 - EditableArchitectureGraph.tsx：正交避障、内部边界端口、透明大标签、端点拖动和历史接口。
 - RecipeCanvas.tsx：语义节点的测量、拓扑排列、具名内部输入输出端口、定位、保存与撤销。
 - DeepSeekV41Layer.tsx：已有详细层图的迁移基线。保留层切换、内部子节点与虚拟化。
+- BranchFrame、ExpandedVector、StructureEllipsis：独立分支边界、带代表元素的向量、分支区域居中的省略号；位于 diagram-primitives.tsx。
+- CompressorProjections、CompressorPooling：各 Full 层共用投影与两行池化结构。层号驱动符号，比例 1 不渲染 gate 和池化。
+- exponential-notation.ts：指数与归一化指数共用 TeX 构造；只框指数中的输入变量，底数和分式不套数据框。
+
+## 交给另一个 AI 还原
+
+当前组件可以复用，但完整逐层图还不是单份、可独立渲染的 JSON 规格。
+
+| 交付内容 | 能恢复什么 | 不能保证什么 |
+| --- | --- | --- |
+| 本浏览器保存的布局 | 节点位置、尺寸、连线和人工调整 | 不含框内的完整组成与公式，离开对应代码不能独立重建 |
+| 导出的 SVG 文本 | 当前完整图的文字、公式、样式与几何；现代浏览器可离线打开 | 属于外观快照，不带 React 编辑行为，也不是通用语义图格式；部分矢量编辑器不支持 foreignObject |
+| 同版本项目源码与锁文件 | 参数、公共组件、层模式、内部结构及交互 | 单靠模型配置文件不能还原人工布局；需另附该布局或 SVG |
+
+不方便传截图时，可以把 SVG **作为 XML 文本文件**交给支持读文件的 AI，用于读取现有外观；要继续修改并运行交互图，交付本项目源码、模型与层号、Prefill/Decode 状态，以及人工布局。不能把仅有节点名称的 JSON 称为完整还原格式。
+
+完整数据规格还需统一表达每个内部对象的类型、公式、维度、父子关系、端口、边、重复项和布局约束，并有导入渲染与往返测试。现有章节 Recipe 已有 Stage/links，逐层图仍有 JSX 专用结构，尚未完成这一层统一。
 
 ## 新模型
 

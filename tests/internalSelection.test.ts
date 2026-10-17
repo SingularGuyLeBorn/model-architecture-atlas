@@ -3,6 +3,21 @@ import { inspectInternalTarget } from "../src/components/internal-selection";
 import { inspectorReducer } from "../src/components/ModuleInspector";
 
 describe("内部对象选择", () => {
+  it("指数框选中变量本身，并完整保留多层上下标", () => {
+    const root = document.createElement("div");
+    const formula = document.createElement("span");
+    formula.setAttribute(
+      "aria-label",
+      "e^{\\boxed{a^{gate}_{3,2i-1,512}}}+e^{\\boxed{a^{gate}_{3,2i,512}}}",
+    );
+    formula.innerHTML =
+      '<math><msup><mi>e</mi><menclose notation="box"><mi>a</mi></menclose></msup><msup><mi>e</mi><menclose notation="box"><mi>a</mi></menclose></msup></math>';
+    root.append(formula);
+    const variable = root.querySelectorAll("menclose")[1];
+    const selected = inspectInternalTarget(variable.firstElementChild, root)!;
+    expect(selected.element).toBe(variable);
+    expect(selected.detail.tex).toBe("a^{gate}_{3,2i,512}");
+  });
   it("命中元素时选择最内层框而非矩阵与父容器", () => {
     const root = document.createElement("div");
     root.innerHTML =

@@ -4,6 +4,24 @@ export type InternalSelection = {
   description: string;
 };
 
+/** KaTeX 的变量框可含多层上下标；按配对花括号读取，不能用扁平正则截断。 */
+function boxedVariables(tex: string) {
+  const values: string[] = [];
+  for (let cursor = 0; cursor < tex.length; ) {
+    const start = tex.indexOf("\\boxed{", cursor);
+    if (start < 0) break;
+    let end = start + 7,
+      depth = 1;
+    for (; end < tex.length && depth; end++) {
+      if (tex[end] === "{" && tex[end - 1] !== "\\") depth++;
+      if (tex[end] === "}" && tex[end - 1] !== "\\") depth--;
+    }
+    if (!depth) values.push(tex.slice(start + 7, end - 1));
+    cursor = end;
+  }
+  return values;
+}
+
 /** 按点击位置选择最内层对象；父框只提供解释上下文。 */
 export function inspectInternalTarget(
   target: EventTarget | null,
@@ -14,6 +32,22 @@ export function inspectInternalTarget(
     target.closest(".react-flow__handle, button, input")
   )
     return;
+  const variable = target.closest("menclose[notation='box']");
+  if (variable && root.contains(variable)) {
+    const formula = variable.closest("[aria-label]");
+    const index = [
+      ...(formula?.querySelectorAll("menclose[notation='box']") ?? []),
+    ].indexOf(variable);
+    return {
+      element: variable,
+      detail: {
+        kind: "box",
+        tex: boxedVariables(formula?.getAttribute("aria-label") ?? "")[index],
+        description:
+          "这个小框表示运算中的输入变量；外侧的底数、分式和运算符说明如何使用它。变量的来源与所属模块见下文。",
+      },
+    };
+  }
   const wire = target.closest("path, line, polyline");
   if (wire && root.contains(wire) && !wire.closest("defs")) {
     const input =

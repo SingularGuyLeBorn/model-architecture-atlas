@@ -327,7 +327,7 @@ function Global({ step }: { step: Step }) {
         <>
           <Down label="组满 · 同列两项 Softmax，再逐列加权合并" />
           <div className="cache-query">
-            <M tex="\alpha_{3,601,r,d}=\frac{\exp(a^{\mathrm{gate}}_{3,1200+r,d})}{\exp(a^{\mathrm{gate}}_{3,1201,d})+\exp(a^{\mathrm{gate}}_{3,1202,d})}" />
+            <M tex="\alpha_{3,601,r,d}=\frac{e^{\boxed{a^{\mathrm{gate}}_{3,1200+r,d}}}}{e^{\boxed{a^{\mathrm{gate}}_{3,1201,d}}}+e^{\boxed{a^{\mathrm{gate}}_{3,1202,d}}}}" />
             <p>
               r=1、2 对应组内两个 token；d=1,…,512。α 是权重，vᶜ 是候选内容。
             </p>
@@ -655,7 +655,7 @@ function ReadAttention({ layer, step }: { layer: number; step: Step }) {
           tex={`\\mathbf z_{${layer},h,${t}}=\\frac{\\mathbf q'_{${layer},h,${t}}K_{${layer},${t}}^{\\mathsf T}}{\\sqrt{d_k}},\\quad d_k=512`}
         />
         <M
-          tex={`a_{${layer},h,${t},j}=\\frac{\\exp(z_{${layer},h,${t},j})}{\\sum_{i=1}^{${readRows}}\\exp(z_{${layer},h,${t},i})+\\exp(b_{${layer},h})}`}
+          tex={`a_{${layer},h,${t},j}=\\frac{e^{\\boxed{z_{${layer},h,${t},j}}}}{\\sum_{i=1}^{${readRows}}e^{\\boxed{z_{${layer},h,${t},i}}}+e^{\\boxed{b_{${layer},h}}}}`}
         />
         <M
           tex={`\\mathbf o_{${layer},h,${t}}=\\mathbf a_{${layer},h,${t}}V_{${layer},${t}}`}

@@ -38,6 +38,8 @@ test("内部元素与汇合线可独立点击，关闭面板后保持关闭", as
     "true",
   );
   await page.getByRole("button", { name: "关闭模块解释" }).click();
+  // 侧栏收拢会移动画布；等真实宽度到达收拢状态后再采集屏幕坐标。
+  await expect(page.locator(".inspector-rail")).toHaveCSS("width", "52px");
   // 采用真实路径的靠近源端位置点击，不派发合成 click。
   const wire = sum.locator('[data-wire-input="0"]');
   const point = await wire.evaluate((path: SVGPathElement) => {

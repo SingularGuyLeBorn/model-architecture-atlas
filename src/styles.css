@@ -802,6 +802,22 @@ h1 {
   align-items: center;
   margin-top: 10px;
 }
+
+/* Chromium 的 MathML Core 不绘制 menclose；显式绘制变量框，保留指数排版。 */
+menclose[notation="box"] {
+  display: inline-block;
+  border: 1px solid #995b8b;
+  border-radius: 3px;
+  background: #eedcec;
+  padding: 2px 3px;
+}
+
+/* Attention 的分数和共享分母沿用其来源的琥珀色。 */
+:is([data-attention-denominator], [data-attention-softmax])
+  menclose[notation="box"] {
+  border-color: #ad792a;
+  background: #f6e5c9;
+}
 .sum-structure {
   min-width: 0;
 }

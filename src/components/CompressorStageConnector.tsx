@@ -8,7 +8,9 @@ export function CompressorStageConnector() {
   useLayoutEffect(() => {
     const svg = ref.current;
     const layout = svg?.parentElement;
-    const source = layout?.querySelector("[data-compressor-pool-result]");
+    const source = layout?.querySelector(
+      "[data-compressor-pool-result] [data-expanded-tensor]",
+    );
     const target = layout?.querySelector(
       "[data-rmsnorm-input] [data-expanded-tensor]",
     );
