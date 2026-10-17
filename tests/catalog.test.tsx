@@ -31,6 +31,19 @@ describe("配置与版本边界", () => {
     expect(() => routedWeights([0], [0], 1.5)).toThrow();
   });
 });
+it.each(["prefill", "decode"] as const)(
+  "Qwen %s 逐层入口连接模型首尾，独立机制仍可访问",
+  (phase) => {
+    const model = models.find((m) => m.id === "qwen38")!;
+    expect(model.chapters).toEqual(["layer", "ple", "gdn", "qsa"]);
+    const first = recipeFor(model, "layer", phase, 1);
+    const last = recipeFor(model, "layer", phase, 48);
+    expect(first.stages.map((s) => s.id)).toContain("embedding-copy");
+    expect(last.stages.at(-1)?.id).toBe("lm-head");
+    expect(first.references.length).toBeGreaterThanOrEqual(2);
+    expect(last.references.length).toBeGreaterThanOrEqual(2);
+  },
+);
 for (const model of models)
   for (const chapter of model.chapters.filter((c) => c !== "layer"))
     for (const phase of ["prefill", "decode"] as const) {

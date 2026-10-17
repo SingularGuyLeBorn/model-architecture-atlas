@@ -152,7 +152,7 @@ export function recipeFor(
   layer: number,
 ): Recipe {
   if (model.family === "qwen")
-    return chapter === "gr"
+    return chapter === "layer"
       ? qwenCoreRecipe(phase, layer)
       : chapter === "ple"
         ? qwenPleRecipe(phase)

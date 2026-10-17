@@ -1,5 +1,8 @@
 import type { Recipe, Stage, RecipeLink, Phase } from "./recipes";
-import { MathFormula as M } from "../components/diagram-primitives";
+import {
+  MathFormula as M,
+  tonePalette,
+} from "../components/diagram-primitives";
 import { Down } from "./structure-blocks";
 import {
   Row,
@@ -18,6 +21,8 @@ import { layerArchitecture } from "../data/architecture-profiles";
 import { qwenMoeRecipe } from "./qwen-moe";
 import { qwenPleRecipe } from "./qwen-ple";
 import { ObjectConnections } from "../components/ObjectConnections";
+import { qwenInputStages } from "./qwen-boundaries";
+import { RecipePort } from "./RecipePorts";
 
 const lanes = [1, 2, 3, 4];
 const features = ["1", "2", "…", "2560"];
@@ -49,9 +54,9 @@ export function QwenState({
 }
 
 /** 门控残差的读写两半；真实子层计算插在 read 与 write 之间。 */
-export function qwenResidualStages(layer: number, tag: "A" | "F") {
-  const prefix = tag === "A" ? "attn-gr" : "ffn-gr",
-    part = tag === "A" ? "in" : "mid",
+export function qwenResidualStages(layer: number, tag: "A" | "F" | "O") {
+  const prefix = tag === "A" ? "attn-gr" : tag === "F" ? "ffn-gr" : "output-gr",
+    part = tag === "A" ? "in" : tag === "F" ? "mid" : "out",
     next = tag === "A" ? "mid" : "out";
   const l = String(layer),
     scope = `${l},t`,
@@ -75,7 +80,7 @@ export function qwenResidualStages(layer: number, tag: "A" | "F") {
   ) =>
     stages.push({
       id: id(suffix),
-      title: `${tag === "A" ? "Attention" : "FFN"} GR · ${title}`,
+      title: `${tag === "A" ? "Attention" : tag === "F" ? "FFN" : "末端只读"} GR · ${title}`,
       body,
       output,
       width,
@@ -108,7 +113,9 @@ export function qwenResidualStages(layer: number, tag: "A" | "F") {
   );
   add(
     "norm",
-    "四路各自归一化；保留原始四路旁路",
+    tag === "O"
+      ? "最后四路各自归一化，供只读汇合"
+      : "四路各自归一化；保留原始四路旁路",
     <ObjectConnections
       links={lanes.flatMap((j) => [
         { from: "norm-source", to: `norm-input-${j}` },
@@ -147,18 +154,36 @@ export function qwenResidualStages(layer: number, tag: "A" | "F") {
         <Flow>
           {[
             normMatrix("out", "norm-joined"),
-            <Row
-              key="flat"
-              name={flat}
-              size={10240}
-              tone="green"
-              direction="out"
-              element={(d) =>
-                d === "2560"
-                  ? `\\bar h^${tag}_{${l},1,t,2560}`
-                  : `(${flat})_{${d}}`
-              }
-            />,
+            <div className="architecture-object" key="flattened">
+              <p className="architecture-caption">
+                按路顺序沿特征轴拼接；元素不变
+              </p>
+              <RecipePort tex={flat} direction="out">
+                <section
+                  className="tensor"
+                  data-expanded-tensor
+                  style={{ borderColor: tonePalette("green").color }}
+                >
+                  <header>
+                    <M tex={flat} />
+                    <small>
+                      <M tex="1\times10240" />
+                    </small>
+                  </header>
+                  <Columns>
+                    {lanes.map((j) => (
+                      <Row
+                        key={j}
+                        name={`\\bar h^${tag}_{${l},${j},t}`}
+                        size={2560}
+                        tone="green"
+                        element={(d) => `\\bar h^${tag}_{${l},${j},t,${d}}`}
+                      />
+                    ))}
+                  </Columns>
+                </section>
+              </RecipePort>
+            </div>,
           ]}
         </Flow>
       </div>
@@ -212,7 +237,7 @@ export function qwenResidualStages(layer: number, tag: "A" | "F") {
       </p>
     </>,
     gates,
-    1600,
+    1250,
   );
   edge("norm", "read-gates", flat);
   add(
@@ -263,6 +288,13 @@ export function qwenResidualStages(layer: number, tag: "A" | "F") {
   );
   edge("norm", "read", norm);
   edge("read-gates", "read", gates);
+  if (tag === "O")
+    return {
+      stages,
+      links,
+      ports: { input, output: x, childInput: x, childOutput: o },
+      ids: { norm: id("norm"), read: id("read"), write: id("write") },
+    };
   add(
     "write-gates",
     "另一路投影生成四个标量写门",
@@ -378,12 +410,33 @@ export function qwenCoreRecipe(phase: Phase, layer: number): Recipe {
       title: `Layer ${layer} · 四路残差进入本层主路径`,
       body: (
         <>
-          <QwenState layer={layer} part="in" direction="out" />
+          {layer > 2 ? (
+            <>
+              <Flow>
+                {[
+                  <QwenState key="previous" layer={layer - 1} part="out" />,
+                  <QwenState
+                    key="current"
+                    layer={layer}
+                    part="in"
+                    direction="out"
+                  />,
+                ]}
+              </Flow>
+              <p className="architecture-note">
+                <M
+                  tex={`h^{in}_{${layer},j,t,d}=h^{out}_{${layer - 1},j,t,d}`}
+                />{" "}
+                · 四路逐元素原样传入本层。
+              </p>
+            </>
+          ) : (
+            <QwenState layer={layer} part="in" direction="out" />
+          )}
           <p className="architecture-note">
             {phase === "prefill"
               ? "每个 token 独立做门控残差与 MoE；注意力遵循因果依赖。"
               : "固定当前 token t；递归状态与 K/V 缓存由各注意力分支独立维护。"}{" "}
-            四路均来自上一层；第 1 层由同一个输入 embedding 复制四份。
           </p>
           <p className="architecture-note">
             GR 与 QSA 的普通 RMSNorm 使用 <M tex={"\\gamma=1+w"} />
@@ -392,7 +445,7 @@ export function qwenCoreRecipe(phase: Phase, layer: number): Recipe {
         </>
       ),
       output: a.ports.input,
-      width: 1300,
+      width: 1000,
       inlinePorts: true,
     },
   ];
@@ -433,6 +486,14 @@ export function qwenCoreRecipe(phase: Phase, layer: number): Recipe {
     })),
     { source: moe.output, target: f.ids.write, tex: f.ports.childOutput },
   ];
+  if (layer === 1) {
+    const input = qwenInputStages(phase);
+    stages.splice(0, 1, ...input.stages);
+    links.forEach((link) => {
+      if (link.source === "input") link.source = "embedding-copy";
+    });
+    links.unshift(...input.links);
+  }
   if (layer === 2) {
     const ple = qwenPleRecipe(phase);
     stages.splice(0, 1, ...ple.stages);
@@ -441,10 +502,51 @@ export function qwenCoreRecipe(phase: Phase, layer: number): Recipe {
     });
     links.unshift(...ple.links);
   }
+  if (layer === 48) {
+    const last = qwenResidualStages(layer, "O");
+    stages.push(...last.stages, {
+      id: "lm-head",
+      title: "末端读出直接投影到 248320 个词表 logits",
+      width: 1250,
+      inlinePorts: true,
+      output: "z_t",
+      body: (
+        <>
+          <Project
+            input={last.ports.output}
+            weight="W^{LM}"
+            output="z_t"
+            from={2560}
+            to={248320}
+            inputPort
+            tone="coral"
+            inputTone="blue"
+          />
+          <p className="architecture-note">
+            <M tex="z_{t,v}=\sum_{d=1}^{2560}x^O_{48,t,d}w^{LM}_{d,v},\quad v=1,\ldots,248320" />
+          </p>
+          <p className="architecture-note">
+            词表列 v 对应 Token ID v−1。LM Head 与输入 embedding
+            不共享参数；末端读出后没有额外 RMSNorm，也没有写回门。
+          </p>
+          <p className="architecture-note">
+            {phase === "prefill"
+              ? "每个保留位置有一行 logits；生成通常只保留末位置的输出。"
+              : "当前一行 logits 交给生成策略，选择下一 token；策略不属于 LM Head。"}
+          </p>
+        </>
+      ),
+    });
+    links.push(
+      ...last.links,
+      { source: f.ids.write, target: last.ids.norm, tex: last.ports.input },
+      { source: last.ids.read, target: "lm-head", tex: last.ports.output },
+    );
+  }
   return {
     introduction:
-      "Qwen3.8-Flash-Next · 四路门控残差与 Attention/MoE 主路径；第 2 层先执行 PLE 注入。模型输入与末端读取另行展开。",
-    exportName: `Qwen3.8-Flash-Next-L${layer}-GR-core-${phase}`,
+      "Qwen3.8-Flash-Next · 第 1 层从文本 ID 查表开始，第 2 层先执行 PLE 注入；第 48 层之后为只读 GR 与独立 LM Head。",
+    exportName: `Qwen3.8-Flash-Next-L${layer}-${phase}`,
     stages,
     links,
     references: attention.references,

@@ -7,7 +7,9 @@ import { elementIndex } from "../src/templates/structure-blocks";
 
 vi.mock("@xyflow/react", async (original) => ({
   ...(await original<typeof import("@xyflow/react")>()),
-  Handle: ({ id }: { id: string }) => <span data-handleid={id} />,
+  Handle: ({ id, position }: { id: string; position: string }) => (
+    <span data-handleid={id} data-position={position} />
+  ),
 }));
 
 it("嵌套专家号作为同一外层下标，特征索引加在外层末端", () => {
@@ -61,7 +63,8 @@ for (const layer of [1, 2, 4, 48])
         ).toHaveLength(1);
       });
       expect(recipe.links).toContainEqual({
-        source: layer === 2 ? "ple-inject" : "input",
+        source:
+          layer === 2 ? "ple-inject" : layer === 1 ? "embedding-copy" : "input",
         target: "attn-gr-write",
         tex: qwenStateName(layer, "in"),
       });
@@ -85,6 +88,14 @@ for (const layer of [1, 2, 4, 48])
         }
         expect(
           doms.get(`${prefix}-norm`)?.querySelectorAll(".architecture-rms"),
+        ).toHaveLength(4);
+        const flat = [...norm.querySelectorAll("[data-variable]")].find(
+          (n) =>
+            n.getAttribute("data-variable") ===
+            `u^${prefix === "attn-gr" ? "A" : "F"}_{${layer},t}`,
+        )!;
+        expect(
+          flat.querySelectorAll(".architecture-columns .architecture-object"),
         ).toHaveLength(4);
         expect(
           doms.get(`${prefix}-read`)?.querySelectorAll("[data-read-product]"),
@@ -118,4 +129,56 @@ for (const layer of [1, 2, 4, 48])
       expect(doms.get("moe-select")?.textContent).toContain(
         "只对这 10 项重新归一化",
       );
+      if (layer === 1) {
+        const input = doms.get("input")!;
+        const rowPort = input.querySelector(
+          '.tensor-row[data-variable="e_t"]',
+        )!;
+        expect(rowPort).not.toBeNull();
+        expect(rowPort.querySelectorAll("[data-handleid]")).toHaveLength(1);
+        expect(
+          rowPort
+            .querySelector("[data-handleid]")
+            ?.getAttribute("data-position"),
+        ).toBe("right");
+        expect(
+          [...input.querySelectorAll("[aria-label]")].map((n) =>
+            n.getAttribute("aria-label"),
+          ),
+        ).toContain("248320\\times2560");
+        expect(input.textContent).toContain(
+          phase === "prefill" ? "每个位置独立查表" : "本步仅输入当前位置",
+        );
+        for (const j of [1, 2, 3, 4]) {
+          const copy = doms
+            .get("embedding-copy")!
+            .querySelector(`[data-trace-object="embedding-copy-${j}"]`)!;
+          expect(
+            copy.querySelector('[aria-label="e_{t,2560}"]'),
+          ).not.toBeNull();
+        }
+      }
+      if (layer === 48) {
+        expect(doms.has("output-gr-norm")).toBe(true);
+        expect(doms.has("output-gr-read-gates")).toBe(true);
+        expect(doms.has("output-gr-read")).toBe(true);
+        expect(doms.has("output-gr-write-gates")).toBe(false);
+        expect(doms.has("output-gr-write")).toBe(false);
+        expect(recipe.links).toContainEqual({
+          source: "ffn-gr-write",
+          target: "output-gr-norm",
+          tex: "H^{out}_{48,t}",
+        });
+        expect(recipe.links).toContainEqual({
+          source: "output-gr-read",
+          target: "lm-head",
+          tex: "x^O_{48,t}",
+        });
+        expect(doms.get("lm-head")!.textContent).toContain("不共享参数");
+        expect(
+          [...doms.get("lm-head")!.querySelectorAll("[aria-label]")].map((n) =>
+            n.getAttribute("aria-label"),
+          ),
+        ).toContain("2560\\times248320");
+      }
     });

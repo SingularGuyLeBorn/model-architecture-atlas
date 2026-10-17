@@ -95,6 +95,7 @@ export function Matrix({
   title,
   rowTrace,
   rowTone,
+  rowPort,
   trace,
 }: {
   name: string;
@@ -108,6 +109,9 @@ export function Matrix({
   title?: string;
   rowTrace?: (row: string) => string | undefined;
   rowTone?: (row: string) => DiagramTone;
+  rowPort?: (
+    row: string,
+  ) => { tex: string; direction: "in" | "out" } | undefined;
   trace?: string;
 }) {
   const tensor = (
@@ -121,6 +125,7 @@ export function Matrix({
       selected={selected}
       rowTrace={rowTrace}
       rowTone={rowTone}
+      rowPort={rowPort}
     />
   );
   return (

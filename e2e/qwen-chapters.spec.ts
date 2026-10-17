@@ -34,5 +34,18 @@ test("Qwen 两种注意力章节始终进入配置允许的层", async ({ page }
     .getByRole("button", { name: /PLE 加回原始四路/ })
     .click();
   await expect(page.locator('[data-stage="ple-inject"]')).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "章节选择" })
+    .getByRole("button", { name: /逐层交互/ })
+    .click();
+  await expect(layer.locator("option")).toHaveCount(48);
+  await layer.selectOption("1");
+  await expect(page.locator('[data-stage="input"]')).toContainText("Token ID");
+  await layer.selectOption("48");
+  await page
+    .getByRole("navigation", { name: "图中步骤" })
+    .getByRole("button", { name: /末端读出直接投影/ })
+    .click();
+  await expect(page.locator('[data-stage="lm-head"]')).toContainText("248320");
   expect(errors).toEqual([]);
 });

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { RecipePortHandles } from "./RecipePorts";
 export function Sequence({ children }: { children: ReactNode[] }) {
   return (
     <div className="sequence">
@@ -39,6 +40,7 @@ export function Tensor({
   rowTrace,
   rowTone,
   columnTrace,
+  rowPort,
 }: {
   name: string;
   shape: string;
@@ -52,6 +54,9 @@ export function Tensor({
   rowTrace?: (row: string) => string | undefined;
   rowTone?: (row: string) => DiagramTone;
   columnTrace?: (column: string) => string | undefined;
+  rowPort?: (
+    row: string,
+  ) => { tex: string; direction: "in" | "out" } | undefined;
 }) {
   const palette = tonePalette(tone);
   const isPickedRow = (row: string) =>
@@ -99,11 +104,14 @@ export function Tensor({
             <div
               key={index}
               data-trace-object={rowTrace?.(row)}
-              className={isPickedRow(row) ? "tensor-row picked" : "tensor-row"}
+              className={`tensor-row${isPickedRow(row) ? " picked" : ""}${rowPort?.(row) ? " recipe-object-port" : ""}`}
+              data-variable={rowPort?.(row)?.tex}
+              data-direction={rowPort?.(row)?.direction}
               style={{
                 gridColumn: "1 / -1",
                 gridTemplateColumns: "subgrid",
                 alignItems: "stretch",
+                ...(rowPort?.(row) ? { width: "auto" } : {}),
                 ...(isPickedRow(row)
                   ? { outlineOffset: 4, marginBlock: 5 }
                   : {}),
@@ -149,6 +157,12 @@ export function Tensor({
                     />
                   </span>
                 ),
+              )}
+              {rowPort?.(row) && (
+                <RecipePortHandles
+                  {...rowPort(row)!}
+                  side={rowPort(row)!.direction === "out" ? "right" : "left"}
+                />
               )}
             </div>
           ),

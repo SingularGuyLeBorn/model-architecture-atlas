@@ -125,7 +125,8 @@ export function qwenPleRecipe(phase: Phase): Recipe {
         {phase === "decode"
           ? "Decode：读取上步保存的两个 ID，使用当前 ID 后保留最新两个；首次用 EOS 补足。"
           : "Prefill：每个位置只取自身结尾的二元、三元后缀；序列开头与跨 EOS 的历史以 EOS 补足。"}{" "}
-        Hᵖʳᵉ 来自第 1 层输出；尚未注入 PLE。
+        <M tex="h^{pre}_{2,j,t,d}=h^{out}_{1,j,t,d}" />
+        ；尚未注入 PLE。
       </p>
     </>,
     `${hpre},${ids}`,

@@ -13,10 +13,12 @@ for (const [id, layer, phase, chapter = "layer"] of [
   ["qwen38", 47, "decode", "gdn"],
   ["qwen38", 4, "prefill", "qsa"],
   ["qwen38", 48, "decode", "qsa"],
-  ["qwen38", 1, "prefill", "gr"],
-  ["qwen38", 48, "decode", "gr"],
+  ["qwen38", 1, "prefill", "layer"],
+  ["qwen38", 1, "decode", "layer"],
+  ["qwen38", 48, "prefill", "layer"],
+  ["qwen38", 48, "decode", "layer"],
   ["qwen38", 2, "prefill", "ple"],
-  ["qwen38", 2, "decode", "gr"],
+  ["qwen38", 2, "decode", "layer"],
 ] as const) {
   test(`${id} ${chapter} Layer ${layer} ${phase} · 内容边界、端口与截图`, async ({
     page,
