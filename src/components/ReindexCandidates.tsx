@@ -139,11 +139,20 @@ export function CandidateFilter({ layer }: { layer: number }) {
           <div
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
           >
-            <Box tone="green">
-              <M tex={"S_{" + layer + ",t}\\quad1\\times M"} />
-              <br />
-              本层分数
-            </Box>
+            <div
+              data-candidate-score
+              style={{
+                display: "grid",
+                gap: 4,
+                alignSelf: "end",
+                justifyItems: "center",
+              }}
+            >
+              <span data-candidate-score-caption>本层分数</span>
+              <Box tone="green">
+                <M tex={"S_{" + layer + ",t}\\quad1\\times M"} />
+              </Box>
+            </div>
             <CacheReference layer={layer} source={CANDIDATE_SOURCE} kind="B" />
           </div>
           <MergeArrows count={2} />

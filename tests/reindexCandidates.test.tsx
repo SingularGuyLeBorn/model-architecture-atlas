@@ -53,5 +53,13 @@ it("候选来源、应用位置、形状与教学声明都在图中", () => {
     expect(html).toContain(`B_{${layer}\\leftarrow21,t}:=B_{21,t}`);
     expect(html).toContain("过滤后的分数");
     expect(html).not.toContain("katex-error");
+    root.innerHTML = html;
+    const score = root.querySelector("[data-candidate-score]")!;
+    const caption = score.querySelector("[data-candidate-score-caption]")!;
+    const tensor = score.lastElementChild!;
+    expect(caption.textContent).toBe("本层分数");
+    expect(tensor.contains(caption)).toBe(false);
+    expect(tensor.textContent).not.toContain("本层分数");
+    expect(tensor.querySelectorAll(".katex")).toHaveLength(1);
   }
 });
