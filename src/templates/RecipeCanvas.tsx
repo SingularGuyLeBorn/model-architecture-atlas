@@ -24,6 +24,7 @@ import {
 } from "../components/EditableArchitectureGraph";
 import { MathFormula as M } from "../components/diagram-primitives";
 import { type Recipe, type Stage } from "./recipes";
+import { RecipePortsContext } from "./RecipePorts";
 import {
   DiagramExportButton,
   useDiagramExporting,
@@ -76,7 +77,7 @@ const StageView = memo(function StageView({
         <span>{String(data.ordinal).padStart(2, "0")}</span>
         <h3>{data.title.replace(/^\d+ · /, "")}</h3>
       </header>
-      {!!data.inputs?.length && (
+      {!data.inlinePorts && !!data.inputs?.length && (
         <div className="port-row">
           {data.inputs.map((port) => (
             <div className="stage-input" key={port.id}>
@@ -87,19 +88,25 @@ const StageView = memo(function StageView({
           ))}
         </div>
       )}
-      <div className="stage-body">{data.body}</div>
-      <div className="port-row">
-        {(data.outputs?.length
-          ? data.outputs
-          : [{ id: "out", tex: data.output }]
-        ).map((port) => (
-          <div className="stage-output" key={port.id}>
-            <small>输出</small>
-            <M tex={port.tex} />
-            <Handle type="source" id={port.id} position={Position.Bottom} />
-          </div>
-        ))}
-      </div>
+      <RecipePortsContext.Provider
+        value={{ inputs: data.inputs, outputs: data.outputs }}
+      >
+        <div className="stage-body">{data.body}</div>
+      </RecipePortsContext.Provider>
+      {!data.inlinePorts && (
+        <div className="port-row">
+          {(data.outputs?.length
+            ? data.outputs
+            : [{ id: "out", tex: data.output }]
+          ).map((port) => (
+            <div className="stage-output" key={port.id}>
+              <small>输出</small>
+              <M tex={port.tex} />
+              <Handle type="source" id={port.id} position={Position.Bottom} />
+            </div>
+          ))}
+        </div>
+      )}
     </article>
   );
 });

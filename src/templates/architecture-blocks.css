@@ -1,0 +1,114 @@
+.recipe-object-port {
+  position: relative;
+  width: max-content;
+  max-width: 100%;
+}
+.architecture-object {
+  width: max-content;
+  margin-inline: auto;
+}
+.architecture-object > .tensor,
+.architecture-object > div > .tensor,
+.recipe-object-port > .tensor {
+  width: max-content;
+  padding: 10px 12px;
+}
+.architecture-caption {
+  text-align: center;
+  margin: 0 0 7px;
+  font-size: 13px;
+}
+.architecture-flow,
+.architecture-equation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-block: 12px;
+}
+.architecture-equation > .architecture-object,
+.architecture-equation > .recipe-object-port {
+  margin-inline: 0;
+}
+.architecture-flow-step {
+  flex: 0 0 auto;
+}
+.architecture-arrow,
+.architecture-operator {
+  flex: 0 0 auto;
+  font-size: 23px;
+  color: #526a7a;
+  min-width: 20px;
+  text-align: center;
+}
+.architecture-operation {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  padding: 8px;
+  width: max-content;
+}
+.architecture-operation > small {
+  font-size: 13px;
+  color: #526a7a;
+}
+.architecture-columns {
+  display: flex;
+  justify-content: center;
+  align-items: start;
+  gap: 24px;
+}
+.architecture-columns > div {
+  min-width: max-content;
+}
+.architecture-sum {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  margin-block: 12px;
+}
+.architecture-sum > .architecture-columns {
+  width: 100%;
+}
+.architecture-sum [data-architecture-summand],
+.architecture-sum [data-architecture-sum-result] {
+  width: max-content;
+}
+.architecture-rms {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+.architecture-swiglu > .architecture-columns {
+  align-items: start;
+}
+.architecture-fraction {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+}
+.architecture-fraction > :first-child {
+  border-bottom: 1px solid #526a7a;
+  padding-bottom: 7px;
+}
+.architecture-note {
+  font-size: 13px;
+  color: #526a7a;
+  text-align: center;
+  margin: 10px 0;
+}
+.object-connections {
+  position: relative;
+}
+.object-connections-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.architecture-swiglu > .architecture-columns,
+.architecture-swiglu > .architecture-equation {
+  margin-top: 48px;
+}

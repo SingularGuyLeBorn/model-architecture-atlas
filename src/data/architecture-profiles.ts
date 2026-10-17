@@ -1,10 +1,10 @@
-import v3 from "./configs/DeepSeek-V3.json";
-import r1 from "./configs/DeepSeek-R1.json";
-import v31 from "./configs/DeepSeek-V3.1.json";
-import v32 from "./configs/DeepSeek-V3.2.json";
-import mimo from "./configs/MiMo-V2.5.json";
-import qwen from "./configs/Qwen3.8-Flash-Next.json";
-import sources from "./sources.json";
+import v3 from "./configs/DeepSeek-V3.json" with { type: "json" };
+import r1 from "./configs/DeepSeek-R1.json" with { type: "json" };
+import v31 from "./configs/DeepSeek-V3.1.json" with { type: "json" };
+import v32 from "./configs/DeepSeek-V3.2.json" with { type: "json" };
+import mimo from "./configs/MiMo-V2.5.json" with { type: "json" };
+import qwen from "./configs/Qwen3.8-Flash-Next.json" with { type: "json" };
+import sources from "./sources.json" with { type: "json" };
 
 /** 图中层号、token 行号从 1 开始；官方数组的下标只在这里转换。 */
 export type ArchitectureModelId =

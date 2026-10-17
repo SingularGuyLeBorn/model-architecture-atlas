@@ -69,7 +69,7 @@ export function App() {
   const model = models.find((item) => item.id === route.id)!;
   const recipe = useMemo(
     () =>
-      route.chapter === "layer"
+      route.chapter === "layer" && model.id === "v41"
         ? null
         : recipeFor(model, route.chapter, phase, layer),
     [model, route.chapter, phase, layer],
@@ -136,7 +136,7 @@ export function App() {
             </button>
           </div>
           <div className="nav-caption">
-            MODEL ATLAS <span>01 / DEEPSEEK</span>
+            MODEL ATLAS <span>模型结构 · 官方来源</span>
           </div>
           <nav aria-label="模型选择" className="model-nav">
             {models.map((item) => (
@@ -216,53 +216,58 @@ export function App() {
             配置固定到 {model.provenance.revision.slice(0, 7)}
           </span>
         </div>
-        {route.chapter !== "layer" && route.chapter !== "cache" && (
-          <div className="chapter-tools">
-            <div className="segmented">
-              {(["prefill", "decode"] as Phase[]).map((value) => (
-                <button
-                  key={value}
-                  aria-pressed={phase === value}
-                  onClick={() => setPhase(value)}
-                >
-                  {value === "prefill" ? "Prefill · N 行" : "Decode · 当前一行"}
-                </button>
-              ))}
+        {!(route.chapter === "layer" && model.id === "v41") &&
+          route.chapter !== "cache" && (
+            <div className="chapter-tools">
+              <div className="segmented">
+                {(["prefill", "decode"] as Phase[]).map((value) => (
+                  <button
+                    key={value}
+                    aria-pressed={phase === value}
+                    onClick={() => setPhase(value)}
+                  >
+                    {value === "prefill"
+                      ? "Prefill · N 行"
+                      : "Decode · 当前一行"}
+                  </button>
+                ))}
+              </div>
+              {(route.chapter === "csa" ||
+                route.chapter === "layer" ||
+                (model.id === "v32" && route.chapter === "mla")) && (
+                <label>
+                  层{" "}
+                  <select
+                    value={layer}
+                    onChange={(event) => setLayer(Number(event.target.value))}
+                  >
+                    {Array.from(
+                      { length: model.config.num_hidden_layers },
+                      (_, i) => (
+                        <option key={i} value={i + 1}>
+                          {i + 1}
+                        </option>
+                      ),
+                    )}
+                  </select>
+                </label>
+              )}
+              <div className="legend">
+                <i className="blue" />
+                输入 / 缓存
+                <i className="green" />
+                计算结果
+                <i className="amber" />
+                参数
+                <i className="violet" />
+                混合 / 记忆
+                <i className="rose" />
+                门控
+                <i className="cyan" />
+                加权项
+              </div>
             </div>
-            {route.chapter === "csa" && (
-              <label>
-                层{" "}
-                <select
-                  value={layer}
-                  onChange={(event) => setLayer(Number(event.target.value))}
-                >
-                  {Array.from(
-                    { length: model.config.num_hidden_layers },
-                    (_, i) => (
-                      <option key={i} value={i + 1}>
-                        {i + 1}
-                      </option>
-                    ),
-                  )}
-                </select>
-              </label>
-            )}
-            <div className="legend">
-              <i className="blue" />
-              输入 / 缓存
-              <i className="green" />
-              计算结果
-              <i className="amber" />
-              参数
-              <i className="violet" />
-              混合 / 记忆
-              <i className="rose" />
-              门控
-              <i className="cyan" />
-              加权项
-            </div>
-          </div>
-        )}
+          )}
         {recipe && <p className="chapter-intro">{recipe.introduction}</p>}
         <section className="diagram-area" aria-label="交互结构图">
           <ReactFlowProvider
@@ -287,8 +292,8 @@ export function App() {
       </main>
       <div
         className="source-rail"
-        data-available={route.chapter !== "layer" || sources}
-        inert={route.chapter === "layer" && !sources}
+        data-available={!!recipe || sources}
+        inert={!recipe && !sources}
         data-expanded={sources || sourcePreview}
         onMouseEnter={sourceIntent.cancel}
         onMouseLeave={sourceIntent.leave}

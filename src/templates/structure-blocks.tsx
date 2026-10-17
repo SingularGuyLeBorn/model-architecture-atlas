@@ -33,6 +33,8 @@ export function Tensor({
   columns = ["1", "2", "…", "d"],
   tone = "green",
   selected,
+  elementTex,
+  rowLabels = true,
 }: {
   name: string;
   shape: string;
@@ -40,6 +42,8 @@ export function Tensor({
   columns?: string[];
   tone?: DiagramTone;
   selected?: string;
+  elementTex?: (row: string, column: string) => string;
+  rowLabels?: boolean;
 }) {
   const palette = tonePalette(tone);
   const count = shape.split("\\times")[0];
@@ -67,7 +71,7 @@ export function Tensor({
         style={{
           gridTemplateColumns: matrixColumnTracks(
             columns.map((c) => (c === "…" ? "\\cdots" : c)),
-            "26px",
+            rowLabels ? "26px" : "0px",
           ),
           width: "max-content",
           marginInline: "auto",
@@ -87,11 +91,12 @@ export function Tensor({
                 gridColumn: "1 / -1",
                 gridTemplateColumns: "subgrid",
                 alignItems: "stretch",
+                ...(selected === row
+                  ? { outlineOffset: 4, marginBlock: 5 }
+                  : {}),
               }}
             >
-              <small>
-                <M tex={row} />
-              </small>
+              <small>{rowLabels && <M tex={row} />}</small>
               {columns.map((col, i) =>
                 col === "…" ? (
                   <span key={i} className="ellipsis">
@@ -102,15 +107,25 @@ export function Tensor({
                     key={i}
                     className="scalar"
                     style={{
-                      borderColor: palette.color,
-                      background: palette.background,
+                      borderColor: (selected === row
+                        ? selectionPalette(tone, "amber")
+                        : palette
+                      ).color,
+                      background: (selected === row
+                        ? selectionPalette(tone, "amber")
+                        : palette
+                      ).background,
                     }}
                   >
                     <M
-                      tex={elementIndex(
-                        name,
-                        rows.length === 1 ? col : `${row},${col}`,
-                      )}
+                      tex={
+                        elementTex
+                          ? elementTex(row, col)
+                          : elementIndex(
+                              name,
+                              rows.length === 1 ? col : `${row},${col}`,
+                            )
+                      }
                     />
                   </span>
                 ),

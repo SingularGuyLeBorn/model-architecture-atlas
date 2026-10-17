@@ -4,9 +4,17 @@ import pro from "./configs/DeepSeek-V4-Pro.json" with { type: "json" };
 import v3 from "./configs/DeepSeek-V3.json" with { type: "json" };
 import v31 from "./configs/DeepSeek-V3.1.json" with { type: "json" };
 import r1 from "./configs/DeepSeek-R1.json" with { type: "json" };
+import v32 from "./configs/DeepSeek-V3.2.json" with { type: "json" };
 import sources from "./sources.json" with { type: "json" };
 
-export type ModelId = "v41" | "v4-flash" | "v4-pro" | "v3" | "v31" | "r1";
+export type ModelId =
+  | "v41"
+  | "v4-flash"
+  | "v4-pro"
+  | "v3"
+  | "v31"
+  | "v32"
+  | "r1";
 export type Chapter =
   | "overview"
   | "layer"
@@ -46,6 +54,7 @@ export const rawConfigs = {
   "v4-pro": pro,
   v3,
   v31,
+  v32,
   r1,
 };
 const records: {
@@ -84,6 +93,13 @@ const records: {
     subtitle: "V3 主干 · 混合思考模式",
   },
   {
+    id: "v32",
+    name: "DeepSeek V3.2",
+    source: "DeepSeek-V3.2",
+    family: "v3",
+    subtitle: "MLA · DSA 原 token 行选择 · MoE",
+  },
+  {
     id: "v4-flash",
     name: "DeepSeek V4 · Flash",
     source: "DeepSeek-V4-Flash",
@@ -120,7 +136,16 @@ export const models = records.map((record) => {
         ]
       : record.family === "v4"
         ? ["overview", "csa", "mhc", "moe", "balance", "norm", "rope"]
-        : ["overview", "mla", "moe", "balance", "norm", "rope", "training"];
+        : [
+            "overview",
+            "layer",
+            "mla",
+            "moe",
+            "balance",
+            "norm",
+            "rope",
+            "training",
+          ];
   return {
     ...record,
     config,

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { deepseekLayerRecipe } from "./deepseek-layer";
 import { cacheDecodeRecipe } from "../components/CacheDecodeExample";
 import { EngramPurpose } from "../components/EngramPurpose";
 import { ReindexCandidates } from "../components/ReindexCandidates";
@@ -33,6 +34,7 @@ export type Stage = {
   body: ReactNode;
   output: string;
   formula?: string;
+  inlinePorts?: boolean;
 };
 export type RecipeLink = { source: string; target: string; tex: string };
 export type Recipe = {
@@ -143,6 +145,16 @@ export function recipeFor(
   phase: Phase,
   layer: number,
 ): Recipe {
+  if (
+    model.family === "v3" &&
+    (chapter === "layer" || (model.id === "v32" && chapter === "mla"))
+  ) {
+    return deepseekLayerRecipe(
+      model.id as "v3" | "v31" | "v32" | "r1",
+      phase,
+      layer,
+    );
+  }
   const c = model.config,
     d = c.hidden_size,
     n = phase === "prefill" ? "N" : "1",
@@ -274,7 +286,9 @@ export function recipeFor(
                   <Down />
                   <span>
                     {v3
-                      ? "RMSNorm → MLA → 残差相加"
+                      ? model.id === "v32"
+                        ? "RMSNorm → DSA 选行的 MLA → 残差相加"
+                        : "RMSNorm → MLA → 残差相加"
                       : "mHC 汇合 → 稀疏 Attention → mHC 回写"}
                   </span>
                   <Down />
