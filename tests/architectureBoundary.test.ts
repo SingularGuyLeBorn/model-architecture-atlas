@@ -375,6 +375,61 @@ it("Compressor 的归一化分支与缓存矩阵使用不同真实出口", () =>
   }
 });
 
+it("端点附近密集框边界不挤掉相隔完整线间距的扇出通道", () => {
+  const source = { left: -24, right: 864, top: 10518, bottom: 10770 };
+  const target = { left: -4, right: 2484, top: 15086, bottom: 17779 };
+  const existing = [
+    { x: 1265, y: 9932 },
+    { x: 1265, y: 10770 },
+    { x: 830, y: 10770 },
+  ];
+  const route = automaticOrthogonalPoints(
+    656,
+    10706,
+    2043,
+    15257,
+    Position.Bottom,
+    Position.Top,
+    [
+      source,
+      target,
+      { left: -1000, right: 600, top: 10700, bottom: 14000 },
+      { left: -4, right: 864, top: 10862, bottom: 13967 },
+      { left: 1000, right: 2400, top: 10862, bottom: 13967 },
+      ...[10772, 10774, 10776].map((top) => ({
+        left: 1200,
+        right: 1201,
+        top,
+        bottom: top + 1,
+      })),
+    ],
+    existing.slice(1).map((end, i) => ({ start: existing[i], end })),
+    [source],
+    [target],
+  );
+  expect(sharedRouteLength(route, existing)).toBe(0);
+  for (let i = 1; i < route.length; i++) {
+    const a = route[i - 1],
+      b = route[i],
+      horizontal = a.y === b.y;
+    for (let j = 1; j < existing.length; j++) {
+      const c = existing[j - 1],
+        d = existing[j];
+      if (horizontal !== (c.y === d.y)) continue;
+      const axis = horizontal ? "x" : "y",
+        normal = horizontal ? "y" : "x";
+      const overlap =
+        Math.min(Math.max(a[axis], b[axis]), Math.max(c[axis], d[axis])) -
+        Math.max(Math.min(a[axis], b[axis]), Math.min(c[axis], d[axis]));
+      if (overlap > 0)
+        expect(
+          Math.abs(a[normal] - c[normal]),
+          JSON.stringify(route),
+        ).toBeGreaterThanOrEqual(44);
+    }
+  }
+});
+
 it("Indexer 权重输入直接来自归一化 X，复用层不重复接入", () => {
   for (const layer of [3, 15, 25, 29]) {
     const edge = buildGraph(layer).edges.find(

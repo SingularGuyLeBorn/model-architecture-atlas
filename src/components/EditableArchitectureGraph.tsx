@@ -816,6 +816,11 @@ function defaultOrthogonalPoints(
       currentBends: number[],
     ) => [
       ...new Set([
+        // 两端各保留一条完整线间距的扇出通道；多个框边界挤在端点附近时，
+        // 最近四个数值不一定包含可与已有横线/竖线分开的通道。
+        ...[coordinate - EDGE_LANE_GAP, coordinate + EDGE_LANE_GAP].filter(
+          (value) => !direction || (value - coordinate) * direction >= 0,
+        ),
         ...[...channels]
           // 先排除会让端口倒车的候选，再取最近通道，避免扩大组合搜索。
           .filter(
