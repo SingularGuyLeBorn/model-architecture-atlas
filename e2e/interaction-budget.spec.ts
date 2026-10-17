@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+// 性能测量不同时抓取整页 DOM 快照：Playwright 的 visitNode 遍历会阻塞下一帧，
+// 把录制器开销算成应用延迟。保留下方的真实输入、30ms 断言、JSON 采样和截图。
+test.use({ trace: "off" });
+
 for (const panelOpen of [false, true])
   test(`完整专家区连续操作延迟（解释面板${panelOpen ? "打开" : "关闭"}）`, async ({
     page,

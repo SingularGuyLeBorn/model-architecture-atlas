@@ -1,21 +1,25 @@
 import { test, expect, type Page, type Locator } from "@playwright/test";
 
 async function settle(page: Page) {
-  let previous = "",
-    stable = 0;
-  await expect
-    .poll(
-      async () => {
-        const current = await page
-          .locator(".react-flow__viewport")
-          .getAttribute("style");
-        stable = current === previous ? stable + 1 : 0;
-        previous = current ?? "";
-        return stable;
+  // 稳定性在浏览器内连续采样，避免每次 getAttribute 都触发整页追踪快照。
+  // 仍须连续三次一致，间隔 200ms，最长 5s；并不跳过等待或放宽稳定条件。
+  const state = await page.evaluateHandle(() => ({ previous: "", stable: 0 }));
+  try {
+    await page.waitForFunction(
+      (state) => {
+        const current = document
+          .querySelector(".react-flow__viewport")
+          ?.getAttribute("style");
+        state.stable = current === state.previous ? state.stable + 1 : 0;
+        state.previous = current ?? "";
+        return Boolean(current) && state.stable >= 3;
       },
-      { intervals: [100, 150, 200] },
-    )
-    .toBeGreaterThanOrEqual(3);
+      state,
+      { polling: 200, timeout: 5000 },
+    );
+  } finally {
+    await state.dispose();
+  }
 }
 
 async function contentFits(node: Locator) {
