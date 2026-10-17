@@ -2566,7 +2566,6 @@ export function EngramLookup({
                     elementTex={(j) => `e_{${index},${j}}`}
                     selected={i === 1 || i === 2 || i === 4}
                     tone="indigo"
-                    preserveToneOnSelection
                     uniformCells
                     columnSubgrid
                     compact

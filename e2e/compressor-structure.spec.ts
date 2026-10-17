@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("Engram 参数表与本次读出横排，选中状态保留参数底色", async ({ page }) => {
+test("Engram 参数表与本次读出横排，选中行使用不同填充色", async ({ page }) => {
   await page.goto("/?revision=inspector-prose#model=v41&chapter=layer");
   await page.getByRole("button", { name: "收起左栏", exact: true }).click();
   for (const [layer, phase, width] of [
@@ -60,8 +60,19 @@ test("Engram 参数表与本次读出横排，选中状态保留参数底色", a
           end.y - target.top - target.height / 2,
         ),
         sideBySide: b.left > a.right && b.top < a.bottom,
-        colors: [
-          ...new Set(cells.map((c) => getComputedStyle(c).backgroundColor)),
+        selectedColors: [
+          ...new Set(
+            cells
+              .filter((c) => c.closest("[data-vector-selected]"))
+              .map((c) => getComputedStyle(c).backgroundColor),
+          ),
+        ],
+        unselectedColors: [
+          ...new Set(
+            cells
+              .filter((c) => !c.closest("[data-vector-selected]"))
+              .map((c) => getComputedStyle(c).backgroundColor),
+          ),
         ],
         widthRange:
           Math.max(...cells.map((c) => c.getBoundingClientRect().width)) -
@@ -74,7 +85,8 @@ test("Engram 参数表与本次读出横排，选中状态保留参数底色", a
     expect(metrics.sideBySide).toBe(true);
     expect(metrics.sourceGap).toBeLessThan(2);
     expect(metrics.targetGap).toBeLessThan(2);
-    expect(metrics.colors).toEqual(["rgb(223, 228, 247)"]);
+    expect(metrics.selectedColors).toEqual(["rgb(246, 229, 201)"]);
+    expect(metrics.unselectedColors).toEqual(["rgb(223, 228, 247)"]);
     expect(metrics.widthRange).toBeLessThan(1);
     expect(metrics.overflow).toBe(0);
     await expect(layout.locator("[data-matrix-ellipsis-column]")).toHaveCount(

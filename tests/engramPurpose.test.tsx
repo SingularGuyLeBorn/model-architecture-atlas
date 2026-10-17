@@ -35,9 +35,14 @@ it("主图与独立章节说明 Engram 收益、成本、参数身份，不引�
       const cells = [
         ...table.querySelectorAll<HTMLElement>("[data-vector-cell]"),
       ];
-      expect(new Set(cells.map((el) => el.style.background))).toEqual(
-        new Set(["rgb(223, 228, 247)"]),
-      );
+      expect(cells).toHaveLength(15);
+      for (const cell of cells) {
+        expect(cell.style.background).toBe(
+          cell.closest("[data-vector-selected]")
+            ? "rgb(246, 229, 201)"
+            : "rgb(223, 228, 247)",
+        );
+      }
       expect(table.querySelector("small, strong")).toBeNull();
       expect(
         root.querySelector(

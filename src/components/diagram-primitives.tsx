@@ -289,7 +289,6 @@ export function VectorStrip({
   columnSubgrid = false,
   uniformCells = false,
   cellPadding = 8,
-  preserveToneOnSelection = false,
 }: {
   name: string;
   length: string;
@@ -305,11 +304,8 @@ export function VectorStrip({
   columnSubgrid?: boolean;
   uniformCells?: boolean;
   cellPadding?: number;
-  preserveToneOnSelection?: boolean;
 }) {
-  const palette = tonePalette(
-    selected && !preserveToneOnSelection ? "amber" : tone,
-  );
+  const palette = tonePalette(selected ? "amber" : tone);
   const columns = displayedColumns ?? ["1", "2", "\\cdots", length];
   return (
     <div
