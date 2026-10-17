@@ -28,6 +28,7 @@ export function Row({
   title,
   trace,
   columns,
+  element,
 }: {
   name: string;
   size: number | string;
@@ -36,6 +37,7 @@ export function Row({
   title?: string;
   trace?: string;
   columns?: string[];
+  element?: (column: string) => string;
 }) {
   const tensor = (
     <Tensor
@@ -44,6 +46,7 @@ export function Row({
       rows={["t"]}
       rowLabels={false}
       elementTex={(_, column) =>
+        element?.(column) ??
         elementIndex(
           name.replace(/^[A-Z]/, (letter) => letter.toLowerCase()),
           column,

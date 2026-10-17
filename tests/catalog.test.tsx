@@ -7,7 +7,7 @@ import { layoutStages } from "../src/templates/RecipeCanvas";
 
 describe("配置与版本边界", () => {
   it("五个模型族、V4 的 Flash/Pro 分开，不把视觉配置当文本配置", () => {
-    expect(models).toHaveLength(8);
+    expect(models).toHaveLength(9);
     expect(models.find((m) => m.id === "v41")!.config.hidden_size).toBe(5120);
     expect(models.find((m) => m.id === "v4-pro")!.config.hidden_size).toBe(
       7168,

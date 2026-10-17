@@ -111,7 +111,7 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
       {phase === "prefill" && (
         <>
           <Matrix
-            name={`H_${l}`}
+            name={`H_{${l}}`}
             shape={`N\\times${d}`}
             rows={["1", "2", "…", "t", "…", "N"]}
             columns={reps(d)}
@@ -126,7 +126,7 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
         input={h}
         output={x}
         size={d}
-        gamma={`\\gamma^A_${l}`}
+        gamma={`\\gamma^A_{${l}}`}
         eps={p.eps}
         inputSource
         outputPort
@@ -140,7 +140,7 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
     <>
       <Project
         input={x}
-        weight={`W^{QKV}_${l}`}
+        weight={`W^{QKV}_{${l}}`}
         output={`u^{QKV}_{${l},t}`}
         from={d}
         to={a.queryHeads * a.keyDim + a.kvHeads * (a.keyDim + a.valueDim)}
@@ -440,7 +440,7 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
       <Down label="沿 Head 轴拼接 · 64 × 128 = 8192" />
       <Project
         input={`o^{cat}_{${l},t}`}
-        weight={`W^O_${l}`}
+        weight={`W^O_{${l}}`}
         output={`o^A_{${l},t}`}
         from={8192}
         to={d}
@@ -464,7 +464,7 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
       input={y}
       output={z}
       size={d}
-      gamma={`\\gamma^F_${l}`}
+      gamma={`\\gamma^F_{${l}}`}
       eps={p.eps}
       inputPort
       outputPort
@@ -498,7 +498,7 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
       <>
         <Project
           input={z}
-          weight={`W^R_${l}`}
+          weight={`W^R_{${l}}`}
           output={`u^E_{${l},t}`}
           from={d}
           to={256}
@@ -513,7 +513,7 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
         <div className="architecture-equation">
           <Row name={`s^E_{${l},t}`} size={256} tone="plum" />
           <span className="architecture-operator">+</span>
-          <Row name={`b^E_${l}`} size={256} tone="crimson" />
+          <Row name={`b^E_{${l}}`} size={256} tone="crimson" />
           <span className="architecture-operator">=</span>
           <Row name={`\\widetilde s^E_{${l},t}`} size={256} tone="rose" />
         </div>

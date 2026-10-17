@@ -127,6 +127,15 @@
   display: grid;
   gap: 20px;
 }
+.architecture-cache-transfer > .architecture-object {
+  margin-inline: 0;
+}
+.architecture-gate-branches {
+  margin-top: 48px;
+}
+.architecture-conv-inputs > .architecture-object:first-child {
+  margin-right: 90px;
+}
 .architecture-score-top,
 .architecture-probability-grid {
   display: flex;

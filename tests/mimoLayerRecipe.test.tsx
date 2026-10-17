@@ -31,12 +31,14 @@ for (const layer of [1, 2, 5, 6, 47, 48])
           const dom = document.createElement("div");
           dom.innerHTML = html;
           expect(dom.querySelector(".katex-error")).toBeNull();
-          for (const math of dom.querySelectorAll("span[aria-label]"))
+          for (const math of dom.querySelectorAll("span[aria-label]")) {
+            expect(math.getAttribute("aria-label")).not.toMatch(/_\d{2}/);
             expect(() =>
               katex.renderToString(math.getAttribute("aria-label")!, {
                 throwOnError: true,
               }),
             ).not.toThrow();
+          }
           expect(html).not.toContain("undefined");
           return [stage.id, dom] as const;
         }),

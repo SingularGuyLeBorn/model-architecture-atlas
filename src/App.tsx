@@ -76,7 +76,9 @@ export function App() {
   );
   const navigate = (id: ModelId, chapter: Chapter) => {
     const next = models.find((item) => item.id === id)!;
-    const selected = next.chapters.includes(chapter) ? chapter : "overview";
+    const selected = next.chapters.includes(chapter)
+      ? chapter
+      : next.chapters[0];
     setRoute({ id, chapter: selected });
     setLayer(1);
     setMenu(false);
@@ -207,10 +209,16 @@ export function App() {
         <div className="model-strip">
           <span>{model.config.num_hidden_layers} 层</span>
           <span>{model.config.hidden_size} 维</span>
-          <span>{model.config.num_attention_heads} Heads</span>
           <span>
-            {model.config.n_routed_experts} 专家 / 激活{" "}
-            {model.config.num_experts_per_tok}
+            {model.family === "qwen"
+              ? "GDN 16 Q/K · 48 V / QSA 24 Q"
+              : `${model.config.num_attention_heads} Heads`}
+          </span>
+          <span>
+            {"num_experts" in model.config
+              ? model.config.num_experts
+              : model.config.n_routed_experts}{" "}
+            专家 / 激活 {model.config.num_experts_per_tok}
           </span>
           <span className="verified">
             配置固定到 {model.provenance.revision.slice(0, 7)}
@@ -233,6 +241,7 @@ export function App() {
                 ))}
               </div>
               {(route.chapter === "csa" ||
+                route.chapter === "gdn" ||
                 route.chapter === "layer" ||
                 (model.id === "v32" && route.chapter === "mla")) && (
                 <label>
@@ -243,12 +252,20 @@ export function App() {
                   >
                     {Array.from(
                       { length: model.config.num_hidden_layers },
-                      (_, i) => (
-                        <option key={i} value={i + 1}>
-                          {i + 1}
+                      (_, i) => i + 1,
+                    )
+                      .filter(
+                        (i) =>
+                          route.chapter !== "gdn" ||
+                          model.family !== "qwen" ||
+                          model.config.layer_types[i - 1] ===
+                            "linear_attention",
+                      )
+                      .map((i) => (
+                        <option key={i} value={i}>
+                          {i}
                         </option>
-                      ),
-                    )}
+                      ))}
                   </select>
                 </label>
               )}

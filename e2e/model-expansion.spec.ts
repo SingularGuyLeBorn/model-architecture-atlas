@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { auditContentBounds } from "./helpers/content-bounds";
 
-for (const [id, layer, phase] of [
+for (const [id, layer, phase, chapter = "layer"] of [
   ["v3", 1, "prefill"],
   ["r1", 4, "decode"],
   ["v31", 61, "prefill"],
@@ -9,6 +9,8 @@ for (const [id, layer, phase] of [
   ["mimo25", 1, "prefill"],
   ["mimo25", 2, "decode"],
   ["mimo25", 48, "decode"],
+  ["qwen38", 1, "prefill", "gdn"],
+  ["qwen38", 47, "decode", "gdn"],
 ] as const) {
   test(`${id} Layer ${layer} ${phase} · 内容边界、端口与截图`, async ({
     page,
@@ -23,7 +25,7 @@ for (const [id, layer, phase] of [
       )
         errors.push(message.text());
     });
-    await page.goto(`/#model=${id}&chapter=layer`);
+    await page.goto(`/#model=${id}&chapter=${chapter}`);
     await page
       .getByRole("combobox", { name: "层", exact: true })
       .selectOption(String(layer));
@@ -104,10 +106,38 @@ for (const [id, layer, phase] of [
     expect(handles).toBe(edges * 2);
     await page.screenshot({ path: info.outputPath("whole-layer.png") });
     // 正常宽度检查之后，另存完整模块，避免只看被画布视口截断的局部。
-    await page.setViewportSize({ width: 2400, height: 1800 });
+    const modules = await page.locator("[data-stage]").evaluateAll((nodes) =>
+      nodes
+        .map((node) => ({
+          id: node.getAttribute("data-stage")!,
+          ordinal: Number(
+            node.querySelector(".stage-title > span")!.textContent,
+          ),
+          width: (node as HTMLElement).offsetWidth,
+          height: (node as HTMLElement).offsetHeight,
+        }))
+        .sort((a, b) => a.ordinal - b.ordinal),
+    );
     for (let i = 0; i < total; i++) {
+      const size = modules[i];
+      const stage = page.locator(`[data-stage="${size.id}"]`);
+      // 完整模块按实际尺寸提供视口；正常宽度的交互检查已在上方完成。
+      await page.setViewportSize({
+        width: Math.max(2400, size.width + 700),
+        height: Math.max(1800, size.height + 700),
+      });
       await buttons.nth(i).click();
-      await page.screenshot({ path: info.outputPath(`module-${i + 1}.png`) });
+      const bounds = await stage.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.y).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(
+        page.viewportSize()!.width,
+      );
+      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(
+        page.viewportSize()!.height,
+      );
+      await stage.screenshot({ path: info.outputPath(`module-${i + 1}.png`) });
     }
     expect(errors).toEqual([]);
   });

@@ -7,6 +7,7 @@ import r1 from "./configs/DeepSeek-R1.json" with { type: "json" };
 import v32 from "./configs/DeepSeek-V3.2.json" with { type: "json" };
 import sources from "./sources.json" with { type: "json" };
 import mimo25 from "./configs/MiMo-V2.5.json" with { type: "json" };
+import qwen38 from "./configs/Qwen3.8-Flash-Next.json" with { type: "json" };
 
 export type DeepSeekModelId =
   | "v41"
@@ -16,10 +17,11 @@ export type DeepSeekModelId =
   | "v31"
   | "v32"
   | "r1";
-export type ModelId = DeepSeekModelId | "mimo25";
+export type ModelId = DeepSeekModelId | "mimo25" | "qwen38";
 export type Chapter =
   | "overview"
   | "layer"
+  | "gdn"
   | "mla"
   | "moe"
   | "balance"
@@ -36,6 +38,7 @@ export type Chapter =
 export const chapterNames: Record<Chapter, string> = {
   overview: "输入 → 全模型 → 输出",
   layer: "逐层交互 · 完整展开",
+  gdn: "GDN · 递归状态更新与读取",
   mla: "MLA · 压缩与权重吸收",
   moe: "MoE · 路由到加权求和",
   balance: "负载均衡 · 选择与权重分离",
@@ -59,6 +62,7 @@ export const rawConfigs = {
   v32,
   r1,
   mimo25,
+  qwen38,
 };
 const records: {
   id: DeepSeekModelId;
@@ -168,6 +172,16 @@ export const models = [
     config: mimo25,
     chapters: ["overview", "layer"] as Chapter[],
     provenance: sources.find((source) => source.id === "MiMo-V2.5")!,
+  },
+  {
+    id: "qwen38" as const,
+    family: "qwen" as const,
+    name: "Qwen3.8-Flash-Next",
+    source: "Qwen3.8-Flash-Next",
+    subtitle: "GDN / QSA · 四路门控残差 · N-gram PLE",
+    config: qwen38.text_config,
+    chapters: ["gdn"] as Chapter[],
+    provenance: sources.find((source) => source.id === "Qwen3.8-Flash-Next")!,
   },
 ];
 export type Model = (typeof models)[number];

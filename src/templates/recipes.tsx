@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { deepseekLayerRecipe } from "./deepseek-layer";
 import { mimoLayerRecipe, mimoOverviewRecipe } from "./mimo-layer";
+import { qwenGdnRecipe } from "./qwen-gdn";
 import { cacheDecodeRecipe } from "../components/CacheDecodeExample";
 import { EngramPurpose } from "../components/EngramPurpose";
 import { ReindexCandidates } from "../components/ReindexCandidates";
@@ -147,6 +148,7 @@ export function recipeFor(
   phase: Phase,
   layer: number,
 ): Recipe {
+  if (model.family === "qwen") return qwenGdnRecipe(phase, layer);
   if (model.family === "mimo")
     return chapter === "overview"
       ? mimoOverviewRecipe(phase)
