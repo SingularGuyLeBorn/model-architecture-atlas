@@ -71,7 +71,9 @@ export function inspectInternalTarget(
         tex,
         description:
           input !== null
-            ? `第 ${Number(input) + 1} 路输入沿箭头进入累加器，参与逐元素求和；结果从独立出口送往下方结果框。`
+            ? sum?.getAttribute("data-operator") === "xor"
+              ? `第 ${Number(input) + 1} 路整数操作数沿箭头进入按位异或，结果从独立出口送往下方哈希中间值。`
+              : `第 ${Number(input) + 1} 路输入沿箭头进入累加器，参与逐元素求和；结果从独立出口送往下方结果框。`
             : "这条连线按箭头方向传递相邻数据框的值。输入端给出来源，箭头端给出接收该值的运算或结果框。",
       },
     };
@@ -94,7 +96,9 @@ export function inspectInternalTarget(
           kind: "box",
           tex,
           description: current.hasAttribute("data-sum-node")
-            ? "此处将各入口传入的操作数逐元素相加，结果沿出口传给后续数据框。每条输入线对应一项操作数。"
+            ? current.getAttribute("data-operator") === "xor"
+              ? "此处将各入口传入的整数逐位异或，生成哈希中间值；每条输入线对应一个乘数与 token ID 的乘积。"
+              : "此处将各入口传入的操作数逐元素相加，结果沿出口传给后续数据框。每条输入线对应一项操作数。"
             : current.hasAttribute("data-expanded-tensor")
               ? "这个数据框展示该对象的行列组成；角落标注整体形状，内部小格给出代表元素及其索引。它在所属模块中的来源与用途见下文。"
               : "所选小框表示公式中的这一项。上下标对应图中的层、路、行或列索引；它参与的运算与所属模块的变量定义见下文。",

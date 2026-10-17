@@ -29,6 +29,9 @@ export function ObjectConnections({
         const element = nodes.find((node) => node.dataset.traceObject === id);
         if (!element) return null;
         const r = element.getBoundingClientRect();
+        const frame = element
+          .closest("[data-expanded-tensor]")
+          ?.getBoundingClientRect();
         return {
           x: (r.left + r.width / 2 - outer.left) / scale,
           top: (r.top - outer.top) / scale,
@@ -36,6 +39,8 @@ export function ObjectConnections({
           left: (r.left - outer.left) / scale,
           right: (r.right - outer.left) / scale,
           y: (r.top + r.height / 2 - outer.top) / scale,
+          corridorLeft: ((frame?.left ?? r.left) - outer.left) / scale - 8,
+          corridorRight: ((frame?.right ?? r.right) - outer.left) / scale + 8,
         };
       };
       const next = connections.flatMap((link, index) => {
@@ -44,10 +49,13 @@ export function ObjectConnections({
         if (!from || !to) return [];
         if (link.direction === "right") {
           // [OM-FREEPLAY] 逐行转接使用独立通道，防止几条不同数据线叠成假汇合。
+          // 上行接线从左向右排通道，下行反排；避免有序行之间出现可消除的交叉。
+          const fraction = (index + 1) / (connections.length + 1);
+          // 从真实行边界起线，转弯放在张量外的通道，不擦过同表的标题和其他行。
           const lane =
-            from.right +
-            (to.left - from.right) *
-              (1 - (index + 1) / (connections.length + 1));
+            from.corridorRight +
+            (to.corridorLeft - from.corridorRight) *
+              (from.y > to.y ? fraction : 1 - fraction);
           return [
             {
               ...link,

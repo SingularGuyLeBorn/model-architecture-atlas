@@ -141,6 +141,9 @@
 .architecture-cache-transfer > .architecture-object {
   margin-inline: 0;
 }
+.ple-lookup-transfer {
+  align-items: flex-end;
+}
 .architecture-gate-branches {
   margin-top: 48px;
 }

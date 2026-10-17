@@ -61,7 +61,7 @@ for (const layer of [1, 2, 4, 48])
         ).toHaveLength(1);
       });
       expect(recipe.links).toContainEqual({
-        source: "input",
+        source: layer === 2 ? "ple-inject" : "input",
         target: "attn-gr-write",
         tex: qwenStateName(layer, "in"),
       });

@@ -821,10 +821,17 @@ export function MergeArrows({
   );
 }
 
-export function SumNode({ size = 36 }: { size?: number }) {
+export function SumNode({
+  size = 36,
+  tex = "\\Sigma",
+}: {
+  size?: number;
+  tex?: string;
+}) {
   return (
     <div
       data-sum-node
+      data-operator={tex.includes("\\oplus") ? "xor" : "sum"}
       style={{
         width: size,
         height: size,
@@ -839,7 +846,7 @@ export function SumNode({ size = 36 }: { size?: number }) {
         flexShrink: 0,
       }}
     >
-      <MathFormula tex="\Sigma" />
+      <MathFormula tex={tex} />
     </div>
   );
 }
@@ -1042,12 +1049,14 @@ export function SerialFlow({
 
 export function SumJunction({
   count,
+  tex = "\\Sigma",
   sourceSelector,
   targetSelector,
   inputColor = COLORS.cyan,
   outputColor = COLORS.cyan,
 }: {
   count: number;
+  tex?: string;
   sourceSelector?: string;
   targetSelector?: string;
   inputColor?: string;
@@ -1096,6 +1105,7 @@ export function SumJunction({
     <div
       ref={ref}
       data-sum-junction={count}
+      data-operator={tex.includes("\\oplus") ? "xor" : "sum"}
       style={{ position: "relative", height, width: "100%" }}
     >
       <svg
@@ -1179,7 +1189,7 @@ export function SumJunction({
           top: 24,
         }}
       >
-        <SumNode size={radius * 2} />
+        <SumNode size={radius * 2} tex={tex} />
       </div>
     </div>
   );

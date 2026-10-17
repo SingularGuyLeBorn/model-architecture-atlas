@@ -24,6 +24,7 @@ export type Chapter =
   | "gdn"
   | "qsa"
   | "gr"
+  | "ple"
   | "mla"
   | "moe"
   | "balance"
@@ -43,6 +44,7 @@ export const chapterNames: Record<Chapter, string> = {
   gdn: "GDN · 递归状态更新与读取",
   qsa: "QSA · 选块到原始 K/V 行",
   gr: "门控残差 · 四路层内主路径",
+  ple: "PLE · 哈希查表与四路注入",
   mla: "MLA · 压缩与权重吸收",
   moe: "MoE · 路由到加权求和",
   balance: "负载均衡 · 选择与权重分离",
@@ -184,7 +186,7 @@ export const models = [
     source: "Qwen3.8-Flash-Next",
     subtitle: "GDN / QSA · 四路门控残差 · N-gram PLE",
     config: qwen38.text_config,
-    chapters: ["gr", "gdn", "qsa"] as Chapter[],
+    chapters: ["gr", "ple", "gdn", "qsa"] as Chapter[],
     provenance: sources.find((source) => source.id === "Qwen3.8-Flash-Next")!,
   },
 ];

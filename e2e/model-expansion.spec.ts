@@ -15,6 +15,8 @@ for (const [id, layer, phase, chapter = "layer"] of [
   ["qwen38", 48, "decode", "qsa"],
   ["qwen38", 1, "prefill", "gr"],
   ["qwen38", 48, "decode", "gr"],
+  ["qwen38", 2, "prefill", "ple"],
+  ["qwen38", 2, "decode", "gr"],
 ] as const) {
   test(`${id} ${chapter} Layer ${layer} ${phase} · 内容边界、端口与截图`, async ({
     page,
@@ -46,6 +48,50 @@ for (const [id, layer, phase, chapter = "layer"] of [
       await expect(page.locator(".katex-error")).toHaveCount(0);
       const stages = page.locator("[data-stage]");
       for (const stage of await stages.all()) {
+        if ((await stage.getAttribute("data-stage")) === "ple-lookup") {
+          const crossings = await stage
+            .locator(".object-connections > svg > g > path:first-child")
+            .evaluateAll((paths) => {
+              const segments = paths.flatMap((path, index) => {
+                let x = 0,
+                  y = 0;
+                return (
+                  path.getAttribute("d")!.match(/[MHV][^MHV]+/g) ?? []
+                ).flatMap((command) => {
+                  const values = command
+                    .slice(1)
+                    .trim()
+                    .split(/\s+/)
+                    .map(Number);
+                  const nx = command[0] === "V" ? x : values[0],
+                    ny = command[0] === "H" ? y : values.at(-1)!;
+                  const result =
+                    command[0] === "M" ? [] : [{ index, x, y, nx, ny }];
+                  x = nx;
+                  y = ny;
+                  return result;
+                });
+              });
+              return segments.flatMap((a, i) =>
+                segments.slice(i + 1).flatMap((b) => {
+                  if (a.index === b.index || (a.x === a.nx) === (b.x === b.nx))
+                    return [];
+                  const v = a.x === a.nx ? a : b,
+                    h = a.x === a.nx ? b : a;
+                  return v.x > Math.min(h.x, h.nx) + 0.5 &&
+                    v.x < Math.max(h.x, h.nx) - 0.5 &&
+                    h.y > Math.min(v.y, v.ny) + 0.5 &&
+                    h.y < Math.max(v.y, v.ny) - 0.5
+                    ? [[a.index, b.index]]
+                    : [];
+                }),
+              );
+            });
+          expect(
+            crossings,
+            "PLE 地址、原行和读出结果的逐行通道不能交叉",
+          ).toEqual([]);
+        }
         const audit = await auditContentBounds(stage);
         expect(
           audit.issues,

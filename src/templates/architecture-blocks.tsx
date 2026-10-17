@@ -244,11 +244,13 @@ export function Project({
 export function Sum({
   inputs,
   result,
+  operator = "\\Sigma",
   ellipsis = false,
   termSelector = "[data-expanded-tensor]",
 }: {
   inputs: ReactNode[];
   result: ReactNode;
+  operator?: string;
   ellipsis?: boolean;
   termSelector?: string;
 }) {
@@ -270,6 +272,7 @@ export function Sum({
       </div>
       <SumJunction
         count={inputs.length}
+        tex={operator}
         sourceSelector={`[data-architecture-summand] ${termSelector}`}
         targetSelector="[data-architecture-sum-result] [data-expanded-tensor], [data-architecture-sum-result] .data-box"
       />

@@ -16,6 +16,7 @@ import { qwenGdnRecipe } from "./qwen-gdn";
 import { qwenQsaRecipe } from "./qwen-qsa";
 import { layerArchitecture } from "../data/architecture-profiles";
 import { qwenMoeRecipe } from "./qwen-moe";
+import { qwenPleRecipe } from "./qwen-ple";
 import { ObjectConnections } from "../components/ObjectConnections";
 
 const lanes = [1, 2, 3, 4];
@@ -382,9 +383,7 @@ export function qwenCoreRecipe(phase: Phase, layer: number): Recipe {
             {phase === "prefill"
               ? "每个 token 独立做门控残差与 MoE；注意力遵循因果依赖。"
               : "固定当前 token t；递归状态与 K/V 缓存由各注意力分支独立维护。"}{" "}
-            {layer === 2
-              ? "第 2 层此处接 PLE 注入后的四路；PLE 入口另行展开。"
-              : "四路均来自上一层；第 1 层由同一个输入 embedding 复制四份。"}
+            四路均来自上一层；第 1 层由同一个输入 embedding 复制四份。
           </p>
           <p className="architecture-note">
             GR 与 QSA 的普通 RMSNorm 使用 <M tex={"\\gamma=1+w"} />
@@ -434,9 +433,17 @@ export function qwenCoreRecipe(phase: Phase, layer: number): Recipe {
     })),
     { source: moe.output, target: f.ids.write, tex: f.ports.childOutput },
   ];
+  if (layer === 2) {
+    const ple = qwenPleRecipe(phase);
+    stages.splice(0, 1, ...ple.stages);
+    links.forEach((link) => {
+      if (link.source === "input") link.source = "ple-inject";
+    });
+    links.unshift(...ple.links);
+  }
   return {
     introduction:
-      "Qwen3.8-Flash-Next · 四路门控残差与 Attention/MoE 主路径。第 2 层从 PLE 注入后的状态开始；模型输入与末端读取另行展开。",
+      "Qwen3.8-Flash-Next · 四路门控残差与 Attention/MoE 主路径；第 2 层先执行 PLE 注入。模型输入与末端读取另行展开。",
     exportName: `Qwen3.8-Flash-Next-L${layer}-GR-core-${phase}`,
     stages,
     links,

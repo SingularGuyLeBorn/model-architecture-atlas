@@ -38,6 +38,7 @@ function routeFromUrl() {
   };
 }
 function chapterLayers(id: ModelId, chapter: Chapter) {
+  if (id === "qwen38" && chapter === "ple") return [2];
   const model = models.find((item) => item.id === id)!;
   return Array.from(
     { length: model.config.num_hidden_layers },
@@ -260,6 +261,7 @@ export function App() {
                 route.chapter === "gdn" ||
                 route.chapter === "qsa" ||
                 route.chapter === "gr" ||
+                route.chapter === "ple" ||
                 route.chapter === "layer" ||
                 (model.id === "v32" && route.chapter === "mla")) && (
                 <label>
