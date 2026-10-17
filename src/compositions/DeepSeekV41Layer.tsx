@@ -56,6 +56,7 @@ import {
   TensorHeading,
   SplitArrows,
   COLORS,
+  COMPRESSION_TONES,
   type DiagramTone,
 } from "../components/diagram-primitives";
 import React, {
@@ -654,7 +655,7 @@ export function RmsNormProcess({
   horizontal?: boolean;
   horizontalReduction?: boolean;
   outputHandle?: string;
-  inputTone?: "blue" | "green";
+  inputTone?: DiagramTone;
 }) {
   const { phase } = useExecutionAxis();
   const row =
@@ -714,7 +715,7 @@ export function RmsNormProcess({
     for (const element of [layout, source, target]) observer.observe(element);
     return () => observer.disconnect();
   }, [horizontal]);
-  const matrix = (tex: string, symbol: string, tone: "blue" | "green") => (
+  const matrix = (tex: string, symbol: string, tone: DiagramTone) => (
     <RowMatrix
       tex={tex}
       shape={`${rowCount}\\times${dimension}`}
@@ -955,7 +956,7 @@ export function RmsNormProcess({
               <>
                 <Operator tex="\odot" />
                 <div data-rmsnorm-gamma>
-                  <Box tone="amber" expanded>
+                  <Box tone="crimson" expanded>
                     <TensorHeading
                       name="\boldsymbol\gamma"
                       shape={"1\\times" + dimension}
@@ -965,7 +966,7 @@ export function RmsNormProcess({
                       nameWidth={0}
                       length={String(dimension)}
                       elementTex={(column) => "\\gamma_{" + column + "}"}
-                      tone="amber"
+                      tone="crimson"
                       uniformCells
                     />
                   </Box>
@@ -6050,7 +6051,11 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                     rowIndex="i"
                     gamma={`\\boldsymbol\\gamma_{${layer}}^c`}
                     label="压缩 KV"
-                    inputTone="green"
+                    inputTone={
+                      ratio === 2
+                        ? COMPRESSION_TONES.pooled
+                        : COMPRESSION_TONES.candidate
+                    }
                     horizontal
                     horizontalReduction
                     outputHandle="to-indexer"
@@ -6093,6 +6098,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 {ratio === 2 && (
                   <HorizontalTransfer
                     sourceSelector="[data-compressor-pool-result] [data-expanded-tensor]"
+                    color={COLORS[COMPRESSION_TONES.pooled]}
                     targetSelector="[data-rmsnorm-input] [data-expanded-tensor]"
                     leftSelector="[data-compressor-pooling]"
                     rightSelector="[data-compressor-normalize-cache]"

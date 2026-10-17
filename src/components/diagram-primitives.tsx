@@ -25,6 +25,14 @@ export type DiagramTone =
   | "olive"
   | "slate"
   | "ochre"
+  | "forest"
+  | "gold"
+  | "teal"
+  | "coral"
+  | "lavender"
+  | "sand"
+  | "mint"
+  | "crimson"
   | "cyan";
 export const COLORS = {
   paper: "#ffffff",
@@ -59,7 +67,33 @@ export const COLORS = {
   slateSoft: "#dfe7eb",
   ochre: "#927638",
   ochreSoft: "#eee5c9",
+  // [OM-FREEPLAY] 色相是视觉选择；角色在生产、暂存与消费端统一，不新增模型含义。
+  forest: "#42652b",
+  forestSoft: "#d2e5bc", // 压缩候选内容 v^c
+  gold: "#8a680f",
+  goldSoft: "#fff0a8", // 压缩权重 α
+  teal: "#166d73",
+  tealSoft: "#bce5df", // α ⊙ v^c
+  coral: "#a85041",
+  coralSoft: "#f8cdc1", // 池化结果 ĝ
+  lavender: "#6850a1",
+  lavenderSoft: "#d7cdf6", // Gate 投影参数
+  sand: "#846047",
+  sandSoft: "#e7d3bf", // mHC 偏置 b
+  mint: "#39764e",
+  mintSoft: "#c2f0cf", // mHC sigmoid 中间结果
+  crimson: "#a13e58",
+  crimsonSoft: "#f3c2d3", // RMSNorm 可学习缩放 γ
 };
+
+export const COMPRESSION_TONES = {
+  candidate: "forest",
+  gateParameter: "lavender",
+  gateScore: "plum",
+  weight: "gold",
+  product: "teal",
+  pooled: "coral",
+} as const;
 
 export const MathFormula = memo(function MathFormula({
   tex,
@@ -139,7 +173,14 @@ export function Operator({ tex }: { tex: string }) {
 }
 
 // 列名只表示整列的引用；没有展开列元素时，尺寸由公式决定。
-export function ParameterColumn({ tex }: { tex: string }) {
+export function ParameterColumn({
+  tex,
+  tone = "indigo",
+}: {
+  tex: string;
+  tone?: DiagramTone;
+}) {
+  const palette = tonePalette(tone);
   return (
     <div
       data-parameter-column
@@ -149,10 +190,10 @@ export function ParameterColumn({ tex }: { tex: string }) {
         width: "max-content",
         height: "max-content",
         placeSelf: "center",
-        border: `1px solid ${frameColor(COLORS.indigo)}`,
+        border: `1px solid ${frameColor(palette.color)}`,
         borderRadius: 4,
         padding: "4px 8px",
-        background: COLORS.indigoSoft,
+        background: palette.background,
       }}
     >
       <MathFormula tex={tex} />
@@ -477,7 +518,7 @@ export function Matrix({
   shape: string;
   rowTex: (row: string) => string;
   elementTex: (row: string, column: string) => string;
-  tone?: "blue" | "green" | "amber";
+  tone?: DiagramTone;
   vectorLength?: string;
   lastRow?: string;
   rowIndices?: string[];
@@ -565,7 +606,7 @@ export function RowMatrix({
   shape: string;
   rows: string[];
   selected?: number;
-  tone?: "blue" | "green";
+  tone?: DiagramTone;
   rowLength?: string;
   elementTex?: (rowIndex: number, column: string) => string;
   elementColumns?: string[];
@@ -937,10 +978,14 @@ export function SumJunction({
   count,
   sourceSelector,
   targetSelector,
+  inputColor = COLORS.cyan,
+  outputColor = COLORS.cyan,
 }: {
   count: number;
   sourceSelector?: string;
   targetSelector?: string;
+  inputColor?: string;
+  outputColor?: string;
 }) {
   const marker = `sum-arrow-${useId().replace(/:/g, "")}`;
   const { ref, width } = useDiagramSize();
@@ -998,22 +1043,25 @@ export function SumJunction({
         }}
       >
         <defs>
-          <marker
-            id={marker}
-            markerWidth="9"
-            markerHeight="9"
-            refX="8"
-            refY="4"
-            orient="auto"
-            markerUnits="userSpaceOnUse"
-          >
-            <path
-              d="M1 1 L8 4 L1 7"
-              fill="none"
-              stroke={COLORS.cyan}
-              strokeWidth="1.5"
-            />
-          </marker>
+          {[inputColor, outputColor].map((color, index) => (
+            <marker
+              key={index}
+              id={`${marker}-${index}`}
+              markerWidth="9"
+              markerHeight="9"
+              refX="8"
+              refY="4"
+              orient="auto"
+              markerUnits="userSpaceOnUse"
+            >
+              <path
+                d="M1 1 L8 4 L1 7"
+                fill="none"
+                stroke={color}
+                strokeWidth="1.5"
+              />
+            </marker>
+          ))}
         </defs>
         {Array.from({ length: count }, (_, i) => {
           const sourceX = ports?.sources[i].x ?? ((i + 0.5) * width) / count;
@@ -1037,9 +1085,9 @@ export function SumJunction({
               data-sum-input={i}
               data-sum-input-arrow={i}
               d={`M${sourceX} ${ports?.sources[i].y ?? 0} V${y}${straight ? "" : ` H${x}`}`}
-              markerEnd={`url(#${marker})`}
+              markerEnd={`url(#${marker}-0)`}
               fill="none"
-              stroke={COLORS.cyan}
+              stroke={inputColor}
               strokeWidth="1.5"
               vectorEffect="non-scaling-stroke"
             />
@@ -1052,9 +1100,9 @@ export function SumJunction({
               ? `M${width / 2} ${centerY + radius} V${(centerY + radius + ports.target.y) / 2} H${ports.target.x} V${ports.target.y}`
               : `M${width / 2} ${centerY + radius} V${ports?.target.y ?? height - 1}`
           }
-          markerEnd={`url(#${marker})`}
+          markerEnd={`url(#${marker}-1)`}
           fill="none"
-          stroke={COLORS.cyan}
+          stroke={outputColor}
           strokeWidth="1.5"
         />
       </svg>

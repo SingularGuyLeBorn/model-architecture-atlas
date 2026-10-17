@@ -16,10 +16,10 @@ import {
 import type { ReactNode } from "react";
 
 const copies = [1, 2, 3, 4];
-// [OM-FREEPLAY] 色相选用琥珀、蓝、梅紫，分别区分缩放参数、偏置参数和仿射结果。
+// [OM-FREEPLAY] 缩放参数、偏置参数和仿射结果用独立色；偏置不再借用输入蓝。
 export const MHC_AFFINE_TONES = {
   scale: "amber",
-  bias: "blue",
+  bias: "sand",
   result: "plum",
 } as const;
 const grid4 = {
@@ -392,7 +392,7 @@ export function MhcProjection({
             rows={["\\mathbf b"]}
             rowLength="24"
             elementTex={(_, d) => `b_{${d}}`}
-            tone="blue"
+            tone={MHC_AFFINE_TONES.bias}
           />
         </div>
         <MathFormula
@@ -506,7 +506,7 @@ export function MhcGate({
               textAlign: "center",
             }}
           >
-            <Box tone="cyan">
+            <Box tone="mint">
               <MathFormula tex={`v^{${kind}}_${j}=\\sigma(a^{${kind}}_${j})`} />
             </Box>
             <Box tone={kind === "p" ? "green" : "rose"}>

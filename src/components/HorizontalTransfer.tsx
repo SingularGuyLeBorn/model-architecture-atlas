@@ -7,11 +7,13 @@ export function HorizontalTransfer({
   targetSelector,
   leftSelector,
   rightSelector,
+  color = COLORS.green,
 }: {
   sourceSelector: string;
   targetSelector: string;
   leftSelector?: string;
   rightSelector?: string;
+  color?: string;
 }) {
   const ref = useRef<SVGSVGElement>(null);
   const [path, setPath] = useState("");
@@ -59,7 +61,7 @@ export function HorizontalTransfer({
         pointerEvents: "none",
       }}
     >
-      <path d={path} fill="none" stroke={COLORS.green} strokeWidth="1.5" />
+      <path d={path} fill="none" stroke={color} strokeWidth="1.5" />
     </svg>
   );
 }

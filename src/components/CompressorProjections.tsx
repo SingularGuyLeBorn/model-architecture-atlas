@@ -1,5 +1,6 @@
 import {
   Box,
+  COMPRESSION_TONES,
   BranchFrame,
   MathFormula,
   Operator,
@@ -33,6 +34,12 @@ export function CompressorProjections({
           const scalar = branch === "kv" ? "v" : "a";
           const resultSup = branch === "kv" ? "c" : "\\mathrm{gate}";
           const output = `\\mathbf ${scalar}_{${layer},t}^{${resultSup}}`;
+          const parameterTone =
+            branch === "kv" ? "indigo" : COMPRESSION_TONES.gateParameter;
+          const resultTone =
+            branch === "kv"
+              ? COMPRESSION_TONES.candidate
+              : COMPRESSION_TONES.gateScore;
           return (
             <section
               key={branch}
@@ -79,7 +86,7 @@ export function CompressorProjections({
                     >
                       本层独立参数
                     </div>
-                    <Box tone="indigo" expanded>
+                    <Box tone={parameterTone} expanded>
                       <TensorHeading
                         name={`W_{${layer}}^{${sup}}`}
                         shape="5120\times512"
@@ -99,6 +106,7 @@ export function CompressorProjections({
                           ) : (
                             <ParameterColumn
                               key={j}
+                              tone={parameterTone}
                               tex={`\\mathbf w_{${layer},${j}}^{${sup}}`}
                             />
                           ),
@@ -116,14 +124,14 @@ export function CompressorProjections({
                         {branch === "kv" ? "候选 KV 内容" : "Gate 原始分数"}
                       </strong>
                     </div>
-                    <Box tone={branch === "kv" ? "green" : "plum"} expanded>
+                    <Box tone={resultTone} expanded>
                       <TensorHeading name={output} shape="1\times512" />
                       <VectorStrip
                         name=""
                         nameWidth={0}
                         length="512"
                         compact
-                        tone={branch === "kv" ? "green" : "plum"}
+                        tone={resultTone}
                         elementTex={(j) =>
                           `${scalar}_{${layer},t,${j}}^{${resultSup}}`
                         }

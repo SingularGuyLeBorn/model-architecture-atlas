@@ -34,9 +34,9 @@ function color(tone: DiagramTone) {
   return box.style.background;
 }
 
-it("公共色板至少十二个语义色系，填充与描边成对且各不相同", () => {
+it("公共色板至少二十个语义色系，填充与描边成对且各不相同", () => {
   const tones = Object.keys(COLORS).filter((key) => key.endsWith("Soft"));
-  expect(tones.length).toBeGreaterThanOrEqual(12);
+  expect(tones.length).toBeGreaterThanOrEqual(20);
   const colors = tones.map((key) =>
     tonePalette(key.slice(0, -4) as DiagramTone),
   );

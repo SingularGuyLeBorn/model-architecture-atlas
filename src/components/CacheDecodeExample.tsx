@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Recipe, Stage } from "../templates/recipes";
 import {
+  COMPRESSION_TONES,
   MathFormula as M,
   ParameterColumn,
   StackedSum,
@@ -142,6 +143,11 @@ function Weight({ layer, branch }: { layer: number; branch: string }) {
           ) : (
             <ParameterColumn
               key={i}
+              tone={
+                branch === "\\mathrm{gate}"
+                  ? COMPRESSION_TONES.gateParameter
+                  : "indigo"
+              }
               tex={`\\mathbf w_{${layer},${i}}^{${branch}}`}
             />
           ),
@@ -284,13 +290,14 @@ function Global({ step }: { step: Step }) {
           layer={3}
           branch="KV,G"
           result={`\\mathbf v^c_{3,${t}}`}
+          resultTone={COMPRESSION_TONES.candidate}
         />
         <Project
           token={t}
           layer={3}
           branch="\mathrm{gate}"
           result={`\\mathbf a^{\\mathrm{gate}}_{3,${t}}`}
-          resultTone="violet"
+          resultTone={COMPRESSION_TONES.gateScore}
         />
       </div>
       <Down label="写入第 601 个压缩组 · 每槽保存一行内容和一行分数" />
@@ -334,10 +341,10 @@ function Global({ step }: { step: Step }) {
             <div className="cache-inline">
               <StackedSum outputDirection="right">
                 {[
-                  <Data key="1201" tone="cyan">
+                  <Data key="1201" tone={COMPRESSION_TONES.product}>
                     <M tex="\boldsymbol\alpha_{3,601,1}\odot\mathbf v^c_{3,1201}" />
                   </Data>,
-                  <Data key="1202" tone="cyan">
+                  <Data key="1202" tone={COMPRESSION_TONES.product}>
                     <M tex="\boldsymbol\alpha_{3,601,2}\odot\mathbf v^c_{3,1202}" />
                   </Data>,
                 ]}

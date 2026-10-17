@@ -1,6 +1,7 @@
 import {
   Box,
   COLORS,
+  COMPRESSION_TONES,
   BranchFrame,
   ExpandedVector,
   MathFormula,
@@ -47,10 +48,10 @@ export function CompressorPending({ layer }: { layer: number }) {
           <MathFormula tex="t=2i-1" />
           <small>暂存；G / Key 不追加</small>
           <div style={{ display: "flex", gap: 4 }}>
-            <Box tone="green">
+            <Box tone={COMPRESSION_TONES.candidate}>
               <MathFormula tex={`\\mathbf v^c_{${layer},2i-1}`} />
             </Box>
-            <Box tone="plum">
+            <Box tone={COMPRESSION_TONES.gateScore}>
               <MathFormula
                 tex={`\\mathbf a^{\\mathrm{gate}}_{${layer},2i-1}`}
               />
@@ -68,10 +69,10 @@ export function CompressorPending({ layer }: { layer: number }) {
           <MathFormula tex="t=2i" />
           <small>读暂存 + 本步新算</small>
           <div style={{ display: "flex", gap: 4 }}>
-            <Box tone="green">
+            <Box tone={COMPRESSION_TONES.candidate}>
               <MathFormula tex={`\\mathbf v^c_{${layer},2i}`} />
             </Box>
-            <Box tone="plum">
+            <Box tone={COMPRESSION_TONES.gateScore}>
               <MathFormula tex={`\\mathbf a^{\\mathrm{gate}}_{${layer},2i}`} />
             </Box>
           </div>
@@ -124,7 +125,7 @@ export function CompressorWeights({ layer }: { layer: number }) {
                           gap: 5,
                         }}
                       >
-                        <Box tone="amber">
+                        <Box tone={COMPRESSION_TONES.weight}>
                           <MathFormula
                             tex={`\\alpha_{${layer},i,${row},${d}}`}
                           />
@@ -173,7 +174,7 @@ export function CompressorPooling({ layer }: { layer: number }) {
                   title="压缩权重"
                   name={`\\boldsymbol\\alpha_{${layer},i,${row}}`}
                   length="512"
-                  tone="amber"
+                  tone={COMPRESSION_TONES.weight}
                   elementTex={(d) => `\\alpha_{${layer},i,${row},${d}}`}
                 />
               </div>
@@ -183,7 +184,7 @@ export function CompressorPooling({ layer }: { layer: number }) {
                   title="候选 KV 内容"
                   name={`\\mathbf v^c_{${layer},${token(row)}}`}
                   length="512"
-                  tone="green"
+                  tone={COMPRESSION_TONES.candidate}
                   elementTex={(d) => `v^c_{${layer},${token(row)},${d}}`}
                 />
               </div>
@@ -193,7 +194,7 @@ export function CompressorPooling({ layer }: { layer: number }) {
                   name=""
                   nameWidth={0}
                   length="512"
-                  tone="green"
+                  tone={COMPRESSION_TONES.product}
                   uniformCells
                   cellPadding={4}
                   elementTex={(d) =>
@@ -207,6 +208,8 @@ export function CompressorPooling({ layer }: { layer: number }) {
       </div>
       <SumJunction
         count={2}
+        inputColor={COLORS[COMPRESSION_TONES.product]}
+        outputColor={COLORS[COMPRESSION_TONES.pooled]}
         sourceSelector="[data-compressor-product]"
         targetSelector="[data-compressor-pool-result] [data-expanded-tensor]"
       />
@@ -223,7 +226,7 @@ export function CompressorPooling({ layer }: { layer: number }) {
         <ExpandedVector
           name={`\\widehat{\\mathbf g}_{${layer},i}`}
           length="512"
-          tone="green"
+          tone={COMPRESSION_TONES.pooled}
           elementTex={(d) => `\\widehat g_{${layer},i,${d}}`}
         />
         <MathFormula
