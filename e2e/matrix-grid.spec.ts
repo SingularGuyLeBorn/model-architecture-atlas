@@ -29,7 +29,10 @@ test("矩阵元素全组同尺寸，纵省略号逐列对齐", async ({ page }) 
     const matrices = page.locator(
       "[data-uniform-matrix], [data-selected-global-rows]",
     );
-    await expect(page.locator("[data-window-matrix]")).toBeAttached();
+    const windowMatrix = page.locator(
+      `.react-flow__node[data-id="swa-window"] ${phase === "Decode" ? "[data-selection-window]" : "[data-window-matrix]"}`,
+    );
+    await expect(windowMatrix).toBeAttached();
     const audit = () =>
       matrices.evaluateAll((roots) =>
         roots.flatMap((root) => {
@@ -88,7 +91,7 @@ test("矩阵元素全组同尺寸，纵省略号逐列对齐", async ({ page }) 
         }),
       );
     for (const [name, target] of [
-      ["window", page.locator("[data-window-matrix]")],
+      ["window", windowMatrix],
       ["index-head", page.locator('[data-index-head="32"]')],
     ] as const) {
       await focus.selectOption(name === "window" ? "swa-window" : "indexer");
