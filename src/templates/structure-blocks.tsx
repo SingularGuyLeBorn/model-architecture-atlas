@@ -158,13 +158,18 @@ export function Tensor({
   );
 }
 export function elementIndex(name: string, suffix: string) {
-  const subscript = /_(?:\{([^}]+)\}|([a-zA-Z0-9]))/;
-  return subscript.test(name)
-    ? name.replace(
-        subscript,
-        (_, group: string, single: string) => `_{${group ?? single},${suffix}}`,
-      )
-    : `${name}_{${suffix}}`;
+  const start = name.indexOf("_");
+  if (start < 0) return `${name}_{${suffix}}`;
+  if (name[start + 1] !== "{")
+    return `${name.slice(0, start)}_{${name[start + 1]},${suffix}}${name.slice(start + 2)}`;
+  let depth = 1,
+    end = start + 2;
+  for (; end < name.length && depth; end++) {
+    if (name[end] === "{") depth++;
+    if (name[end] === "}") depth--;
+  }
+  if (depth) throw new Error(`下标括号未闭合：${name}`);
+  return `${name.slice(0, end - 1)},${suffix}}${name.slice(end)}`;
 }
 export function Vector({
   name,

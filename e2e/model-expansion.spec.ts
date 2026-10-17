@@ -13,8 +13,10 @@ for (const [id, layer, phase, chapter = "layer"] of [
   ["qwen38", 47, "decode", "gdn"],
   ["qwen38", 4, "prefill", "qsa"],
   ["qwen38", 48, "decode", "qsa"],
+  ["qwen38", 1, "prefill", "gr"],
+  ["qwen38", 48, "decode", "gr"],
 ] as const) {
-  test(`${id} Layer ${layer} ${phase} · 内容边界、端口与截图`, async ({
+  test(`${id} ${chapter} Layer ${layer} ${phase} · 内容边界、端口与截图`, async ({
     page,
   }, info) => {
     test.setTimeout(180000);
@@ -50,49 +52,51 @@ for (const [id, layer, phase, chapter = "layer"] of [
           `${id}/${layer}: ${await stage.getAttribute("data-stage")}`,
         ).toEqual([]);
         for (const flow of await stage.locator(".object-connections").all()) {
-          await expect(flow.locator("[data-object-link]")).toHaveCount(
+          await expect(
+            flow.locator(
+              ":scope > .object-connections-lines [data-object-link]",
+            ),
+          ).toHaveCount(
             Number(await flow.getAttribute("data-object-link-count")),
           );
           const endpoints = await flow.evaluate((root) => {
             const bounds = root.getBoundingClientRect();
             const scale = bounds.width / (root as HTMLElement).offsetWidth;
-            return [...root.querySelectorAll("[data-object-link]")].flatMap(
-              (link) => {
-                const [from, to] = link
-                  .getAttribute("data-object-link")!
-                  .split(":");
-                const path = link.querySelector("path")!;
-                const start = path.getPointAtLength(0),
-                  end = path.getPointAtLength(path.getTotalLength());
-                const a = root
-                  .querySelector(`[data-trace-object="${from}"]`)!
-                  .getBoundingClientRect();
-                const b = root
-                  .querySelector(`[data-trace-object="${to}"]`)!
-                  .getBoundingClientRect();
-                if (link.getAttribute("data-direction") === "right")
-                  return [
-                    Math.abs(start.x - (a.right - bounds.left) / scale),
-                    Math.abs(
-                      start.y - (a.top + a.height / 2 - bounds.top) / scale,
-                    ),
-                    Math.abs(end.x - (b.left - bounds.left) / scale),
-                    Math.abs(
-                      end.y - (b.top + b.height / 2 - bounds.top) / scale,
-                    ),
-                  ];
+            return [
+              ...root.querySelectorAll(
+                ":scope > .object-connections-lines [data-object-link]",
+              ),
+            ].flatMap((link) => {
+              const [from, to] = link
+                .getAttribute("data-object-link")!
+                .split(":");
+              const path = link.querySelector("path")!;
+              const start = path.getPointAtLength(0),
+                end = path.getPointAtLength(path.getTotalLength());
+              const a = root
+                .querySelector(`[data-trace-object="${from}"]`)!
+                .getBoundingClientRect();
+              const b = root
+                .querySelector(`[data-trace-object="${to}"]`)!
+                .getBoundingClientRect();
+              if (link.getAttribute("data-direction") === "right")
                 return [
+                  Math.abs(start.x - (a.right - bounds.left) / scale),
                   Math.abs(
-                    start.x - (a.left + a.width / 2 - bounds.left) / scale,
+                    start.y - (a.top + a.height / 2 - bounds.top) / scale,
                   ),
-                  Math.abs(start.y - (a.bottom - bounds.top) / scale),
-                  Math.abs(
-                    end.x - (b.left + b.width / 2 - bounds.left) / scale,
-                  ),
-                  Math.abs(end.y - (b.top - bounds.top) / scale),
+                  Math.abs(end.x - (b.left - bounds.left) / scale),
+                  Math.abs(end.y - (b.top + b.height / 2 - bounds.top) / scale),
                 ];
-              },
-            );
+              return [
+                Math.abs(
+                  start.x - (a.left + a.width / 2 - bounds.left) / scale,
+                ),
+                Math.abs(start.y - (a.bottom - bounds.top) / scale),
+                Math.abs(end.x - (b.left + b.width / 2 - bounds.left) / scale),
+                Math.abs(end.y - (b.top - bounds.top) / scale),
+              ];
+            });
           });
           expect(Math.max(...endpoints)).toBeLessThan(1);
         }

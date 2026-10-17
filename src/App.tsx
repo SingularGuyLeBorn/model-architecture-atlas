@@ -259,6 +259,7 @@ export function App() {
               {(route.chapter === "csa" ||
                 route.chapter === "gdn" ||
                 route.chapter === "qsa" ||
+                route.chapter === "gr" ||
                 route.chapter === "layer" ||
                 (model.id === "v32" && route.chapter === "mla")) && (
                 <label>

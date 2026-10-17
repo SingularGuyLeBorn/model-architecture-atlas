@@ -27,6 +27,7 @@
   margin-block: 12px;
 }
 .architecture-equation > .architecture-object,
+.architecture-equation > .architecture-id-anchor,
 .architecture-equation > .recipe-object-port {
   margin-inline: 0;
 }
@@ -78,6 +79,12 @@
   display: grid;
   gap: 10px;
   justify-items: center;
+}
+.architecture-rms-compact > .architecture-flow {
+  flex-direction: column;
+}
+.architecture-rms-compact > .architecture-flow > .architecture-arrow {
+  transform: rotate(90deg);
 }
 .architecture-swiglu > .architecture-columns {
   align-items: start;
@@ -166,4 +173,14 @@
 .architecture-id-anchor {
   width: max-content;
   margin-inline: auto;
+}
+.qwen-shared-branches > .architecture-columns {
+  align-items: stretch;
+  gap: 80px;
+}
+.qwen-shared-control {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }

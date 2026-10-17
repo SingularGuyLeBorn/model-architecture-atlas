@@ -135,6 +135,10 @@ export function qwenQsaRecipe(phase: Phase, layer: number): Recipe {
           : "Decode：当前 t 行追加到本层各自的缓存。"}{" "}
         本图使用无 padding 的连续文本位置；多模态位置另行展开。
       </p>
+      <p className="architecture-note">
+        各 RMSNorm 的缩放记为 <M tex={"\\gamma=1+w"} />
+        ；w 为官方零初始化参数，均方和缩放使用 FP32。
+      </p>
     </>,
     x,
     1200,

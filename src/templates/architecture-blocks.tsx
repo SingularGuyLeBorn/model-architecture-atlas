@@ -4,7 +4,7 @@ import {
   SumJunction,
   type DiagramTone,
 } from "../components/diagram-primitives";
-import { Tensor, Data, elementIndex } from "./structure-blocks";
+import { Tensor, Data, Down, elementIndex } from "./structure-blocks";
 import { RecipePort } from "./RecipePorts";
 import { ObjectConnections } from "../components/ObjectConnections";
 
@@ -60,7 +60,7 @@ export function Row({
       }
       columns={
         columns ??
-        (Number(size) <= 3
+        (Number(size) <= 4
           ? Array.from({ length: Number(size) }, (_, i) => String(i + 1))
           : ["1", "2", "…", String(size)])
       }
@@ -95,6 +95,7 @@ export function Matrix({
   title,
   rowTrace,
   rowTone,
+  trace,
 }: {
   name: string;
   element: (row: string, column: string) => string;
@@ -107,6 +108,7 @@ export function Matrix({
   title?: string;
   rowTrace?: (row: string) => string | undefined;
   rowTone?: (row: string) => DiagramTone;
+  trace?: string;
 }) {
   const tensor = (
     <Tensor
@@ -124,13 +126,15 @@ export function Matrix({
   return (
     <div className="architecture-object">
       {title && <p className="architecture-caption">{title}</p>}
-      {direction ? (
-        <RecipePort tex={name} direction={direction}>
-          {tensor}
-        </RecipePort>
-      ) : (
-        tensor
-      )}
+      <div data-trace-object={trace}>
+        {direction ? (
+          <RecipePort tex={name} direction={direction}>
+            {tensor}
+          </RecipePort>
+        ) : (
+          tensor
+        )}
+      </div>
     </div>
   );
 }
@@ -184,6 +188,7 @@ export function Project({
   tone = architectureTone(output),
   inputTrace,
   outputTrace,
+  inputTone = architectureTone(input),
 }: {
   input: string;
   weight: string;
@@ -195,6 +200,7 @@ export function Project({
   tone?: DiagramTone;
   inputTrace?: string;
   outputTrace?: string;
+  inputTone?: DiagramTone;
 }) {
   return (
     <div className="architecture-equation">
@@ -203,14 +209,23 @@ export function Project({
         size={from}
         direction={inputPort ? "in" : undefined}
         trace={inputTrace}
+        tone={inputTone}
       />
       <span className="architecture-operator">×</span>
       <Matrix
         name={weight}
         element={(r, c) => elementIndex(weight.replace(/^W/, "w"), `${r},${c}`)}
         shape={`${from}\\times${to}`}
-        rows={["1", "2", "…", String(from)]}
-        columns={["1", "2", "…", String(to)]}
+        rows={
+          from <= 4
+            ? Array.from({ length: from }, (_, i) => String(i + 1))
+            : ["1", "2", "…", String(from)]
+        }
+        columns={
+          to <= 4
+            ? Array.from({ length: to }, (_, i) => String(i + 1))
+            : ["1", "2", "…", String(to)]
+        }
         tone="indigo"
       />
       <span className="architecture-operator">=</span>
@@ -273,6 +288,10 @@ export function Rms({
   inputPort = false,
   outputPort = false,
   inputSource = false,
+  compact = false,
+  inputTrace,
+  outputTrace,
+  gammaTitle = "可学习缩放 · 各行共用",
   inputTone = architectureTone(input),
   outputTone = architectureTone(output),
 }: {
@@ -284,16 +303,27 @@ export function Rms({
   inputPort?: boolean;
   outputPort?: boolean;
   inputSource?: boolean;
+  compact?: boolean;
+  inputTrace?: string;
+  outputTrace?: string;
+  gammaTitle?: string;
   inputTone?: DiagramTone;
   outputTone?: DiagramTone;
 }) {
   return (
-    <div className="architecture-rms">
+    <div
+      className={
+        compact
+          ? "architecture-rms architecture-rms-compact"
+          : "architecture-rms"
+      }
+    >
       <Flow>
         {[
           <Row
             key="input"
             name={input}
+            trace={inputTrace}
             size={size}
             direction={inputPort ? "in" : inputSource ? "out" : undefined}
             tone={inputTone}
@@ -311,20 +341,30 @@ export function Rms({
           <M tex="r" />
         </div>
         <span className="architecture-operator">⊙</span>
-        <Row
-          name={gamma}
-          size={size}
-          tone="crimson"
-          title="可学习缩放 · 各行共用"
-        />
-        <span className="architecture-operator">=</span>
-        <Row
-          name={output}
-          size={size}
-          direction={outputPort ? "out" : undefined}
-          tone={outputTone}
-        />
+        <Row name={gamma} size={size} tone="crimson" title={gammaTitle} />
+        {!compact && <span className="architecture-operator">=</span>}
+        {!compact && (
+          <Row
+            name={output}
+            trace={outputTrace}
+            size={size}
+            direction={outputPort ? "out" : undefined}
+            tone={outputTone}
+          />
+        )}
       </div>
+      {compact && (
+        <>
+          <Down />
+          <Row
+            name={output}
+            trace={outputTrace}
+            size={size}
+            direction={outputPort ? "out" : undefined}
+            tone={outputTone}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -337,6 +377,7 @@ export function SwiGlu({
   scope,
   inputPort = false,
   outputPort = false,
+  outputTrace,
 }: {
   input: string;
   output: string;
@@ -345,6 +386,7 @@ export function SwiGlu({
   scope: string;
   inputPort?: boolean;
   outputPort?: boolean;
+  outputTrace?: string;
 }) {
   const gate = `g_{${scope},t}`,
     up = `u_{${scope},t}`,
@@ -423,6 +465,7 @@ export function SwiGlu({
           output={output}
           inputTrace="down-in"
           outputPort={outputPort}
+          outputTrace={outputTrace}
           from={intermediate}
           to={hidden}
           tone="coral"

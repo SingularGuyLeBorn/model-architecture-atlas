@@ -3,6 +3,7 @@ import { deepseekLayerRecipe } from "./deepseek-layer";
 import { mimoLayerRecipe, mimoOverviewRecipe } from "./mimo-layer";
 import { qwenGdnRecipe } from "./qwen-gdn";
 import { qwenQsaRecipe } from "./qwen-qsa";
+import { qwenCoreRecipe } from "./qwen-residual";
 import { cacheDecodeRecipe } from "../components/CacheDecodeExample";
 import { EngramPurpose } from "../components/EngramPurpose";
 import { ReindexCandidates } from "../components/ReindexCandidates";
@@ -150,9 +151,11 @@ export function recipeFor(
   layer: number,
 ): Recipe {
   if (model.family === "qwen")
-    return chapter === "qsa"
-      ? qwenQsaRecipe(phase, layer)
-      : qwenGdnRecipe(phase, layer);
+    return chapter === "gr"
+      ? qwenCoreRecipe(phase, layer)
+      : chapter === "qsa"
+        ? qwenQsaRecipe(phase, layer)
+        : qwenGdnRecipe(phase, layer);
   if (model.family === "mimo")
     return chapter === "overview"
       ? mimoOverviewRecipe(phase)
