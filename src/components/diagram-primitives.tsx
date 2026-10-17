@@ -90,7 +90,7 @@ export const COLORS = {
   oceanSoft: "#c5e2fc",
 };
 
-/** 对象身份映射；选中、追加状态不能覆盖这些来源色。 */
+/** 常态来源色；琥珀选区用名称、行号追踪来源，消费端恢复常态色。 */
 export const CACHE_TONES = {
   local: "green",
   global: "ocean",
@@ -355,13 +355,13 @@ export function tonePalette(tone: DiagramTone) {
     : { color: COLORS[tone], background: COLORS[`${tone}Soft`] };
 }
 
-/** 选中可同色加深或琥珀填充，描边始终保留来源身份。 */
+/** 选中可同色加深或琥珀高亮，元素填充与自身描边成套切换。 */
 export function selectionPalette(
   tone: DiagramTone,
   style: "deepen" | "amber" = "deepen",
 ) {
   const palette = tonePalette(tone);
-  if (style === "amber") return { ...palette, background: COLORS.amberSoft };
+  if (style === "amber") return tonePalette("amber");
   // [OM-FREEPLAY] 20% 描边色混入浅底，兼顾选区辨识与深色公式的可读性。
   const background = `#${[1, 3, 5]
     .map((i) =>
@@ -432,7 +432,8 @@ export function VectorStrip({
           : `${nameWidth ?? (compact ? 52 : 92)}px ${contentWidth ? "max-content" : "minmax(0,1fr)"}`,
         gap: uniformCells ? 3 : 5,
         alignItems: uniformCells ? "stretch" : "center",
-        padding: uniformCells ? "2px 0" : compact ? 2 : 5,
+        // [OM-FREEPLAY] 四侧预留 5px 净空；普通行同样预留，选中不改变列宽或行高。
+        padding: 5,
         fontSize: compact ? 9 : 10.5,
         lineHeight: 1.2,
         outline:
@@ -497,6 +498,9 @@ export function VectorStrip({
               data-vector-cell
               style={{
                 minWidth: 0,
+                // 末列轨道含行尾 5px 净空；其余数据列预留同量空间，元素格保持等宽。
+                marginRight:
+                  columnSubgrid && index < columns.length - 1 ? 5 : undefined,
                 display: uniformCells ? "grid" : undefined,
                 placeItems: uniformCells ? "center" : undefined,
                 padding: contentWidth

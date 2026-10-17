@@ -7,6 +7,7 @@ import {
   VectorStrip,
   type DiagramTone,
 } from "../src/components/diagram-primitives";
+import { frameColor } from "../src/components/diagram-appearance";
 
 const luminance = (hex: string) =>
   [1, 3, 5]
@@ -51,7 +52,7 @@ it.each(["ocean", "indigo", "ochre"] as const)(
   (tone) => {
     const palette = selectionPalette(tone, "amber");
     expect(palette.background).toBe(COLORS.amberSoft);
-    expect(palette.color).toBe(tonePalette(tone).color);
+    expect(palette.color).toBe(COLORS.amber);
     expect(
       (luminance(palette.background) + 0.05) / (luminance(COLORS.ink) + 0.05),
     ).toBeGreaterThanOrEqual(4.5);
@@ -76,6 +77,11 @@ it.each(["ocean", "indigo", "ochre"] as const)(
         ? COLORS.amberSoft
         : tonePalette(tone).background;
       expect(cell.style.backgroundColor).toBe(probe.style.backgroundColor);
+      probe.style.borderColor = frameColor(
+        selected ? COLORS.amber : tonePalette(tone).color,
+      );
+      expect(cell.style.borderColor).toBe(probe.style.borderColor);
+      expect(row.style.padding).toBe("5px");
       expect(row.style.outline).toContain(selected ? palette.color : "");
     }
   },

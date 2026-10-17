@@ -4864,7 +4864,7 @@ function SelectedGlobalRows({
           textAlign: "center",
         }}
       >
-        海蓝边框：全局 G；琥珀填色 + 虚线：本次选中
+        海蓝：全局 G 常态；琥珀填色与描边：本次选中；行号保留来源
       </div>
     </div>
   );
@@ -6064,9 +6064,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                   position: "relative",
                   display: "grid",
                   gridTemplateColumns:
-                    ratio === 2
-                      ? "minmax(0,1.03fr) minmax(0,.97fr)"
-                      : "minmax(0,1fr)",
+                    ratio === 2 ? "max-content minmax(0,1fr)" : "minmax(0,1fr)",
                   gap: 24,
                   alignItems: "start",
                 }}

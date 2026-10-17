@@ -70,6 +70,8 @@ export function SlidingWindowRows({
     gap: 4,
     alignItems: "center",
     textAlign: "center" as const,
+    // [OM-FREEPLAY] 各行统一留 5px，追加行的虚线分隔不贴住元素。
+    paddingBlock: 5,
   };
   return (
     <section

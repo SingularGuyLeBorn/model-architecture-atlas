@@ -28,7 +28,7 @@
 | 06 简单算术、归约 | `e2e/compact-normalization.spec.ts`、`tests/deepseekRmsNorm.test.ts` | 过度拆解与遗漏运算之间的界限 |
 | 07 裁切、末列、公式 | `e2e/residual-containment.spec.ts`、`e2e/matrix-grid.spec.ts`、`tests/mathMarkup.test.tsx` | 分数与下标可读性、真实裁切 |
 | 08 符号与拼接 | `tests/headGroupConcat.test.tsx`、`tests/diagramNotation.test.tsx`、`e2e/concat-and-route-regression.spec.ts` | 原块在结果中是否一眼可认 |
-| 09 颜色 | `tests/diagramAppearance.test.ts`、`tests/mhcColors.test.tsx`、`e2e/semantic-palette.spec.ts`、`e2e/color-identity.spec.ts`、`e2e/compact-semantic-regression.spec.ts` | 色系相近难辨、同对象跨模块连续性 |
+| 09 颜色与选区 | `tests/diagramAppearance.test.ts`、`tests/mhcColors.test.tsx`、`e2e/semantic-palette.spec.ts`、`e2e/color-identity.spec.ts`、`e2e/selection-style.spec.ts`、`e2e/compact-semantic-regression.spec.ts` | 色系相近难辨、同对象跨模块连续性、正常阅读尺度的虚线净空 |
 | 10 端口、线路、标签 | `e2e/full-route-audit.spec.ts`、`e2e/edge-label-audit.spec.ts`、`e2e/sum-source-attachment.spec.ts` | 绕路理由、箭翼、入口变量能否跟踪 |
 | 11–12 缓存与复用 | `tests/cacheDecode.test.tsx`、`tests/cacheSemantics.test.tsx`、`tests/perLayerCache.test.tsx`、`e2e/layer-two-swa.spec.ts` | 本层时间轴与跨层来源是否分清 |
 | 13 候选、分数、ID | `tests/reindexCandidates.test.tsx`、`e2e/indexer-origins.spec.ts` | 选行对象与原 G 行的视觉对应 |
@@ -46,7 +46,11 @@
 
 现有加深填充断言锁定当前组件的具体样式，不代表规范只允许深色。选中可用同色加深或琥珀，两种可并存；组件采用琥珀时同步更新该组选区的期望，并检查来源可追踪、与真实权重可区分。不能把合法琥珀高亮误报为身份冲突，也不能仅因用了琥珀就默认语义正确。
 
-选区检查同时读取元素填充和自身边框，要求同色系配套；旧测试若要求“琥珀底仍保留来源色描边”，应改成配套色断言，并用名称、行号和来源标签检查可追踪性。外围虚线单独测量四侧净空，计入线宽与轮廓偏移，复核邻行间距及父框裁切；普通/选中格仍保持同尺寸。正间距只是自动检查底线，正常阅读尺度还须看得出空隙。具体规则见配色契约，文档更新不代表现有组件已经修复。
+选区检查同时读取元素填充和自身边框，要求同色系配套；旧测试若要求“琥珀底仍保留来源色描边”，应改成配套色断言，并用名称、行号和来源标签检查可追踪性。外围虚线单独测量四侧净空，计入线宽与轮廓偏移，复核邻行间距及父框裁切；普通/选中格仍保持同尺寸。正间距只是自动检查底线，正常阅读尺度还须看得出空隙。具体规则见配色契约。
+
+`e2e/selection-style.spec.ts` 在逐层入口检查 Engram 查表、全局选行、Prefill/Decode 的 SWA 与 mHC 回写：读取元素实际填充及四侧边框，与配套色板比较；把浏览器坐标还原为画布坐标，测虚线内沿到元素、行名和省略号的净空，检查邻行碰撞及祖先裁切。当前组件预留 5px，检查底线为 3px（另留亚像素容差），不是把所有字号的通用标准固定为这个数。检查器会临时制造异色边框、零净空，确认分别报错，再恢复 DOM。结果附在浏览器报告中，截图存入 `artifacts/selection-style/`。
+
+局部回归在完成构建后运行：`pnpm exec playwright test e2e/selection-style.spec.ts e2e/selected-matrix-size.spec.ts`。后者专查普通/选中行的元素宽高、列对齐与溢出；不能因增加净空就放宽等宽断言。前者覆盖公共行组件及两类 SWA 虚线，不是全页面所有手写框的通用扫描器，也不判定数学含义。新增手写选区时补充选择器与场景，不能把未测组件算作通过。颜色全层回归仍另跑 `all-layer-colors`，截图仍需人工查看。
 
 `scripts/scan-all-layer-colors.mjs` 输出全层公式与实际颜色清单；`scripts/audit-layer-colors.mjs` 逐模块定位、截图并列出同公式异色线索。清单与线索不是自动语义判定：作用域同名、合法变换和选区加深均需人工区分。最终汇报分别列出自动检查的层/模式，以及亲自打开的截图变体；80 个状态通过不能表述为人工逐张看过全部模块，也不能证明其他章节已检查。
 
