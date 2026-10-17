@@ -17,6 +17,11 @@ it("主图与独立章节说明 Engram 收益、成本、参数身份，不引�
       expect(purpose.textContent).toContain("24 行 × 256 维");
       expect(purpose.textContent).toContain("独立参数，推理期间固定");
       expect(purpose.textContent).toContain("6144 → 25600");
+      expect(purpose.textContent).toContain("I | love | New | York");
+      expect(purpose.textContent).toContain("40 次 Attention + 40 次 FFN");
+      expect(purpose.textContent).toContain("CKA");
+      expect(purpose.textContent).toContain("Logit Lens");
+      expect(purpose.querySelector("[data-engram-comparison]")).not.toBeNull();
       expect(root.querySelector(".katex-error")).toBeNull();
       const notes = explainModule({
         kind: "engram-lookup",

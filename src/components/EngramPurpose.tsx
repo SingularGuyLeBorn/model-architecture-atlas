@@ -1,101 +1,144 @@
 import { Box, MathFormula as M } from "./diagram-primitives";
 
-// 收益按 Engram 论文的机制分析描述；实际算子以固定 V4.1 推理实现为准。
-// https://arxiv.org/abs/2601.07372
-// https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/5254448103b6254fc646dacbca1cbbf20e9216c1/inference/model.py
+// 算子依固定 V4.1 实现；表示效率的解释依 Engram 论文 §6.1，二者分别陈述。
 export const ENGRAM_PURPOSE = [
-  "Engram 把局部词片段的静态模式放进可稀疏访问的独立参数表 E。它的目标是减轻主干反复构造常见局部模式的计算负担，让主干有更多能力处理上下文与推理；论文把这种作用解释为释放有效网络深度。它不保证给同一模型加上模块后总 FLOPs 反而下降，也没有在本版本跳过任何 Attention 或 FFN。",
-  "每个 token 用 2、3、4-gram 的离散 ID 确定 24 个哈希地址，只读取表中的 24 行，每行 256 维；不扫描整张表、不对所有记忆行做 Attention。E 是独立模型参数，推理期间固定；KV 缓存则由当前序列的激活计算而来。哈希乘数、模数和桶偏移属于固定地址规则，与注意力权重区分。",
-  "读出的 24 行拼成 6144 维向量，乘独立参数矩阵 W 后得到四路 Key 和一个共享 Value。当前残差再与 Key 计算门控 g，决定注入多少 Value；这些投影、归一化、点积、门控和加法每次仍要计算。同样的 n-gram 可查到同样的参数行，但当前残差不同，门控和注入结果就可能不同。",
-  "Engram 的代价包括大型参数表的存储与读取，以及查表后的投影和门控。节省的方向是在扩充记忆容量时控制每个 token 激活的计算量，记忆容量仍需相应存储。U、G 是随当前序列产生的 KV 状态，Engram 的 E 是模型自带的参数表；这两类复用各自独立。V4.1 Flash 的固定实现没有 Engram 因果卷积分支。",
+  "固定主干并加入 Engram 会增加查表、投影、归一化、门控和加法。V4.1 Flash 仍执行 40 层 Attention 与 FFN，第 2、15 层各增加一次 Engram；没有少执行任何主干层，也不保证总 FLOPs 或延迟下降。",
+  "具体教学片段 I | love | New | York，当前 token 是 York。这里人为按四个词分词，仅说明结构。常规主干用 Attention 混合因果上下文、用 FFN 变换特征；Engram 另用 New York、love New York、I love New York 三个后缀各查 8 行，合计 24 行 × 256 维。参数表 E 是独立参数，推理期间固定；每行保存学习到的向量，词片段与具体知识的对应需实测。",
+  "24 行拼接为 6144 维，再乘完整独立投影矩阵，得到四路 5120 维 Key 与一个共享 5120 维 Value。当前残差与 Key 算门控 g，再将 g 乘 Value 加回残差。相同片段在同一 Engram 层复用相同参数行；上下文改变门控。第 2、15 层各有自己的表与投影。",
+  "减轻主干负担指表示效率：论文的 Logit Lens 分析发现较早层预测更接近最终预测，CKA 分析发现较浅层表示可对齐基线较深层，作者解释为释放有效网络深度。它们是表示分析，实际网络仍执行全部层。性能比较需使用匹配计算预算、分别训练的基线；结构图本身不足以推断某个词片段省了几层。",
+  "稀疏查表让表容量增加时每个 token 仍只读固定数量的行；因此能以受控的激活计算量增加参数容量，存储与带宽仍增加。论文同计算预算的对照涉及重新分配参数容量；V4.1 外挂模块的新增开销须另计。U、G 是序列 KV 状态，E 是固定参数表。V4.1 Flash 的固定实现没有 Engram 因果卷积分支。",
 ];
 
 export function EngramPurpose({ layer }: { layer?: number }) {
-  const l = layer === undefined ? "l" : String(layer);
   return (
     <section
       data-engram-purpose
-      style={{ display: "grid", gap: 10, fontSize: 14, lineHeight: 1.65 }}
+      style={{ display: "grid", gap: 12, fontSize: 14, lineHeight: 1.65 }}
     >
       <strong style={{ fontSize: 19 }}>
-        Engram 省什么：把局部模式记忆交给稀疏查表，主干仍照常计算
+        Engram 对照：增加记忆入口，主干计算仍保留
       </strong>
+      <Box tone="blue">
+        <strong>
+          同一输入片段：I | love | New | York → 现在处理 York（t = 4）
+        </strong>
+        <br />
+        教学分词 · 结构对照 · 非模型实测
+      </Box>
       <div
+        data-engram-comparison
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(3,minmax(0,1fr))",
-          gap: 10,
+          gridTemplateColumns: "repeat(2,minmax(0,1fr))",
+          gap: 14,
         }}
       >
-        <Box tone="blue">
-          <strong>① 当前及历史 token ID</strong>
-          <br />
-          2、3、4-gram
-          <br />
-          每种长度 8 个地址
-          <br />
-          确定性哈希，不做全表搜索
-        </Box>
-        <Box tone="indigo">
-          <strong>② 按地址读取参数表 E</strong>
-          <br />
-          独立参数，推理期间固定
-          <br />
-          只读取 24 行 × 256 维<br />
-          不生成、不追加 KV 历史行
-        </Box>
-        <Box tone="green">
-          <strong>③ 取回记忆，结合当前状态</strong>
-          <br />
-          拼接 → 投影为 Key、Value
-          <br />
-          当前残差与 Key 算门控 g<br />g 决定接收多少 Value
-        </Box>
+        <div style={{ display: "grid", gap: 8, alignContent: "start" }}>
+          <strong style={{ fontSize: 17 }}>无 Engram · 常规主干路径</strong>
+          <Box tone="blue">
+            I、love、New、York 的 ID → Embedding
+            <br />→ 前面各层 → 当前 York 的残差 h
+          </Box>
+          <div style={{ textAlign: "center" }}>↓ h 进入本层主干</div>
+          <Box tone="green">
+            mHC 汇合 → Attention
+            <br />
+            按上下文权重混合 York 与可见历史的特征
+          </Box>
+          <div style={{ textAlign: "center" }}>↓ 注意力输出与残差回写</div>
+          <Box tone="green">
+            FFN → 残差回写 → 后续层
+            <br />
+            局部搭配和其他上下文特征均由主干学习形成
+          </Box>
+          <Box tone="blue">
+            最终隐藏状态 → LM Head → 下一个 token 分布
+            <br />
+            具体是否识别出地名 “New York”，要测实际模型。
+          </Box>
+        </div>
+        <div style={{ display: "grid", gap: 8, alignContent: "start" }}>
+          <strong style={{ fontSize: 17 }}>有 Engram · 增加局部片段入口</strong>
+          <Box tone="blue">
+            主路径仍产生当前 York 的残差 h<br />
+            旁路读取离散 ID，构造以下三个后缀
+          </Box>
+          <Box tone="indigo">
+            <strong>New York · love New York · I love New York</strong>
+            <br />
+            每个后缀 → 8 个固定哈希地址 → 各读 8 行 E<br />共 24 行 × 256
+            维；独立参数，推理期间固定
+          </Box>
+          <div style={{ textAlign: "center" }}>↓ 24 行拼接 → e（1 × 6144）</div>
+          <Box tone="indigo">
+            <M tex="eW=[k_1\mid k_2\mid k_3\mid k_4\mid v]" />
+            <br />
+            W：6144 × 25600；每个 k 和 v 均为 5120 维<br />
+            6144 → 25600：完整矩阵投影，每次仍要算
+          </Box>
+          <Box tone="green">
+            当前 h 与对应 k → 门控 g<br />
+            <M tex="h^E=h+g\cdot v" />
+            <br />
+            注入片段相关特征 → 本层 Attention、FFN → 后续层 → LM Head
+          </Box>
+        </div>
       </div>
       <Box tone="green">
-        <M
-          tex={`\\mathbf h_{${l},c,t}^{E}=\\mathbf h_{${l},c,t}^{in}+g_{${l},c,t}\\cdot\\mathbf v_{${l},t}^{E}`}
-        />
+        <strong>把“注入”算一次：只截取一条残差的前 4 个元素</strong>
         <br />
-        注入后的四路残差 → 本层 mHC → Attention → mHC 回写 → FFN →
-        回写；没有跳过这些模块。
+        教学值 h = (0.2, −0.1, 0.4, 0.3)，v = (0.5, 0.2, −0.3,
+        0.1)，门控计算结果取 g = 0.6。
+        <br />
+        <M tex="h^E_{1:4}=(0.2,-0.1,0.4,0.3)+0.6\cdot(0.5,0.2,-0.3,0.1)" />
+        <br />
+        <M tex="h^E_{1:4}=(0.5,0.02,0.22,0.36)" />
+        <br />
+        数值仅为教学示意；真实 g 由完整 5120 维 h、k
+        算出。向量各元素的语义需实测，表中不直接存一段文字答案。
       </Box>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div>
-          <strong>想减少的负担</strong>
+      <Box tone="blue">
+        <strong>计算账本 · 固定 40 层主干作结构对照</strong>
+        <br />
+        无 Engram：40 次 Attention + 40 次 FFN。
+        <br />
+        有 Engram：同样 40 次 Attention + 40 次 FFN，再加第 2、15
+        层的查表、投影与门控。没有跳过这些模块。
+        <br />
+        公平性能比较：匹配预算，分别训练。
+      </Box>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <Box tone="blue">
+          Logit Lens
           <br />
-          常见局部词片段不必全靠主干多层神经计算反复构造；增加记忆容量时，每个
-          token 仍只查固定数量的行。论文把这解释为释放主干的有效深度。
-        </div>
-        <div>
-          <strong>仍然支付的代价</strong>
+          较早层预测 → 更接近最终预测
+        </Box>
+        <Box tone="blue">
+          CKA 表示相似性
           <br />
-          参数表占存储，查表要读数据；6144 → 25600
-          投影与上下文门控仍要计算。Attention 与 FFN 的计算保留，总 FLOPs
-          需要计入新增模块，没有固定减幅结论。
-        </div>
+          较浅层表示 → 对齐基线更深层
+        </Box>
       </div>
-      <div>
-        同一 n-gram
-        可以复用同样的参数行；上下文残差不同，门控与最终结果仍可不同。CSA
-        跨层共享的是 G，历史 KV 缓存保存的是序列激活；这里读取的是固定参数 E。
-      </div>
+      <small>
+        表示效率的证据；实际执行层数保留。论文分析与开销边界见旁注。
+      </small>
+      <div>第 {layer ?? "l"} 层：同片段 → 同 E 行；不同上下文 → g 可不同。</div>
       <div style={{ fontSize: 12 }}>
-        机制解释：
+        表示效率依据：
         <a
-          href="https://arxiv.org/abs/2601.07372"
+          href="https://arxiv.org/html/2601.07372v1#S6.SS1"
           target="_blank"
           rel="noreferrer"
         >
-          Engram 论文
+          Engram 论文 §6.1
         </a>
-        ；本图算子：
+        ；算子依据：
         <a
           href="https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/5254448103b6254fc646dacbca1cbbf20e9216c1/inference/model.py"
           target="_blank"
           rel="noreferrer"
         >
-          V4.1 固定版本实现
+          V4.1 固定实现
         </a>
         。
       </div>

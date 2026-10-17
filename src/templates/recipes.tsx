@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { cacheDecodeRecipe } from "../components/CacheDecodeExample";
 import { EngramPurpose } from "../components/EngramPurpose";
+import { ReindexCandidates } from "../components/ReindexCandidates";
 import {
   MathFormula as M,
   SplitArrows,
@@ -1379,7 +1380,7 @@ export function recipeFor(
               ]}
             </Parallel>
             <p>
-              解码器第一 Full 层建立候选池：2048 个块、每块 8
+              解码器第一 Full 层建立候选池：最多 2048 个块、每块 8
               行；后续重索引限制在候选池内。
             </p>
           </>,
@@ -1408,6 +1409,12 @@ export function recipeFor(
             ]}
           </Parallel>,
           "H^{dec}_{40}",
+        ),
+        stage(
+          "reindex-candidates",
+          "共享候选范围与各层选行",
+          <ReindexCandidates />,
+          "I_{25,t},I_{29,t},I_{33,t},I_{37,t}",
         ),
         stage(
           "replay",

@@ -1,5 +1,23 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { cacheSourceSummary } from "../src/components/CacheSemantics";
+
+async function canvasSettled(page: Page) {
+  let previous = "";
+  let same = 0;
+  await expect
+    .poll(
+      async () => {
+        const current = await page
+          .locator(".react-flow__viewport")
+          .getAttribute("style");
+        same = current === previous ? same + 1 : 0;
+        previous = current ?? "";
+        return same;
+      },
+      { intervals: [100, 150, 200], timeout: 10000 },
+    )
+    .toBeGreaterThanOrEqual(3);
+}
 
 test("逐层主图的完整共享区间、Engram 收益及旁注可读且无溢出", async ({
   page,
@@ -29,11 +47,23 @@ test("逐层主图的完整共享区间、Engram 收益及旁注可读且无溢�
       .getByRole("button", { name: String(layer), exact: true })
       .click();
     await focus.selectOption("cache-sharing");
+    await canvasSettled(page);
     const map = page.locator("[data-cache-sharing-map]");
+    const mapHeight = await map.evaluate(
+      (el) => (el as HTMLElement).offsetHeight,
+    );
+    await page.setViewportSize({
+      width: 2200,
+      height: Math.ceil(mapHeight + 650),
+    });
+    await focus.selectOption("cache-sharing");
+    await canvasSettled(page);
     await expect(map).toBeVisible();
     await expect(map.locator("[data-sharing-g]")).toHaveCount(4);
     await expect(map.locator("[data-sharing-index]")).toHaveCount(8);
     await expect(map.locator("[data-sharing-consumer]")).toHaveCount(30);
+    await expect(map.locator("[data-reindex-branch]")).toHaveCount(4);
+    await expect(map).toContainText("16384");
     await expect(map.locator("[data-active-sharing]")).toContainText(
       `第 ${layer} 层`,
     );
@@ -53,6 +83,7 @@ test("逐层主图的完整共享区间、Engram 收益及旁注可读且无溢�
       .toEqual([]);
     await expect(map.locator(".katex-error")).toHaveCount(0);
     await map.screenshot({ path: `artifacts/sharing-layer${layer}.png` });
+    await page.setViewportSize({ width: 2200, height: 1700 });
   }
   for (const layer of [2, 15]) {
     await page
@@ -71,8 +102,11 @@ test("逐层主图的完整共享区间、Engram 收益及旁注可读且无溢�
       height: Math.ceil(height + 650),
     });
     await focus.selectOption("engram-lookup");
+    await canvasSettled(page);
     const purpose = node.locator("[data-engram-purpose]");
     await expect(purpose).toContainText("没有跳过这些模块");
+    await expect(purpose).toContainText("I | love | New | York");
+    await expect(purpose).toContainText("40 次 Attention + 40 次 FFN");
     await expect
       .poll(() =>
         node
@@ -133,4 +167,75 @@ test("逐层主图的完整共享区间、Engram 收益及旁注可读且无溢�
     .toEqual([]);
   await standalone.screenshot({ path: "artifacts/engram-purpose-chapter.png" });
   expect(errors).toEqual([]);
+});
+
+test("Full 与四个 Reindex 的真实选行节点显式应用共享候选，旁注同步", async ({
+  page,
+}) => {
+  test.setTimeout(180000);
+  await page.setViewportSize({ width: 2200, height: 2000 });
+  await page.goto("/?revision=inspector-prose#model=v41&chapter=layer");
+  await page.getByRole("button", { name: "收起左栏", exact: true }).click();
+  for (const phase of ["Prefill · 整段矩阵", "Decode · 单步一行"]) {
+    await page.getByRole("button", { name: phase, exact: true }).click();
+    for (const layer of [21, 25, 29, 33, 37]) {
+      await page
+        .getByRole("button", { name: String(layer), exact: true })
+        .click();
+      await page
+        .getByRole("combobox", { name: "定位模块" })
+        .selectOption("indexer");
+      const node = page.locator('.react-flow__node[data-id="indexer"]');
+      const nodeHeight = await node.evaluate(
+        (el) => (el as HTMLElement).offsetHeight,
+      );
+      await page.setViewportSize({
+        width: 2200,
+        height: Math.ceil(nodeHeight + 650),
+      });
+      await page
+        .getByRole("combobox", { name: "定位模块" })
+        .selectOption("indexer");
+      await canvasSettled(page);
+      const filter = node.locator("[data-candidate-filter]");
+      await expect(filter).toHaveAttribute(
+        "data-candidate-filter",
+        String(layer),
+      );
+      await expect(filter).toContainText("B₂₁,t");
+      await expect(node.locator(".katex-error")).toHaveCount(0);
+      await expect
+        .poll(() =>
+          filter
+            .locator("div,section")
+            .evaluateAll((els) =>
+              els
+                .filter(
+                  (el) =>
+                    el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 2,
+                )
+                .map((el) => el.textContent?.slice(0, 50)),
+            ),
+        )
+        .toEqual([]);
+      await filter.screenshot({
+        path:
+          "artifacts/candidate-" +
+          layer +
+          "-" +
+          (phase.startsWith("Decode") ? "decode" : "prefill") +
+          ".png",
+      });
+    }
+  }
+  await page
+    .getByRole("combobox", { name: "定位模块" })
+    .selectOption("cache-sharing");
+  await canvasSettled(page);
+  const example = page.locator("[data-reindex-candidates]");
+  await example.screenshot({ path: "artifacts/reindex-shared-example.png" });
+  await example.locator("> strong").click();
+  await expect(page.getByLabel("模块解释", { exact: true })).toContainText(
+    "同一份候选掩码",
+  );
 });

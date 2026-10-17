@@ -1,4 +1,5 @@
 import { rawConfigs } from "../data/models";
+import { ReindexCandidates, REINDEX_EXPLANATION } from "./ReindexCandidates";
 import { MathFormula as M, Box, RowMatrix } from "./diagram-primitives";
 
 // 层号在界面从 1 开始，来源配置从 0 开始；图和旁注共用同一份关系。
@@ -49,82 +50,142 @@ export function cacheSourceSummary(layer: number) {
 
 export function CacheSharingMap({ layer }: { layer: number }) {
   const segments = cacheSharingSegments();
-  const cell = {
-    padding: "10px 12px",
-    border: "1px solid #c7d7d1",
-    textAlign: "left" as const,
-  };
+  const owners = [...new Set(segments.map((s) => s.kv))];
   return (
     <section
       data-cache-sharing-map
-      style={{ display: "grid", gap: 12, fontSize: 15, lineHeight: 1.65 }}
+      style={{ display: "grid", gap: 14, fontSize: 15, lineHeight: 1.5 }}
     >
       <strong data-sharing-current>{cacheSourceSummary(layer)}</strong>
-      <div>
-        沿层方向从上往下读；每行对应一段连续层。G 和索引 Key
-        共享一条来源链，选行 ID 另有来源链。
-      </div>
-      <table
+      <div
         style={{
-          width: "100%",
-          tableLayout: "fixed",
-          borderCollapse: "collapse",
+          display: "grid",
+          gridTemplateColumns: "220px 52px 1fr",
+          gap: 8,
         }}
       >
-        <thead>
-          <tr>
-            <th style={{ ...cell, width: "29%" }}>全局来源 Full → 共享范围</th>
-            <th style={{ ...cell, width: "33%" }}>
-              Indexer 本次计算 → 行号结果
-            </th>
-            <th style={cell}>后续 Reuse 层 → 直接读取</th>
-          </tr>
-        </thead>
-        <tbody>
-          {segments.map((s, i) => {
-            const group = segments.filter((item) => item.kv === s.kv);
-            const first = i === 0 || segments[i - 1].kv !== s.kv;
-            const active = layer >= s.start && layer <= s.end;
-            return (
-              <tr
-                key={s.start}
-                data-sharing-segment={`${s.start}-${s.end}`}
-                data-active-sharing={active || undefined}
-                style={{ background: active ? "#e4f0eb" : undefined }}
-              >
-                {first && (
-                  <td
-                    rowSpan={group.length}
+        <strong>全局 KV 与索引 Key</strong>
+        <span />
+        <strong>计算选行 ID → 后续 Reuse</strong>
+      </div>
+      {owners.map((owner) => {
+        const group = segments.filter((s) => s.kv === owner);
+        return (
+          <div
+            key={owner}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "220px 52px 1fr",
+              gap: 8,
+              alignItems: "stretch",
+            }}
+          >
+            <div
+              data-sharing-g={owner}
+              style={{ alignSelf: "center", justifySelf: "end" }}
+            >
+              <Box tone="green">
+                <strong>Full · 第 {owner} 层</strong>
+                <br />
+                <M
+                  tex={"G_{" + owner + "}\\quad K_{" + owner + "}^{I\\prime}"}
+                />
+                <br />第 {owner}–{group.at(-1)!.end} 层共用
+              </Box>
+            </div>
+            <svg
+              aria-hidden
+              viewBox="0 0 52 100"
+              preserveAspectRatio="none"
+              style={{
+                width: "100%",
+                height: "100%",
+                minHeight: 60,
+                overflow: "visible",
+              }}
+            >
+              <path
+                d={
+                  "M-8 50 H24 " +
+                  group
+                    .map((_, i) => {
+                      const y = ((i + 0.5) * 100) / group.length;
+                      const tip = 5 / group.length;
+                      return (
+                        "M24 50 V" +
+                        y +
+                        " H66 M60 " +
+                        (y - tip) +
+                        " L66 " +
+                        y +
+                        " L60 " +
+                        (y + tip)
+                      );
+                    })
+                    .join(" ")
+                }
+                fill="none"
+                stroke="#347f6c"
+                strokeWidth="1.5"
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+            <div style={{ display: "grid", gap: 6 }}>
+              {group.map((s) => (
+                <div
+                  key={s.start}
+                  data-sharing-segment={s.start + "-" + s.end}
+                  data-active-sharing={
+                    (layer >= s.start && layer <= s.end) || undefined
+                  }
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "300px 36px 1fr",
+                    alignItems: "center",
+                    gap: 8,
+                    background:
+                      layer >= s.start && layer <= s.end
+                        ? "#e4f0eb"
+                        : undefined,
+                    borderRadius: 6,
+                    padding: 6,
+                  }}
+                >
+                  <div
+                    data-sharing-index={s.index}
                     style={{
-                      ...cell,
-                      verticalAlign: "top",
-                      background: "#edf5f1",
+                      border: "1px solid #b6c8bd",
+                      borderRadius: 6,
+                      padding: "6px 10px",
                     }}
-                    data-sharing-g={s.kv}
                   >
-                    <strong>第 {s.kv} 层 Full</strong>
+                    <strong>
+                      第 {s.index} 层 · {s.index === s.kv ? "Full" : "Reindex"}
+                    </strong>
                     <br />
-                    <M tex={`G_{${s.kv}}\\;\\text{与索引 Key}`} />
-                    <br />
-                    供第 {s.kv}–{group.at(-1)!.end} 层使用
-                    <br />
-                    自己保留历史，按压缩组追加新行
-                  </td>
-                )}
-                <td style={cell} data-sharing-index={s.index}>
-                  <strong>
-                    第 {s.index} 层 {s.index === s.kv ? "Full" : "Reindex"}
-                  </strong>
-                  <br />
-                  本层索引 Query 与权重重新打分
-                  <br />
-                  <M
-                    tex={`I_{${s.index},t}=\\operatorname{TopKIDs}(S_{${s.index},t})`}
-                  />
-                  <br />
-                  ID 指向 <M tex={`G_{${s.kv}}`} /> 的原行号
-                </td>
-                <td style={cell}>
+                    <M
+                      tex={
+                        "S_{" +
+                        s.index +
+                        ",t}\\xrightarrow{\\mathrm{TopK}}I_{" +
+                        s.index +
+                        ",t}"
+                      }
+                    />
+                    {s.index > 21 && <span> · B₂₁,t 约束</span>}
+                  </div>
+                  <svg
+                    aria-hidden
+                    viewBox="0 0 36 18"
+                    style={{ width: 36, height: 18, overflow: "visible" }}
+                  >
+                    <path
+                      d="M-8 9 H44 M38 3 L44 9 L38 15"
+                      fill="none"
+                      stroke="#a36b24"
+                      strokeWidth="1.5"
+                    />
+                  </svg>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     {Array.from(
                       { length: s.end - s.start },
@@ -134,9 +195,9 @@ export function CacheSharingMap({ layer }: { layer: number }) {
                         key={target}
                         data-sharing-consumer={target}
                         style={{
-                          border: `1px solid ${target === layer ? "#307961" : "#9cb7c9"}`,
+                          border: "1px solid #9cb7c9",
                           borderRadius: 5,
-                          padding: "1px 8px",
+                          padding: "2px 6px",
                           fontWeight: target === layer ? 800 : 500,
                         }}
                       >
@@ -144,39 +205,16 @@ export function CacheSharingMap({ layer }: { layer: number }) {
                       </span>
                     ))}
                   </div>
-                  同读 <M tex={`G_{${s.kv}}\\;\\text{和}\\;I_{${s.index},t}`} />
-                  <br />
-                  不生成独立 G，不运行本层 Indexer
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <div
-        data-sharing-local
-        style={{
-          border: "1px solid #9cb7c9",
-          borderRadius: 7,
-          padding: "9px 12px",
-        }}
-      >
-        <strong>
-          贯穿第 1–40 层的独立路径：本层输入 → 本层 U、主 Query → 本层 Attention
-          → FFN。
-        </strong>
-        <br />第 1、2 层仅 SWA。其余各层都读取自己的 U 窗口，加上所选 G 行；共享
-        ID 不等于共享主 Attention 权重或输出。
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      <div data-sharing-local>
+        各层独立：X → 本层 U、主 Query → Attention → FFN　·　第 1、2 层仅 SWA
       </div>
-      <div>
-        例如第 25 层仍读 G₂₁ 及其索引 Key，却重算 I₂₅,t；第 26–28
-        层直接沿用这组行号。索引 Key 是给 G 行打分的特征，不是 ID。
-      </div>
-      <div>
-        表内复用针对同一个 token t。下一个 token
-        到来，来源层会重新选行。到下一个 Full 时切换 G 来源，不删除前一个 Full
-        的历史缓存；旧来源层下次 Decode 仍会使用自己的历史。
-      </div>
+      <ReindexCandidates />
     </section>
   );
 }
@@ -184,6 +222,7 @@ export function CacheSharingMap({ layer }: { layer: number }) {
 export function cacheExplanation(layer: number) {
   const p = cachePolicy(layer);
   return [
+    REINDEX_EXPLANATION,
     `U 是本层逐 token 的 KV 表示；Decode 只缓存最近最多 128 行，称为本层 SWA 局部窗口缓存。$X_{${layer}}$ 乘本层独立参数 $W_{${layer}}^{KV,\\mathrm{SWA}}$，再经 RMSNorm、RoPE 生成 U。每种模式都为当前 token 新算本地 KV，历史窗口行直接读取；窗口满后覆盖最旧行。`,
     "G 是全局分支 KV 缓存：全局表示可覆盖局部窗口之外的因果历史，只在指定层间共享，压缩表示会损失部分原始信息。只有 Full 来源层独立生成 G；指定后续层读取同一对象。压缩比 2 时由候选内容与 gate 权重逐列合并两行，比例 1 时仅投影和归一化、不做行池化；随后主分支做 RoPE 并存储。",
     p.mode === "SWA-only"

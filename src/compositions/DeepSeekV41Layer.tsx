@@ -11,6 +11,10 @@ import {
 } from "../components/CacheSemantics";
 import { EngramPurpose } from "../components/EngramPurpose";
 import {
+  CandidateFilter,
+  CANDIDATE_SOURCE,
+} from "../components/ReindexCandidates";
+import {
   DiagramExportButton,
   useDiagramExporting,
 } from "../components/DiagramExport";
@@ -3277,7 +3281,10 @@ export function IndexSelection({
         }}
       >
         <div>
-          <span>小例子 · 前 4 行可见，取 2 行</span>
+          <span>
+            小例子 · 前 4 行可见
+            {indexSource > CANDIDATE_SOURCE ? "且均在候选内" : ""}，取 2 行
+          </span>
           <div
             style={{
               display: "grid",
@@ -6638,6 +6645,7 @@ function DiagramNodeContent({ data }: { data: DiagramData }) {
                 </div>
               </div>
               <IndexScoreProcess layer={layer} kvSource={kvSource}>
+                {layer >= CANDIDATE_SOURCE && <CandidateFilter layer={layer} />}
                 <IndexSelection indexSource={indexSource} kvSource={kvSource} />
               </IndexScoreProcess>
             </>
