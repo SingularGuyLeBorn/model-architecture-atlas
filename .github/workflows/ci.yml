@@ -14,10 +14,29 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm format:check
+  # [OM-FREEPLAY] 全量浏览器用例拆为三个独立分片；交互预算独占运行器，不删用例、不放宽阈值。
+  browser:
+    needs: check
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [1, 2, 3, performance]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --global pnpm@11.9.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm test:e2e
+      - if: matrix.suite != 'performance'
+        run: pnpm test:e2e --grep-invert '完整专家区连续操作延迟' --shard=${{ matrix.suite }}/3
+      - if: matrix.suite == 'performance'
+        run: pnpm test:e2e e2e/interaction-budget.spec.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: browser-report
+          name: browser-report-${{ matrix.suite }}
           path: playwright-report/
