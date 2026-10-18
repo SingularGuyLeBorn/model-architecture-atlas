@@ -2,6 +2,33 @@
   "scope": "本轮可见会话截图；原图逐字节复制。正例只证明正文指定局部，不代表整图合格。",
   "assets": [
     {
+      "id": "mimo-residual-side-port",
+      "file": "counterexamples/mimo-residual-side-port.png",
+      "source": "artifacts/mimo-audit/final/mimo-wire-audit-MiMo-L1-prefill-·-全模块实际连线、嵌套点击及截图/01-input.png",
+      "sourceKind": "local-check",
+      "role": "scoped-positive",
+      "cases": ["10"],
+      "sha256": "7a06a46153637b4a6788e349ca5445c9d0ff73b47eeb739edeec800460587e95"
+    },
+    {
+      "id": "narrow-route-detour",
+      "file": "counterexamples/narrow-route-detour.png",
+      "source": "codex-clipboard-92bec5f0-8e72-4acf-a7f6-869df4bf6c66.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": ["10"],
+      "sha256": "81190c70097d62a76844c8a93ed382915097c03fdc44b952e2145e403377187b"
+    },
+    {
+      "id": "residual-crosses-numerator",
+      "file": "counterexamples/residual-crosses-numerator.png",
+      "source": "codex-clipboard-97a5ce0a-9c89-431f-b376-a62874f7101e.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": ["10"],
+      "sha256": "d950f346da3f20947dacce2134066fd851ea8c23ca6caf79eceb9e67c32dd1be"
+    },
+    {
       "id": "engram-addresses-connected",
       "file": "counterexamples/engram-addresses-connected.png",
       "source": "artifacts/engram-addresses-2-Prefill.png",
