@@ -553,7 +553,7 @@ export function deepseekLayerRecipe(
                   <Row
                     name={`v^{low}_{${l},${head},t}`}
                     size={512}
-                    tone="coral"
+                    tone="cyan"
                     trace="low-result"
                   />
                 }
@@ -565,6 +565,7 @@ export function deepseekLayerRecipe(
               output={`o_{${l},${head},t}`}
               from={512}
               to={128}
+              inputTone="cyan"
               tone="coral"
               outputTrace={`o-output-${head}`}
               inputTrace="low-project"

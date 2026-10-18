@@ -146,6 +146,26 @@ for (const [model, layer, stage] of [
         );
         for (const branch of await panel.locator("[data-head-branch]").all()) {
           const h = await branch.getAttribute("data-head-branch");
+          if (stage === "values") {
+            const cells = (trace: string) =>
+              branch
+                .locator(`[data-trace-object="${trace}"] [data-vector-cell]`)
+                .first();
+            const paint = async (trace: string) =>
+              cells(trace).evaluate((el) => {
+                const style = getComputedStyle(el);
+                return {
+                  fill: style.backgroundColor,
+                  border: style.borderColor,
+                };
+              });
+            const produced = await paint("low-result");
+            const consumed = await paint("low-project");
+            const output = await paint(`o-output-${h}`);
+            expect(produced).toEqual(consumed);
+            expect(consumed.fill).not.toBe(output.fill);
+            expect(consumed.border).not.toBe(output.border);
+          }
           const kind = await panel.evaluate((el) =>
             el.closest("[data-rope-kind]")?.getAttribute("data-rope-kind"),
           );
