@@ -337,6 +337,24 @@
         "09"
       ],
       "sha256": "156b90422a5848d1ce7caaadfc669176a36e662e8ea397d1421d12c40d9db773"
+    },
+    {
+      "id": "matrix-slice-ambiguous",
+      "file": "counterexamples/matrix-slice-ambiguous.png",
+      "source": "codex-clipboard-c9143a9e-16c5-40cf-951a-0eafe4862569.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": ["10"],
+      "sha256": "2d7f7f3a73dd3dbf84c478677f2f74a8d5892d9417963e5b14c99fafd1fde0ef"
+    },
+    {
+      "id": "matrix-row-connected",
+      "file": "counterexamples/matrix-row-connected.png",
+      "source": "artifacts/performance/verified/connection-semantics-MiMo-Value-代表行直接连到消费行，选中包含线身与箭翼/selected-row-wire.png",
+      "sourceKind": "local-check",
+      "role": "scoped-positive",
+      "cases": ["10"],
+      "sha256": "e9abd7c1bef2ceebf37cc09f596342414ffe5a04285aa491a3acbbe5dc41ee21"
     }
   ]
 }
