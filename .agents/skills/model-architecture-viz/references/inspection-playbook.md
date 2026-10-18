@@ -15,6 +15,8 @@
 
 ## 现有测试怎么选
 
+按 session 历史逐条追踪时使用[历史反馈与实际断言追踪](session-traceability.md)，核对原始消息、后续修订、具体断言、故障检出与本次运行。台账完整不等于检测覆盖完整。
+
 ### 每条反馈都要有可执行检查
 
 `e2e/head-flow.spec.ts` 对代表 Head 的取行、计算和写回检查：按 Head ID 验证对应连接，检查实际 SVG 首尾与变量边中点、路径穿过无关张量框、Q/K 原符号及解析错误。运行 `pnpm exec playwright test e2e/head-flow.spec.ts`，可用 `ATLAS_TEST_URL` 指定生产预览地址。模块与分支截图保存在该次测试输出目录；脚本通过后仍需打开图片核对阅读顺序、索引及连线歧义。

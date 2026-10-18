@@ -16,6 +16,9 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "check:head-flow": "playwright test e2e/head-flow.spec.ts",
+    "check:requirements": "node scripts/audit-session-requirements.mjs",
+    "check:projection-contracts": "playwright test e2e/projection-contracts.spec.ts",
+    "check:boundary-interaction": "playwright test e2e/boundary-interaction.spec.ts",
     "check": "pnpm lint && pnpm test && pnpm build",
     "format": "prettier --write src tests e2e",
     "format:check": "prettier --check src tests e2e"
