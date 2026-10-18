@@ -1,8 +1,33 @@
 import { describe, it, expect } from "vitest";
-import { inspectInternalTarget } from "../src/components/internal-selection";
+import {
+  inspectInternalTarget,
+  setInternalSelected,
+} from "../src/components/internal-selection";
 import { inspectorReducer } from "../src/components/ModuleInspector";
 
 describe("内部对象选择", () => {
+  it("线身、命中带、箭翼命中同一连接；跨 SVG 的输出线同步选中且不污染相邻运算", () => {
+    const root = document.createElement("div");
+    const sum =
+      '<div data-wire-scope><svg><g data-wire-connection data-wire-key="output"><path data-sum-output/><path data-wire-hit/></g></svg><svg><g data-wire-connection data-wire-key="output"><path/><path id="tip"/></g></svg></div>';
+    root.innerHTML = sum + sum;
+    const group = root.querySelector("[data-wire-connection]")!;
+    expect(
+      inspectInternalTarget(group.querySelector("[data-wire-hit]"), root)
+        ?.element,
+    ).toBe(group);
+    const tipSelection = inspectInternalTarget(
+      root.querySelector("#tip"),
+      root,
+    )!;
+    setInternalSelected(tipSelection.element, true);
+    expect(root.querySelectorAll("[data-internal-selected]")).toHaveLength(2);
+    expect(
+      root.lastElementChild!.querySelector("[data-internal-selected]"),
+    ).toBeNull();
+    setInternalSelected(group, false);
+    expect(root.querySelector("[data-internal-selected]")).toBeNull();
+  });
   it("指数框选中变量本身，并完整保留多层上下标", () => {
     const root = document.createElement("div");
     const formula = document.createElement("span");

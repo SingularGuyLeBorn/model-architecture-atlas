@@ -1,7 +1,6 @@
 import { frameColor } from "./diagram-appearance";
 import React, {
   memo,
-  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -1026,7 +1025,7 @@ export function SerialFlow({
         }}
       >
         {paths.map((path, i) => (
-          <g key={i}>
+          <g key={i} data-wire-connection>
             <WirePath
               data-serial-link={i}
               d={path.line}
@@ -1062,7 +1061,6 @@ export function SumJunction({
   inputColor?: string;
   outputColor?: string;
 }) {
-  const marker = `sum-arrow-${useId().replace(/:/g, "")}`;
   const { ref, width } = useDiagramSize();
   const radius = count > 2 ? 32 : 18;
   const centerY = radius + 24;
@@ -1118,27 +1116,6 @@ export function SumJunction({
           overflow: ports ? "visible" : undefined,
         }}
       >
-        <defs>
-          {[inputColor, outputColor].map((color, index) => (
-            <marker
-              key={index}
-              id={`${marker}-${index}`}
-              markerWidth="9"
-              markerHeight="9"
-              refX="8"
-              refY="4"
-              orient="auto"
-              markerUnits="userSpaceOnUse"
-            >
-              <path
-                d="M1 1 L8 4 L1 7"
-                fill="none"
-                stroke={color}
-                strokeWidth="1.5"
-              />
-            </marker>
-          ))}
-        </defs>
         {Array.from({ length: count }, (_, i) => {
           const sourceX = ports?.sources[i].x ?? ((i + 0.5) * width) / count;
           const sourceOffset = sourceX - width / 2;
@@ -1156,31 +1133,52 @@ export function SumJunction({
               12 -
               rank * ((2 * radius - 24) / Math.max(1, sideCount - 1));
           return (
-            <WirePath
-              key={i}
-              data-sum-input={i}
-              data-sum-input-arrow={i}
-              d={`M${sourceX} ${ports?.sources[i].y ?? 0} V${y}${straight ? "" : ` H${x}`}`}
-              markerEnd={`url(#${marker}-0)`}
-              fill="none"
-              stroke={inputColor}
-              strokeWidth="1.5"
-              vectorEffect="non-scaling-stroke"
-            />
+            <g key={i} data-wire-connection>
+              <WirePath
+                data-sum-input={i}
+                d={`M${sourceX} ${ports?.sources[i].y ?? 0} V${y}${straight ? "" : ` H${x}`}`}
+                fill="none"
+                stroke={inputColor}
+                strokeWidth="1.5"
+                vectorEffect="non-scaling-stroke"
+              />
+              <path
+                data-sum-input-arrow={i}
+                d={arrowTip(
+                  x,
+                  y,
+                  straight ? Math.PI / 2 : sourceOffset < 0 ? 0 : Math.PI,
+                )}
+                fill="none"
+                stroke={inputColor}
+                strokeWidth="1.5"
+              />
+            </g>
           );
         })}
-        <path
-          data-sum-output
-          d={
-            ports && Math.abs(ports.target.x - width / 2) > 0.5
-              ? `M${width / 2} ${centerY + radius} V${(centerY + radius + ports.target.y) / 2} H${ports.target.x} V${ports.target.y}`
-              : `M${width / 2} ${centerY + radius} V${ports?.target.y ?? height - 1}`
-          }
-          markerEnd={`url(#${marker}-1)`}
-          fill="none"
-          stroke={outputColor}
-          strokeWidth="1.5"
-        />
+        <g data-wire-connection>
+          <WirePath
+            data-sum-output
+            d={
+              ports && Math.abs(ports.target.x - width / 2) > 0.5
+                ? `M${width / 2} ${centerY + radius} V${(centerY + radius + ports.target.y) / 2} H${ports.target.x} V${ports.target.y}`
+                : `M${width / 2} ${centerY + radius} V${ports?.target.y ?? height - 1}`
+            }
+            fill="none"
+            stroke={outputColor}
+            strokeWidth="1.5"
+          />
+          <path
+            d={arrowTip(
+              ports?.target.x ?? width / 2,
+              ports?.target.y ?? height - 1,
+              Math.PI / 2,
+            )}
+            fill="none"
+            stroke={outputColor}
+            strokeWidth="1.5"
+          />
+        </g>
       </svg>
       <div
         style={{
@@ -1218,6 +1216,7 @@ export function StackedSum({
   return (
     <div
       data-stacked-sum
+      data-wire-scope
       style={{
         display: "grid",
         gridTemplateColumns: `max-content ${wireWidth}px`,
@@ -1290,7 +1289,7 @@ export function StackedSum({
                     : -8 + (rank * 16) / (middleCount - 1));
             const laneX = 12;
             return (
-              <g key={i}>
+              <g key={i} data-wire-connection>
                 <WirePath
                   data-sum-input={i}
                   d={
@@ -1319,26 +1318,28 @@ export function StackedSum({
               </g>
             );
           })}
-          <path
-            data-sum-output
-            d={
-              outputDirection === "right"
-                ? `M${centerX + 18} ${height / 2} H${wireWidth}`
-                : `M${centerX + 18} ${height / 2} H${outputX} V${height}`
-            }
-            fill="none"
-            stroke={COLORS.cyan}
-            strokeWidth="1.5"
-            vectorEffect="non-scaling-stroke"
-          />
-          {outputDirection === "right" && (
-            <path
-              d={arrowTip(wireWidth, height / 2, 0)}
+          <g data-wire-connection data-wire-key="output">
+            <WirePath
+              data-sum-output
+              d={
+                outputDirection === "right"
+                  ? `M${centerX + 18} ${height / 2} H${wireWidth}`
+                  : `M${centerX + 18} ${height / 2} H${outputX} V${height}`
+              }
               fill="none"
               stroke={COLORS.cyan}
               strokeWidth="1.5"
+              vectorEffect="non-scaling-stroke"
             />
-          )}
+            {outputDirection === "right" && (
+              <path
+                d={arrowTip(wireWidth, height / 2, 0)}
+                fill="none"
+                stroke={COLORS.cyan}
+                strokeWidth="1.5"
+              />
+            )}
+          </g>
         </svg>
         <div
           style={{
@@ -1367,18 +1368,20 @@ export function StackedSum({
             height="22"
             style={{ position: "absolute", inset: 0, display: "block" }}
           >
-            <WirePath
-              d={`M${resultWidth - outputInset} 0 V9 H${resultWidth / 2} V21`}
-              fill="none"
-              stroke={COLORS.cyan}
-              strokeWidth="1.5"
-            />
-            <path
-              d={arrowTip(resultWidth / 2, 21, Math.PI / 2)}
-              fill="none"
-              stroke={COLORS.cyan}
-              strokeWidth="1.5"
-            />
+            <g data-wire-connection data-wire-key="output">
+              <WirePath
+                d={`M${resultWidth - outputInset} 0 V9 H${resultWidth / 2} V21`}
+                fill="none"
+                stroke={COLORS.cyan}
+                strokeWidth="1.5"
+              />
+              <path
+                d={arrowTip(resultWidth / 2, 21, Math.PI / 2)}
+                fill="none"
+                stroke={COLORS.cyan}
+                strokeWidth="1.5"
+              />
+            </g>
           </svg>
         </div>
       )}

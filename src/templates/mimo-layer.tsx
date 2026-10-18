@@ -85,13 +85,14 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
     kind: "K" | "V",
     direction: "in" | "out",
     trace = false,
+    highlightedRows: string | readonly string[] = "t",
   ) => (
     <Matrix
       name={kind === "K" ? K : V}
       shape={`${length}\\times${kind === "K" ? a.keyDim : a.valueDim}`}
       rows={swa ? ["r", "r+1", "…", "t-1", "t"] : ["1", "2", "…", "t-1", "t"]}
       columns={reps(kind === "K" ? a.keyDim : a.valueDim)}
-      selected="t"
+      selected={highlightedRows}
       tone={kind === "K" ? "violet" : "coral"}
       direction={direction}
       rowTrace={trace ? (row) => `read-${row}` : undefined}
@@ -398,35 +399,51 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
   add(
     "weighted",
     "各 Query Head · 权重乘对应 V 行，再沿 token 轴求和",
-    <>
+    <ObjectConnections
+      links={[start, swa ? "r+1" : "2", "t"].map((j) => ({
+        from: `read-${j}`,
+        to: `value-${j}`,
+        direction: "right-down" as const,
+      }))}
+    >
       <Columns>
-        {[heads(A, "a", 64, length, "orange", "in"), readCache("V", "in")]}
+        {[
+          heads(A, "a", 64, length, "orange", "in"),
+          readCache("V", "in", true, [start, swa ? "r+1" : "2", "t"]),
+          <p className="architecture-note" style={{ maxWidth: 280 }}>
+            <M tex={`g=g(h)=1+\\lfloor(h-1)/${64 / a.kvHeads}\\rfloor`} />
+            ；权重列与 Value 行采用同一个原 token 行号。
+          </p>,
+        ]}
       </Columns>
-      <p className="architecture-note">
-        <M tex={`g=g(h)=1+\\lfloor(h-1)/${64 / a.kvHeads}\\rfloor`} />
-        ；权重列与 Value 行采用同一个原 token 行号。
-      </p>
-      <Sum
-        ellipsis
-        termSelector="[data-sum-terminal] [data-expanded-tensor]"
-        inputs={[start, swa ? "r+1" : "2", "t"].map((j) => (
-          <div key={j}>
-            <div className="architecture-equation">
-              <Scalar tex={`a_{${l},h,t,${j}}`} tone="orange" />
-              <span className="architecture-operator">×</span>
-              <Row name={`v_{${l},g,${j}}`} size={128} tone="coral" />
+      <div className="mimo-value-slices">
+        <Sum
+          ellipsis
+          termSelector="[data-sum-terminal] [data-expanded-tensor]"
+          inputs={[start, swa ? "r+1" : "2", "t"].map((j) => (
+            <div key={j}>
+              <div className="architecture-equation">
+                <Scalar tex={`a_{${l},h,t,${j}}`} tone="orange" />
+                <span className="architecture-operator">×</span>
+                <Row
+                  name={`v_{${l},g,${j}}`}
+                  size={128}
+                  tone="coral"
+                  trace={`value-${j}`}
+                />
+              </div>
+              <Down />
+              <div data-sum-terminal>
+                <Row name={`p^V_{${l},h,t,${j}}`} size={128} tone="teal" />
+              </div>
             </div>
-            <Down />
-            <div data-sum-terminal>
-              <Row name={`p^V_{${l},h,t,${j}}`} size={128} tone="teal" />
-            </div>
-          </div>
-        ))}
-        result={<Row name={`o_{${l},h,t}`} size={128} tone="coral" />}
-      />
+          ))}
+          result={<Row name={`o_{${l},h,t}`} size={128} tone="coral" />}
+        />
+      </div>
       <Down label="64 个 Head 分别执行；沿 Head 轴排列" />
       {heads(O, "o", 64, 128, "coral", "out")}
-    </>,
+    </ObjectConnections>,
     O,
     1950,
   );

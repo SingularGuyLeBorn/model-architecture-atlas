@@ -26,6 +26,10 @@ import { MathFormula as M } from "../components/diagram-primitives";
 import { type Recipe, type Stage } from "./recipes";
 import { RecipePortsContext } from "./RecipePorts";
 import {
+  inspectInternalTarget,
+  setInternalSelected,
+} from "../components/internal-selection";
+import {
   DiagramExportButton,
   useDiagramExporting,
 } from "../components/DiagramExport";
@@ -69,7 +73,7 @@ const StageView = memo(function StageView({
   return (
     <article
       className={`stage-card ${selected ? "selected" : ""}`}
-      data-boundary-connectable="true"
+      data-boundary-connectable="false"
       data-stage={data.id}
     >
       <EightResizeHandles minWidth={800} minHeight={200} />
@@ -177,6 +181,7 @@ export function RecipeCanvas({
   const [notice, setNotice] = useState("");
   const { fitView, setViewport, getNode } = useReactFlow();
   const canvasRef = useRef<HTMLDivElement>(null);
+  const selectedWire = useRef<Element | null>(null);
   const focus = useCallback(
     (id: string) => {
       const node = getNode(id);
@@ -202,6 +207,7 @@ export function RecipeCanvas({
     [getNode, setViewport],
   );
   const ready = useNodesInitialized();
+  const [layoutReady, setLayoutReady] = useState(false);
   const loaded = useRef(false);
   const history = useRef<{
     past: Snapshot[];
@@ -325,6 +331,8 @@ export function RecipeCanvas({
       setNotice("布局文件无法读取，已使用默认结构。");
     }
     focus(recipe.stages[0].id);
+    // 尺寸、排布与保存布局已在同一批状态更新中就绪，才发布连线；不规划临时位置。
+    setLayoutReady(true);
   }, [ready, storageKey, recipe, initial, setNodes, setEdges, focus]);
   const save = () => {
     try {
@@ -405,13 +413,25 @@ export function RecipeCanvas({
           <ReactFlow
             className="atlas-flow"
             nodes={nodes}
-            edges={edges}
+            edges={ready && layoutReady ? edges : []}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeDragStart={beginHistory}
             onNodeDragStop={commitHistory}
+            onNodeClick={(event) => {
+              const root = (event.target as Element).closest(
+                ".react-flow__node",
+              );
+              const selection = root
+                ? inspectInternalTarget(event.target, root)
+                : undefined;
+              setInternalSelected(selectedWire.current, false);
+              selectedWire.current =
+                selection?.detail.kind === "wire" ? selection.element : null;
+              setInternalSelected(selectedWire.current, true);
+            }}
             onConnect={(connection) => {
               beginHistory();
               setEdges((values) =>

@@ -5,14 +5,14 @@ export default defineConfig({
   workers: 1,
   timeout: 90000,
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL: process.env.ATLAS_TEST_URL ?? "http://127.0.0.1:4173",
     viewport: { width: 1600, height: 1000 },
     channel: process.env.CI ? undefined : "chrome",
     trace: "retain-on-failure",
   },
   webServer: {
     command: "pnpm preview",
-    url: "http://127.0.0.1:4173",
+    url: process.env.ATLAS_TEST_URL ?? "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
     timeout: 30000,
   },

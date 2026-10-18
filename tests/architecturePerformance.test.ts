@@ -172,14 +172,14 @@ describe("架构图增量路由", () => {
     f.edges[0].data = { labelTex: "G" };
     const registry = labelRegistry(f.owner);
     const before = routesForStore(f.owner, f.nodes, f.edges, f.internals);
-    registry.measure("ab", "G", { width: 100, height: 35 });
+    registry.measure([{ id: "ab", tex: "G", width: 100, height: 35 }]);
     const measured = routesForStore(f.owner, f.nodes, f.edges, f.internals);
     expect(measured).not.toBe(before);
-    registry.measure("ab", "G", { width: 100, height: 35 });
+    registry.measure([{ id: "ab", tex: "G", width: 100, height: 35 }]);
     expect(routesForStore(f.owner, f.nodes, f.edges, f.internals)).toBe(
       measured,
     );
-    registry.measure("ab", "G", { width: 130, height: 35 });
+    registry.measure([{ id: "ab", tex: "G", width: 130, height: 35 }]);
     expect(routesForStore(f.owner, f.nodes, f.edges, f.internals)).not.toBe(
       measured,
     );

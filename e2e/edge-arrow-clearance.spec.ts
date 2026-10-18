@@ -31,7 +31,10 @@ test("窄通道的箭头在选中与缩放时保持比例且正常进入专家�
   const measure = () =>
     path.evaluate((element) => {
       const path = element as SVGPathElement;
-      const id = path.getAttribute("marker-end")!.match(/#([^'")]+)/)![1];
+      const arrow = path
+        .closest(".react-flow__edge")!
+        .querySelector("[data-edge-arrow]")!;
+      const id = arrow.getAttribute("marker-end")!.match(/#([^'")]+)/)![1];
       const marker = document.getElementById(id) as unknown as SVGMarkerElement;
       const matrix = path.getScreenCTM()!;
       const zoom = Math.hypot(matrix.a, matrix.b);

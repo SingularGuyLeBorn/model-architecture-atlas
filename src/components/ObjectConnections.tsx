@@ -3,7 +3,13 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 type Connection = {
   from: string;
   to: string;
-  direction?: "down" | "right" | "down-left" | "join-left" | "join-right";
+  direction?:
+    | "down"
+    | "right"
+    | "right-down"
+    | "down-left"
+    | "join-left"
+    | "join-right";
 };
 type Path = Connection & { d: string; tip: string };
 
@@ -25,24 +31,35 @@ export function ObjectConnections({
     const nodes = [
       ...root.querySelectorAll<HTMLElement>("[data-trace-object]"),
     ];
+    const objects = new Map(
+      nodes.map((node) => [node.dataset.traceObject!, node]),
+    );
     const measure = () => {
       const outer = root.getBoundingClientRect();
       const scale = outer.width / root.offsetWidth;
       if (!scale) return;
+      // 同一次布局内，每个对象/祖先只读取一次，所有读取先于 setState。
+      const rects = new Map<Element, DOMRect>();
+      const rect = (element: Element) => {
+        let value = rects.get(element);
+        if (!value) {
+          value = element.getBoundingClientRect();
+          rects.set(element, value);
+        }
+        return value;
+      };
       const box = (id: string) => {
-        const element = nodes.find((node) => node.dataset.traceObject === id);
+        const element = objects.get(id);
         if (!element) return null;
-        const r = element.getBoundingClientRect();
-        const frame = element
-          .closest("[data-expanded-tensor], .architecture-fraction")
-          ?.getBoundingClientRect();
-        const projection = element
-          .closest("[data-projection]")
-          ?.getBoundingClientRect();
+        const r = rect(element);
+        const bounds = (selector: string) => {
+          const parent = element.closest(selector);
+          return parent ? rect(parent) : undefined;
+        };
+        const frame = bounds("[data-expanded-tensor], .architecture-fraction");
+        const projection = bounds("[data-projection]");
         // 跨分组传递标量时，转弯通道按整个分组外沿计算，避开组内其余操作数。
-        const routeFrame = element
-          .closest("[data-route-frame]")
-          ?.getBoundingClientRect();
+        const routeFrame = bounds("[data-route-frame]");
         return {
           x: (r.left + r.width / 2 - outer.left) / scale,
           top: (r.top - outer.top) / scale,
@@ -68,6 +85,19 @@ export function ObjectConnections({
         const from = box(link.from),
           to = box(link.to);
         if (!from || !to) return [];
+        if (link.direction === "right-down") {
+          // 矩阵内部取行先沿行轴离开表格，再在表下独立通道进入对应行代理。
+          // [OM-FREEPLAY] 通道间距取 20px、箭头引入段至少 24px，与对应取行布局的留白配套。
+          const laneX = from.corridorRight + 20 * (index + 1);
+          const laneY = to.top - 24 - 20 * (connections.length - index - 1);
+          return [
+            {
+              ...link,
+              d: `M${from.right} ${from.y} H${laneX} V${laneY} H${to.x} V${to.top}`,
+              tip: `M${to.x - 4} ${to.top - 6} L${to.x} ${to.top} L${to.x + 4} ${to.top - 6}`,
+            },
+          ];
+        }
         if (link.direction === "join-left" || link.direction === "join-right") {
           // 先向下，再从目标左右侧接入；操作数与运算输出各用自己的通道。
           const left = link.direction === "join-left";
@@ -124,7 +154,17 @@ export function ObjectConnections({
         ];
       });
       setPaths((current) =>
-        JSON.stringify(current) === JSON.stringify(next) ? current : next,
+        current.length === next.length &&
+        current.every(
+          (path, i) =>
+            path.from === next[i].from &&
+            path.to === next[i].to &&
+            path.direction === next[i].direction &&
+            path.d === next[i].d &&
+            path.tip === next[i].tip,
+        )
+          ? current
+          : next,
       );
     };
     const observer = new ResizeObserver(measure);
@@ -142,11 +182,20 @@ export function ObjectConnections({
         {paths.map((path, i) => (
           <g
             key={i}
+            data-wire-connection
             data-object-link={`${path.from}:${path.to}`}
             data-direction={path.direction ?? "down"}
           >
             <path d={path.d} fill="none" stroke="#526a7a" strokeWidth="1.4" />
             <path d={path.tip} fill="none" stroke="#526a7a" strokeWidth="1.4" />
+            <path
+              d={path.d}
+              fill="none"
+              stroke="transparent"
+              strokeWidth="12"
+              data-wire-hit
+              style={{ pointerEvents: "stroke", cursor: "pointer" }}
+            />
           </g>
         ))}
       </svg>

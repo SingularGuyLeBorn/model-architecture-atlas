@@ -145,15 +145,30 @@ describe("整张画布统一放置变量标签", () => {
       registry = labelRegistry(owner),
       listener = vi.fn();
     const unsubscribe = registry.subscribe(listener);
-    registry.measure("a", "x", { width: 80, height: 30 });
-    registry.measure("a", "x", { width: 80, height: 30 });
+    registry.measure([{ id: "a", tex: "x", width: 80, height: 30 }]);
+    registry.measure([{ id: "a", tex: "x", width: 80, height: 30 }]);
     expect(listener).toHaveBeenCalledTimes(1);
     expect(labelRegistry(owner)).toBe(registry);
     expect(labelRegistry({}).sizes.size).toBe(0);
-    registry.measure("a", "y", { width: 80, height: 30 });
+    registry.measure([{ id: "a", tex: "y", width: 80, height: 30 }]);
     expect(listener).toHaveBeenCalledTimes(2);
     unsubscribe();
-    registry.measure("a", "y", { width: 90, height: 30 });
+    registry.measure([{ id: "a", tex: "y", width: 90, height: 30 }]);
     expect(listener).toHaveBeenCalledTimes(2);
+  });
+  it("整批标签尺寸更新只发布一次，订阅者不会看见半批几何", () => {
+    const registry = labelRegistry({});
+    const listener = vi.fn(() => expect(registry.sizes.size).toBe(50));
+    registry.subscribe(listener);
+    const batch = Array.from({ length: 50 }, (_, i) => ({
+      id: String(i),
+      tex: "x",
+      width: 80 + i,
+      height: 30,
+    }));
+    registry.measure(batch);
+    expect(listener).toHaveBeenCalledTimes(1);
+    registry.measure(batch);
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 });

@@ -4,6 +4,28 @@ export type InternalSelection = {
   description: string;
 };
 
+/** 一条连接可以跨多个 SVG；按所属运算与连接标识同步选中，不能只染命中的线段。 */
+export function setInternalSelected(
+  element: Element | null,
+  selected: boolean,
+) {
+  if (!element) return;
+  const key = element.getAttribute("data-wire-key");
+  const scope = element.closest("[data-wire-scope]");
+  const parts =
+    key && scope
+      ? [...scope.querySelectorAll("[data-wire-key]")].filter(
+          (part) =>
+            part.getAttribute("data-wire-key") === key &&
+            part.closest("[data-wire-scope]") === scope,
+        )
+      : [element];
+  for (const part of parts) {
+    if (selected) part.setAttribute("data-internal-selected", "true");
+    else part.removeAttribute("data-internal-selected");
+  }
+}
+
 /** KaTeX 的变量框可含多层上下标；按配对花括号读取，不能用扁平正则截断。 */
 function boxedVariables(tex: string) {
   const values: string[] = [];
@@ -52,7 +74,12 @@ export function inspectInternalTarget(
   if (wire && root.contains(wire) && !wire.closest("defs")) {
     const input =
       wire.getAttribute("data-sum-input") ??
-      wire.getAttribute("data-wire-input");
+      wire.getAttribute("data-wire-input") ??
+      wire
+        .closest("[data-wire-connection]")
+        ?.querySelector("[data-sum-input]")
+        ?.getAttribute("data-sum-input") ??
+      null;
     const sum = wire.closest("[data-stacked-sum], [data-sum-junction]");
     const operand =
       input !== null
@@ -62,10 +89,12 @@ export function inspectInternalTarget(
       operand?.querySelector("[aria-label]")?.getAttribute("aria-label") ??
       undefined;
     return {
-      element: wire.hasAttribute("data-wire-hit")
-        ? (wire.parentElement?.querySelector("path:not([data-wire-hit])") ??
-          wire)
-        : wire,
+      element:
+        wire.closest("[data-wire-connection]") ??
+        (wire.hasAttribute("data-wire-hit")
+          ? (wire.parentElement?.querySelector("path:not([data-wire-hit])") ??
+            wire)
+          : wire),
       detail: {
         kind: "wire",
         tex,

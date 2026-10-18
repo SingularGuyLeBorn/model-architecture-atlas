@@ -677,37 +677,37 @@ describe("自动连线分配独立通道", () => {
   });
 });
 
-describe("架构图连续边缘吸附", () => {
-  it("靠近边缘任意位置即可落线，不要求对准固定起线点", () => {
+describe("架构图边缘识别与非角落端口吸附", () => {
+  it("靠近边缘识别侧边，端点落到内部等分点", () => {
     addFrame("matrix", 100, 100, 400, 200);
     expect(
       findBoundaryConnection(document.body, { x: 394, y: 88 }),
     ).toMatchObject({
       nodeId: "matrix",
-      anchor: { side: Position.Top, offset: 0.735 },
+      anchor: { side: Position.Top, offset: 0.75 },
     });
     expect(
       findBoundaryConnection(document.body, { x: 508, y: 246 }),
     ).toMatchObject({
       nodeId: "matrix",
-      anchor: { side: Position.Right, offset: 0.73 },
+      anchor: { side: Position.Right, offset: 0.75 },
     });
   });
 
-  it("沿原边平滑拖动，拐角附近轻微抖动保持当前边", () => {
+  it("拐角附近轻微抖动保持当前边，端口始终避开角落", () => {
     addFrame("matrix", 100, 100, 400, 200);
     expect(
       findBoundaryConnection(document.body, { x: 104, y: 103 }, undefined, {
         nodeId: "matrix",
         side: Position.Top,
       }),
-    ).toMatchObject({ anchor: { side: Position.Top, offset: 0.01 } });
+    ).toMatchObject({ anchor: { side: Position.Top, offset: 0.25 } });
     expect(
       findBoundaryConnection(document.body, { x: 95, y: 99 }, undefined, {
         nodeId: "matrix",
         side: Position.Top,
       }),
-    ).toMatchObject({ anchor: { side: Position.Top, offset: 0 } });
+    ).toMatchObject({ anchor: { side: Position.Top, offset: 0.25 } });
     expect(
       findBoundaryConnection(document.body, { x: 101, y: 104 }, undefined, {
         nodeId: "matrix",
@@ -720,10 +720,10 @@ describe("架构图连续边缘吸附", () => {
     addFrame("matrix", 100, 100, 400, 200);
     let preferred = { nodeId: "matrix", side: Position.Top };
     for (const [x, y, side, offset] of [
-      [500, 115, Position.Right, 0.075],
-      [485, 300, Position.Bottom, 0.9625],
-      [100, 285, Position.Left, 0.925],
-      [115, 100, Position.Top, 0.0375],
+      [500, 115, Position.Right, 0.25],
+      [485, 300, Position.Bottom, 0.75],
+      [100, 285, Position.Left, 0.75],
+      [115, 100, Position.Top, 0.25],
     ] as const) {
       const connection = findBoundaryConnection(
         document.body,
@@ -786,7 +786,7 @@ describe("架构图连续边缘吸附", () => {
       }),
     ).toMatchObject({
       nodeId: "next",
-      anchor: { side: Position.Left, offset: 0.7 },
+      anchor: { side: Position.Left, offset: 0.75 },
     });
     expect(
       findBoundaryConnection(document.body, { x: 350, y: 200 }),

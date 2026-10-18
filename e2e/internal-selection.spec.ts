@@ -49,9 +49,18 @@ test("内部元素与汇合线可独立点击，关闭面板后保持关闭", as
   await page.mouse.click(point.x, point.y);
   await expect(panel).toBeHidden();
   await expect(panel.locator("..")).toHaveAttribute("inert", "");
-  await expect(sum.locator('[data-sum-input="0"]')).toHaveAttribute(
-    "data-internal-selected",
-    "true",
+  await expect(
+    sum
+      .locator("[data-wire-connection]")
+      .filter({ has: page.locator('[data-sum-input="0"]') }),
+  ).toHaveAttribute("data-internal-selected", "true");
+  await expect(sum.locator('[data-sum-input="0"]')).toHaveCSS(
+    "stroke",
+    "rgb(21, 101, 216)",
+  );
+  await expect(sum.locator('[data-sum-input-arrow="0"]')).toHaveCSS(
+    "stroke",
+    "rgb(21, 101, 216)",
   );
   await expect(wire).not.toHaveAttribute("data-internal-selected", "true");
   await expect(wire).toHaveCSS("stroke", "rgba(0, 0, 0, 0)");

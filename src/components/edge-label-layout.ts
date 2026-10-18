@@ -198,27 +198,55 @@ const registries = new WeakMap<object, ReturnType<typeof createRegistry>>();
 function createRegistry() {
   let version = 0;
   const sizes = new Map<string, LabelSize & { tex: string }>(),
-    listeners = new Set<() => void>();
+    listeners = new Set<() => void>(),
+    targets = new Map<Element, { id: string; tex: string }>();
+  let observer: ResizeObserver | undefined;
+  // 一批测量原子发布一次，避免 E 条边各自触发一次全图路由。
+  const measure = (values: (LabelSize & { id: string; tex: string })[]) => {
+    let changed = false;
+    for (const { id, tex, width, height } of values) {
+      const old = sizes.get(id);
+      if (old?.tex === tex && old.width === width && old.height === height)
+        continue;
+      sizes.set(id, { tex, width, height });
+      changed = true;
+    }
+    if (!changed) return;
+    version++;
+    listeners.forEach((listener) => listener());
+  };
   return {
     sizes,
+    measure,
+    observe: (element: Element, id: string, tex: string) => {
+      targets.set(element, { id, tex });
+      observer ??= new ResizeObserver((entries) => {
+        measure(
+          entries.flatMap((entry) => {
+            const target = targets.get(entry.target),
+              box = entry.borderBoxSize[0];
+            return target && box
+              ? [{ ...target, width: box.inlineSize, height: box.blockSize }]
+              : [];
+          }),
+        );
+      });
+      observer.observe(element);
+      return () => {
+        targets.delete(element);
+        observer?.unobserve(element);
+        if (!targets.size) {
+          observer?.disconnect();
+          observer = undefined;
+        }
+      };
+    },
     getSnapshot: () => version,
     subscribe: (listener: () => void) => {
       listeners.add(listener);
       return () => {
         listeners.delete(listener);
       };
-    },
-    measure: (id: string, tex: string, size: LabelSize) => {
-      const old = sizes.get(id);
-      if (
-        old?.tex === tex &&
-        old.width === size.width &&
-        old.height === size.height
-      )
-        return;
-      sizes.set(id, { ...size, tex });
-      version++;
-      listeners.forEach((listener) => listener());
     },
   };
 }

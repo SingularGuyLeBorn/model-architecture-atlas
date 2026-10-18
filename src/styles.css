@@ -623,7 +623,7 @@ h1 {
   margin-left: 6px;
 }
 .stage-card {
-  background: #fffefa;
+  background: transparent;
   border: 1.5px solid #8da394;
   border-radius: 13px;
   box-shadow: 0 4px 16px #203b1710;
@@ -1322,12 +1322,27 @@ menclose[notation="box"] {
   stroke: #1565d8;
   stroke-dasharray: none;
 }
+.atlas-flow
+  svg
+  [data-wire-connection][data-internal-selected]
+  [stroke]:not([stroke="transparent"]),
+.full-layer
+  svg
+  [data-wire-connection][data-internal-selected]
+  [stroke]:not([stroke="transparent"]) {
+  stroke: #1565d8;
+}
 /* 内部导线、箭翼和出口统一采用屏幕描边；命中区域始终透明。 */
 .full-layer .react-flow__node svg [stroke]:not([stroke="transparent"]) {
   vector-effect: non-scaling-stroke;
   stroke-width: 1.5px;
 }
-.full-layer .react-flow__node svg :is(path, line, polyline) {
+.full-layer .react-flow__node svg :is(path, line, polyline),
+.atlas-flow
+  .react-flow__node
+  svg
+  [data-wire-connection]
+  :is(path, line, polyline) {
   pointer-events: stroke;
   cursor: pointer;
 }

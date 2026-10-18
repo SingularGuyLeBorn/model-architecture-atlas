@@ -33,7 +33,10 @@ import {
   IndexScoreColumns,
   IndexScoreMatrix,
 } from "../components/IndexScoreColumns";
-import { inspectInternalTarget } from "../components/internal-selection";
+import {
+  inspectInternalTarget,
+  setInternalSelected,
+} from "../components/internal-selection";
 import {
   MathFormula,
   Box,
@@ -103,6 +106,7 @@ import {
   ReactFlow,
   useEdgesState,
   useNodesState,
+  useNodesInitialized,
   useReactFlow,
   useStore,
   type Connection,
@@ -9628,6 +9632,7 @@ function DiagramCanvas({
     [layer, phase, geometryCache],
   );
   const measuredLayoutRef = useRef(initialGraph);
+  const nodesInitialized = useNodesInitialized();
   const [nodes, setNodes, onNodesChange] = useNodesState<DiagramNode>(
     initialGraph.nodes,
   );
@@ -9653,8 +9658,7 @@ function DiagramCanvas({
   const inspectorTriggerRef = useRef<HTMLButtonElement>(null);
   const selectedInternalRef = useRef<Element | null>(null);
   useEffect(
-    () => () =>
-      selectedInternalRef.current?.removeAttribute("data-internal-selected"),
+    () => () => setInternalSelected(selectedInternalRef.current, false),
     [],
   );
   const closeInspector = useCallback(() => {
@@ -9834,7 +9838,7 @@ function DiagramCanvas({
     let graph = initialGraph;
     cancelInspectorIntent();
     dispatchInspector({ type: "context-change" });
-    selectedInternalRef.current?.removeAttribute("data-internal-selected");
+    setInternalSelected(selectedInternalRef.current, false);
     selectedInternalRef.current = null;
     measuredLayoutRef.current = initialGraph;
     // [OM-FREEPLAY] 用户要求能自行微调；显式保存到浏览器本机，避免刷新后丢失，同时不改文章事实源。
@@ -10524,7 +10528,7 @@ function DiagramCanvas({
                 if (event) setSearchTarget(null);
               }}
               nodes={nodes}
-              edges={edges}
+              edges={nodesInitialized ? edges : []}
               // 内部数据框的连接必须画在分组背景上方，不能被父框遮掉引入段及箭头。
               defaultEdgeOptions={{ zIndex: 1001 }}
               nodeTypes={nodeTypes}
@@ -10595,14 +10599,9 @@ function DiagramCanvas({
                 const selection = root
                   ? inspectInternalTarget(event.target, root)
                   : undefined;
-                selectedInternalRef.current?.removeAttribute(
-                  "data-internal-selected",
-                );
+                setInternalSelected(selectedInternalRef.current, false);
                 selectedInternalRef.current = selection?.element ?? null;
-                selection?.element.setAttribute(
-                  "data-internal-selected",
-                  "true",
-                );
+                setInternalSelected(selectedInternalRef.current, true);
                 dispatchInspector({
                   type: "select",
                   nodeId: node.id,

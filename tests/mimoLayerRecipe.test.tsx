@@ -51,6 +51,22 @@ for (const layer of [1, 2, 5, 6, 47, 48])
           doms.get(e.target)?.querySelectorAll(`[data-handleid="in-${i}"]`),
         ).toHaveLength(1);
       });
+      const weighted = doms.get("weighted")!;
+      expect(
+        weighted.querySelector("[data-object-link-count='3']"),
+      ).not.toBeNull();
+      for (const row of [
+        arch.window ? "r" : "1",
+        arch.window ? "r+1" : "2",
+        "t",
+      ]) {
+        expect(
+          weighted.querySelectorAll(`[data-trace-object="read-${row}"]`),
+        ).toHaveLength(1);
+        expect(
+          weighted.querySelectorAll(`[data-trace-object="value-${row}"]`),
+        ).toHaveLength(1);
+      }
       expect(recipe.stages.some((s) => s.id === "dense")).toBe(layer === 1);
       expect(recipe.stages.some((s) => s.id === "shared")).toBe(false);
       expect(doms.get("attention")?.textContent?.includes("sink")).toBe(

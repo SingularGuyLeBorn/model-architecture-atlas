@@ -237,6 +237,10 @@
 .object-connections {
   position: relative;
 }
+.mimo-value-slices {
+  /* [OM-FREEPLAY] 三条取行线各留独立通道，100px 包含箭头引入段。 */
+  margin-top: 100px;
+}
 .object-connections-lines {
   position: absolute;
   inset: 0;

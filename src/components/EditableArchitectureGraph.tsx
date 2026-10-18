@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -72,6 +73,10 @@ export function architectureArrowMarker(color = "#37685a"): EdgeMarker {
 export type BoundaryAnchor = { side: Position; offset: number };
 export type BoundaryConnection = { nodeId: string; anchor: BoundaryAnchor };
 
+// 手工接线只落在边的中点或等分点，不允许端点贴在四角。
+export const snapBoundaryOffset = (offset: number) =>
+  Math.max(1, Math.min(3, Math.round(offset * 4))) / 4;
+
 // [OM-FREEPLAY] 24 屏幕像素作为边缘吸附距离，缩放后仍保持相同的鼠标容差。
 const BOUNDARY_SNAP_RADIUS = 24;
 // [OM-FREEPLAY] 拐角处保留 4px 换边迟滞，避免鼠标微抖时在两条边之间反复切换。
@@ -130,7 +135,7 @@ export function findBoundaryConnection(
       if (distance <= BOUNDARY_SNAP_RADIUS)
         nodeCandidates.push({
           nodeId,
-          anchor: { side, offset },
+          anchor: { side, offset: snapBoundaryOffset(offset) },
           distance,
           area: rect.width * rect.height,
         });
@@ -518,21 +523,29 @@ export function simplifyOrthogonalPoints(points: XYPosition[]) {
   });
 }
 
-function hasRouteBacktrack(points: XYPosition[]) {
-  const distinct = points.filter(
-    (point, i) =>
-      i === 0 || point.x !== points[i - 1].x || point.y !== points[i - 1].y,
-  );
-  return distinct.some((point, i) => {
-    if (i === 0 || i === distinct.length - 1) return false;
-    const before = distinct[i - 1],
-      after = distinct[i + 1];
-    return (
+function hasRouteBacktrack(
+  points: XYPosition[],
+  source?: XYPosition,
+  target?: XYPosition,
+) {
+  let before: XYPosition | undefined,
+    point = source;
+  const visit = (after: XYPosition) => {
+    if (point && point.x === after.x && point.y === after.y) return false;
+    if (
+      before &&
+      point &&
       (point.x - before.x) * (after.x - point.x) +
         (point.y - before.y) * (after.y - point.y) <
-      0
-    );
-  });
+        0
+    )
+      return true;
+    before = point;
+    point = after;
+    return false;
+  };
+  for (const next of points) if (visit(next)) return true;
+  return target ? visit(target) : false;
 }
 
 export function sharedRouteLength(first: XYPosition[], second: XYPosition[]) {
@@ -570,6 +583,7 @@ function routeScore(
   reserved: ReservedSegment[],
   upperBound = Infinity,
   completePoints = points,
+  cache?: { obstacles: Map<string, number>; wires: Map<string, number> },
 ) {
   let crossings = 0;
   let crowding = 0;
@@ -584,18 +598,42 @@ function routeScore(
   for (let index = 0; index < points.length - 1; index += 1) {
     const start = points[index];
     const end = points[index + 1];
+    const key = `${Math.min(start.x, end.x)},${Math.min(start.y, end.y)},${Math.max(start.x, end.x)},${Math.max(start.y, end.y)}`;
+    const known = cache?.obstacles.get(key);
+    if (known !== undefined) {
+      crossings += known;
+      if (crossings * 100_000_000 + crowding + complexity >= upperBound)
+        return Infinity;
+      continue;
+    }
+    const before = crossings;
     // 所有代价非负：一旦不可能优于已有路线，停止检查剩余障碍和线段；评分规则不变。
     for (const obstacle of obstacles) {
       if (segmentCrossesObstacle(start, end, obstacle)) crossings += 1;
-      if (crossings * 100_000_000 + crowding + complexity >= upperBound)
+      if (
+        !cache &&
+        crossings * 100_000_000 + crowding + complexity >= upperBound
+      )
         return Infinity;
     }
+    cache?.obstacles.set(key, crossings - before);
+    if (crossings * 100_000_000 + crowding + complexity >= upperBound)
+      return Infinity;
   }
   // 端口引入段允许穿出自己的框，但仍须避让其他导线，不能只给框外中段计拥挤成本。
   for (let index = 0; index < completePoints.length - 1; index += 1) {
     const start = completePoints[index],
       end = completePoints[index + 1];
     const horizontal = start.y === end.y;
+    const key = `${Math.min(start.x, end.x)},${Math.min(start.y, end.y)},${Math.max(start.x, end.x)},${Math.max(start.y, end.y)}`;
+    const known = cache?.wires.get(key);
+    if (known !== undefined) {
+      crowding += known;
+      if (crossings * 100_000_000 + crowding + complexity >= upperBound)
+        return Infinity;
+      continue;
+    }
+    const before = crowding;
     for (const segment of reserved) {
       const otherHorizontal = segment.start.y === segment.end.y;
       if (horizontal === otherHorizontal) {
@@ -630,9 +668,15 @@ function routeScore(
         })
       )
         crowding += 800;
-      if (crossings * 100_000_000 + crowding + complexity >= upperBound)
+      if (
+        !cache &&
+        crossings * 100_000_000 + crowding + complexity >= upperBound
+      )
         return Infinity;
     }
+    cache?.wires.set(key, crowding - before);
+    if (crossings * 100_000_000 + crowding + complexity >= upperBound)
+      return Infinity;
   }
   return crossings * 100_000_000 + crowding + complexity;
 }
@@ -761,17 +805,31 @@ function defaultOrthogonalPoints(
   ];
   let best = candidates[0];
   let bestScore = Infinity;
+  // 候选路线大量复用相同线段；一次搜索内障碍不变，每条无向线段只评分一次。
+  // 缓存不跨搜索共享，移动节点或改路后不会复用过期碰撞结果。
+  const costs = {
+    obstacles: new Map<string, number>(),
+    wires: new Map<string, number>(),
+  };
   const consider = (candidate: XYPosition[]) => {
+    // 无效折返先在线性扫描中拒绝，不为大量被拒候选创建两份临时数组。
+    if (hasRouteBacktrack(candidate, ports?.source, ports?.target)) return;
     const points = simplifyOrthogonalPoints(candidate);
     // 端口引入段也是路径约束：禁止先越过引入点，再沿原线倒车形成箭头尾刺。
     // 在候选阶段拒绝，不能事后删点破坏落线方向或用户保存的折点。
     const complete = ports
       ? simplifyOrthogonalPoints([ports.source, ...points, ports.target])
       : points;
-    if (hasRouteBacktrack(complete)) return;
     // 折点按实际出线到落线的完整路径计算，端口引出段不能在评分时被漏掉。
     // 避障仍检查框外中段，首尾引出段允许穿出自身所属框。
-    const score = routeScore(points, obstacles, reserved, bestScore, complete);
+    const score = routeScore(
+      points,
+      obstacles,
+      reserved,
+      bestScore,
+      complete,
+      costs,
+    );
     if (score < bestScore) {
       best = points;
       bestScore = score;
@@ -1513,7 +1571,7 @@ export function planArchitectureRoutes(
         side,
       };
     const offset =
-      anchor?.offset ??
+      (anchor ? snapBoundaryOffset(anchor.offset) : undefined) ??
       (side === Position.Top || side === Position.Bottom
         ? ((handle?.x ?? width / 2) + (handle?.width ?? 0) / 2) / width
         : ((handle?.y ?? height / 2) + (handle?.height ?? 0) / 2) / height);
@@ -1817,7 +1875,6 @@ function EditableOrthogonalEdgeView({
   sourcePosition: handleSourcePosition,
   source,
   target,
-  markerEnd,
   selected,
   data,
   style,
@@ -1863,15 +1920,7 @@ function EditableOrthogonalEdgeView({
   useEffect(() => {
     const label = labelRef.current;
     if (!label) return;
-    const observer = new ResizeObserver((entries) => {
-      const box = entries[0]?.borderBoxSize[0];
-      if (!box) return;
-      const width = box.inlineSize,
-        height = box.blockSize;
-      registry.measure(id, data?.labelTex ?? "", { width, height });
-    });
-    observer.observe(label);
-    return () => observer.disconnect();
+    return registry.observe(label, id, data?.labelTex ?? "");
   }, [data?.labelTex, id, registry]);
   const history = useContext(EditHistoryContext)!;
   const updateEdges = history.setEdges;
@@ -1895,7 +1944,7 @@ function EditableOrthogonalEdgeView({
     if (!anchor || !absolute || !width || !height) return fallback;
     const side = anchor?.side ?? handleSide;
     const offset =
-      anchor?.offset ??
+      (anchor ? snapBoundaryOffset(anchor.offset) : undefined) ??
       Math.max(
         0,
         Math.min(
@@ -1966,6 +2015,17 @@ function EditableOrthogonalEdgeView({
     [data?.labelTex],
   );
   const color = data?.color ?? String(style?.stroke ?? "#37685a");
+  // 同页可能有多个相同模型画布，SVG marker 的文档级 ID 不能只用边 ID。
+  const arrowId = `wire-arrow-${useId().replace(/:/g, "")}`;
+  const end = points.at(-1)!,
+    beforeEnd = points.at(-2)!;
+  const arrowLength = Math.hypot(end.x - beforeEnd.x, end.y - beforeEnd.y);
+  const arrowStart = arrowLength
+    ? {
+        x: end.x - (end.x - beforeEnd.x) / arrowLength,
+        y: end.y - (end.y - beforeEnd.y) / arrowLength,
+      }
+    : end;
   useEffect(() => {
     if (!selected) return;
     const hover = (event: PointerEvent) => {
@@ -2197,10 +2257,28 @@ function EditableOrthogonalEdgeView({
           startSegmentDrag(event, nearest);
         }}
       >
+        <defs>
+          <marker
+            id={arrowId}
+            viewBox="-10 -10 20 20"
+            refX="0"
+            refY="0"
+            markerWidth="24"
+            markerHeight="24"
+            markerUnits="userSpaceOnUse"
+            orient="auto"
+          >
+            <path
+              d="M -5,-4 L 0,0 L -5,4"
+              fill="none"
+              stroke={selected ? "#1565d8" : color}
+              strokeWidth="1.8"
+            />
+          </marker>
+        </defs>
         <BaseEdge
           id={id}
           path={path}
-          markerEnd={markerEnd}
           interactionWidth={28}
           style={{
             ...style,
@@ -2211,6 +2289,15 @@ function EditableOrthogonalEdgeView({
             strokeLinejoin: "round",
             cursor: "grab",
           }}
+        />
+        {/* 标签断口把 path 分成多个子路径；箭头只画在真实终点，不能在每段末尾重复。 */}
+        <path
+          data-edge-arrow={id}
+          d={`M ${arrowStart.x} ${arrowStart.y} L ${end.x} ${end.y}`}
+          markerEnd={`url(#${arrowId})`}
+          stroke={selected ? "#1565d8" : color}
+          strokeWidth={DATA_WIRE_WIDTH}
+          fill="none"
         />
       </g>
       <EdgeLabelRenderer>

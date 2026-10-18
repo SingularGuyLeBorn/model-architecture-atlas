@@ -132,6 +132,17 @@ for (const [id, layer, phase, chapter = "layer"] of [
                 .querySelector(`[data-trace-object="${to}"]`)!
                 .getBoundingClientRect();
               const direction = link.getAttribute("data-direction");
+              if (direction === "right-down")
+                return [
+                  Math.abs(start.x - (a.right - bounds.left) / scale),
+                  Math.abs(
+                    start.y - (a.top + a.height / 2 - bounds.top) / scale,
+                  ),
+                  Math.abs(
+                    end.x - (b.left + b.width / 2 - bounds.left) / scale,
+                  ),
+                  Math.abs(end.y - (b.top - bounds.top) / scale),
+                ];
               if (direction === "join-left" || direction === "join-right")
                 return [
                   Math.abs(
