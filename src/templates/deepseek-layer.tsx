@@ -609,12 +609,12 @@ export function deepseekLayerRecipe(
         output={`o^{A}_{${l},t}`}
         from={16384}
         to={d}
-        tone="coral"
+        tone="rose"
       />
       <Sum
         inputs={[
           <Row key="skip" name={h} size={d} tone="blue" direction="in" />,
-          <Row key="a" name={`o^A_{${l},t}`} size={d} tone="coral" />,
+          <Row key="a" name={`o^A_{${l},t}`} size={d} tone="rose" />,
         ]}
         result={<Row name={y} size={d} tone="blue" direction="out" />}
       />

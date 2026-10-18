@@ -11,6 +11,9 @@ import { ObjectConnections } from "../components/ObjectConnections";
 
 // [OM-FREEPLAY] 复用现有身份色；输入、Query、潜缓存和输出在生产/消费端用同一规则。
 export function architectureTone(name: string): DiagramTone {
+  if (/^\\widehat q\^\{?low/.test(name)) return "plum";
+  if (/^q\^\{?low/.test(name)) return "cyan";
+  if (/^o\^\{?A/.test(name)) return "rose";
   const symbol = name.replace(/\\(?:widehat|widetilde|bar)\s*/g, "");
   if (/^c\^/.test(symbol)) return "ocean";
   if (/^k\^R/.test(symbol)) return "violet";
@@ -209,7 +212,11 @@ export function Project({
   inputTone?: DiagramTone;
 }) {
   return (
-    <div className="architecture-equation" data-projection>
+    <div
+      className="architecture-equation"
+      data-projection
+      data-linear-projection
+    >
       <Row
         name={input}
         size={from}

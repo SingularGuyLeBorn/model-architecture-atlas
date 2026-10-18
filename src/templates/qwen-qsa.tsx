@@ -480,7 +480,7 @@ export function qwenQsaRecipe(phase: Phase, layer: number): Recipe {
                 output={`c^{qz}_{${l},t}`}
                 from={2560}
                 to={12288}
-                tone="blue"
+                tone="plum"
                 outputPort
               />
             </div>,
@@ -522,7 +522,7 @@ export function qwenQsaRecipe(phase: Phase, layer: number): Recipe {
     "qz-split",
     "Query 与输出门 · 每个 Head 内各取 256 维",
     <>
-      <Row name={`c^{qz}_{${l},t}`} size={12288} tone="blue" direction="in" />
+      <Row name={`c^{qz}_{${l},t}`} size={12288} tone="plum" direction="in" />
       <Down label="先重排 24 × 512，每行前 256 维 Q、后 256 维 gate" />
       <ObjectConnections
         links={[
@@ -537,14 +537,14 @@ export function qwenQsaRecipe(phase: Phase, layer: number): Recipe {
               shape={"24\\times512"}
               rows={reps(24)}
               columns={["1", "256", "257", "…", "512"]}
-              tone="blue"
+              tone="plum"
               element={(h, j) => `c^{qz}_{${l},${h},t,${j}}`}
             />
           </div>
           <div>
             <p className="architecture-caption">按每一行拆开，保持 Head 对应</p>
             <div data-trace-object="q-heads">
-              {heads(Q0, 24, 256, "blue", "out")}
+              {heads(Q0, 24, 256, "plum", "out")}
             </div>
             <div data-trace-object="z-heads">
               {heads(Z, 24, 256, "rose", "out")}
@@ -577,7 +577,7 @@ export function qwenQsaRecipe(phase: Phase, layer: number): Recipe {
                   kind === "Q" ? Q0 : K0,
                   count,
                   256,
-                  tone,
+                  kind === "Q" ? "plum" : tone,
                   "in",
                   (h) => `source-${h}`,
                   (h, d) => `\\widehat ${stem}_{${l},${h},t,${d}}`,
@@ -601,7 +601,7 @@ export function qwenQsaRecipe(phase: Phase, layer: number): Recipe {
                         outputTrace={`normalized-source-${head}`}
                         size={256}
                         gamma={`\\gamma^${stem}_{${l}}`}
-                        inputTone={tone}
+                        inputTone={kind === "Q" ? "plum" : tone}
                         outputTone={tone}
                         eps={1e-6}
                       />

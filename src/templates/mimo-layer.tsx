@@ -632,7 +632,7 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
       <Sum
         inputs={[
           <Row key="skip" name={h} size={d} direction="in" />,
-          <Row key="out" name={`o^A_{${l},t}`} size={d} tone="coral" />,
+          <Row key="out" name={`o^A_{${l},t}`} size={d} tone="rose" />,
         ]}
         result={<Row name={y} size={d} direction="out" />}
       />
