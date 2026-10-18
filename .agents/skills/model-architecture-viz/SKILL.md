@@ -41,6 +41,7 @@ description: 为 Transformer、Attention、MoE、CNN、扩散模型等创建或�
 - 公式统一用 KaTeX/LaTeX。多位下标必须写成 `Q_{64}`；标准函数写成 `\operatorname{RMSNorm}`、`\operatorname{softmax}`。
 - 符号必须同时表达层、分支和粒度：第 `l` 层第 `h` 个 head 的整段 Query 矩阵写 `Q_{l,h}`，第 `t` 个 token 的行向量写小写粗体 `\mathbf q_{l,h,t}`。不能把不同层都写成无层号的 `Q_1/Q_2`，也不能用大写矩阵符号冒充单个向量。
 - 新符号第一次出现时必须交代来源、类型、形状、输入和输出。层内变量始终带层号，例如第 3 层写 `X_3`，不能中途退化成含义不明的 `X`。参数矩阵要与数据矩阵分框，并说明它把哪一维映射到哪一维。
+- **重复计算保留对象身份。** Q、K 的旋转分别展开，全程使用各自原符号，不引入 w 一类临时代称来合并两路。多 Head 的矩阵取行、代表支路计算和结果写回必须逐一连到同号行；不能只画泛指 h 的一次计算再跳到整个输出矩阵。细则及检测见[代表 Head 与写回](references/structure-semantics.md#代表-head-与写回)。
 - **简写、改名、取分量和赋值须有明确对应式。** 局部固定层号、token 或专家号时，在首次简写之前写出映射及有效范围；例如 `o_d := o_{l,t,d}`、`p_j := (\mathbf p^F_{l,t})_j`。向量变成几个元素须交代所取行与分量，不能只写“省略共同下标”。跨模块与交接处恢复完整名称。
 - `Compressor`、`Indexer`、`Attention`、`MoE` 只是阶段标题，不能成为内容。框内必须继续展开关键输入、权重、运算、缓存写入/读取和输出结构。
 - SiLU、RoPE、RMSNorm、Softmax 须展开关键数据流，不把整个模块缩成公式，也不把简单函数机械拆成算术流水线。定义拼接轴、分发对象和中间变量，按[算子内部展开](references/structure-semantics.md#算子内部展开)、[过度展开反例](references/structure-semantics.md#错误案例silu-中的-sigmoid-过度展开)与[层间交接](references/structure-semantics.md#层间交接)检查。

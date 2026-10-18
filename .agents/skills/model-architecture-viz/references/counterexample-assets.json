@@ -2,6 +2,24 @@
   "scope": "本轮可见会话截图；原图逐字节复制。正例只证明正文指定局部，不代表整图合格。",
   "assets": [
     {
+      "id": "head-template-hides-branches",
+      "file": "counterexamples/head-template-hides-branches.png",
+      "source": "codex-clipboard-9d85d6a7-754f-4aea-8ec9-97f107717b0e.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": ["05"],
+      "sha256": "aa13bcb3df2d7d114c9864b769e4f851c470b6aca7db6c751c9f3db8be822c8b"
+    },
+    {
+      "id": "rope-temporary-w",
+      "file": "counterexamples/rope-temporary-w.png",
+      "source": "codex-clipboard-14400749-2a6e-4cdb-ac16-ab93dcb5506d.png",
+      "sourceKind": "user-attachment",
+      "role": "negative",
+      "cases": ["08"],
+      "sha256": "eaa17021323fd09d23efa4ba17fbc072ae82dbd7049a627e096d3348ddecce0b"
+    },
+    {
       "id": "mimo-residual-side-port",
       "file": "counterexamples/mimo-residual-side-port.png",
       "source": "artifacts/mimo-audit/final/mimo-wire-audit-MiMo-L1-prefill-·-全模块实际连线、嵌套点击及截图/01-input.png",
