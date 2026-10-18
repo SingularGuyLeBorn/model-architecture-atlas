@@ -21,6 +21,7 @@ import { exponentialTex } from "../components/exponential-notation";
 import { layerArchitecture } from "../data/architecture-profiles";
 import { QWEN_IMPLEMENTATION } from "./qwen-gdn";
 import "./architecture-blocks.css";
+import { HeadBranches } from "./head-branches";
 
 const reps = (n: number | string) =>
   Number(n) <= 4
@@ -61,14 +62,20 @@ export function qwenQsaRecipe(phase: Phase, layer: number): Recipe {
     output: string,
     width = 1700,
   ) => stages.push({ id, title, body, output, width, inlinePorts: true });
-  const edge = (source: string, target: string, tex: string) =>
-    links.push({ source, target, tex });
+  const edge = (
+    source: string,
+    target: string,
+    tex: string,
+    sides: Pick<RecipeLink, "sourceSide" | "targetSide"> = {},
+  ) => links.push({ source, target, tex, ...sides });
   const heads = (
     name: string,
     n: number,
     d: number,
     tone: DiagramTone,
     direction?: "in" | "out",
+    rowTrace?: (row: string) => string | undefined,
+    element?: (row: string, column: string) => string,
   ) => (
     <Matrix
       name={name}
@@ -77,7 +84,8 @@ export function qwenQsaRecipe(phase: Phase, layer: number): Recipe {
       columns={reps(d)}
       tone={tone}
       direction={direction}
-      element={(h, j) => `(${name})_{${h},${j}}`}
+      rowTrace={rowTrace}
+      element={element ?? ((h, j) => `(${name})_{${h},${j}}`)}
     />
   );
   const tokenRows = (
@@ -553,59 +561,93 @@ export function qwenQsaRecipe(phase: Phase, layer: number): Recipe {
     "main-rope",
     "主 Q/K · 每头 RMSNorm 与 64 维位置旋转",
     <>
-      <Columns>
-        {[
-          <div key="q">
-            {heads(Q0, 24, 256, "blue", "in")}
-            <Down label="每头独立计算；h = 1…24" />
-            <Rms
-              input={`\\widehat q_{${l},h,t}`}
-              output={`n^q_{${l},h,t}`}
-              size={256}
-              gamma={`\\gamma^q_{${l}}`}
-              inputTone="blue"
-              outputTone="blue"
-              eps={1e-6}
-            />
-            <HalfRoPE
-              input={`n^q_{${l},h,t}`}
-              inputTone="blue"
-              outputTone="blue"
-              output={`q_{${l},h,t}`}
-              size={256}
-              rotary={64}
-              theta={10000000}
-            />
-            {heads(Q, 24, 256, "blue", "out")}
-          </div>,
-          <div key="k">
-            {heads(K0, 2, 256, "violet", "in")}
-            <Down label="两头各自计算；g = 1、2" />
-            <Rms
-              input={`\\widehat k_{${l},g,t}`}
-              output={`n^k_{${l},g,t}`}
-              size={256}
-              gamma={`\\gamma^k_{${l}}`}
-              inputTone="violet"
-              outputTone="violet"
-              eps={1e-6}
-            />
-            <HalfRoPE
-              input={`n^k_{${l},g,t}`}
-              inputTone="violet"
-              outputTone="violet"
-              output={`k_{${l},g,t}`}
-              size={256}
-              rotary={64}
-              theta={10000000}
-            />
-            {heads(Kt, 2, 256, "violet", "out")}
-          </div>,
-        ]}
-      </Columns>
+      <div className="rope-kinds">
+        {(["Q", "K"] as const).map((kind) => {
+          const count = kind === "Q" ? 24 : 2,
+            stem = kind.toLowerCase(),
+            tone = kind === "Q" ? "blue" : "violet",
+            shown = count === 2 ? ["1", "2"] : ["1", "2", "24"];
+          return (
+            <section key={kind} data-rope-kind={kind}>
+              <p className="architecture-caption">
+                {kind} · 分 Head 归一化与旋转
+              </p>
+              <HeadBranches
+                sources={heads(
+                  kind === "Q" ? Q0 : K0,
+                  count,
+                  256,
+                  tone,
+                  "in",
+                  (h) => `source-${h}`,
+                  (h, d) => `\\widehat ${stem}_{${l},${h},t,${d}}`,
+                )}
+                branches={shown.map((head) => ({
+                  head,
+                  body: (
+                    <ObjectConnections
+                      links={[
+                        {
+                          from: `normalized-source-${head}`,
+                          to: `normalized-${head}`,
+                          direction: "down",
+                        },
+                      ]}
+                    >
+                      <Rms
+                        inputTrace={`input-${head}`}
+                        input={`\\widehat ${stem}_{${l},${head},t}`}
+                        output={`n^${stem}_{${l},${head},t}`}
+                        outputTrace={`normalized-source-${head}`}
+                        size={256}
+                        gamma={`\\gamma^${stem}_{${l}}`}
+                        inputTone={tone}
+                        outputTone={tone}
+                        eps={1e-6}
+                      />
+                      <HalfRoPE
+                        input={`n^${stem}_{${l},${head},t}`}
+                        output={`${stem}_{${l},${head},t}`}
+                        inputTone={tone}
+                        outputTone={tone}
+                        size={256}
+                        rotary={64}
+                        theta={10000000}
+                        inputTrace={`normalized-${head}`}
+                        outputTrace={`output-${head}`}
+                      />
+                    </ObjectConnections>
+                  ),
+                }))}
+                result={heads(
+                  kind === "Q" ? Q : Kt,
+                  count,
+                  256,
+                  tone,
+                  "out",
+                  (h) => `result-${h}`,
+                  (h, d) => `${stem}_{${l},${h},t,${d}}`,
+                )}
+                links={shown.flatMap((h) => [
+                  {
+                    from: `source-${h}`,
+                    to: `input-${h}`,
+                    direction: "right" as const,
+                  },
+                  {
+                    from: `output-${h}`,
+                    to: `result-${h}`,
+                    direction: "right" as const,
+                  },
+                ])}
+              />
+            </section>
+          );
+        })}
+      </div>
     </>,
     `${Q},${Kt}`,
-    4200,
+    6500,
   );
   edge("qz-split", "main-rope", Q0);
   edge("qkv", "main-rope", K0);
@@ -800,7 +842,10 @@ export function qwenQsaRecipe(phase: Phase, layer: number): Recipe {
     A,
     1300,
   );
-  edge("main-rope", "attention", Q);
+  edge("main-rope", "attention", Q, {
+    sourceSide: "bottom",
+    targetSide: "left",
+  });
   edge("read", "attention", Kr);
   add(
     "weighted",

@@ -5,6 +5,7 @@ type Connection = {
   to: string;
   direction?:
     | "down"
+    | "down-rows"
     | "right"
     | "right-down"
     | "left-down"
@@ -60,7 +61,12 @@ export function ObjectConnections({
         const frame = bounds("[data-expanded-tensor], .architecture-fraction");
         const projection = bounds("[data-projection]");
         // 跨分组传递标量时，转弯通道按整个分组外沿计算，避开组内其余操作数。
-        const routeFrame = bounds("[data-route-frame]");
+        const routeElement = element.closest("[data-route-frame]");
+        // 外层跨支路线绕过支路外沿；内部算子仍使用自己的局部通道。
+        const routeFrame =
+          routeElement && root.contains(routeElement)
+            ? rect(routeElement)
+            : undefined;
         return {
           x: (r.left + r.width / 2 - outer.left) / scale,
           top: (r.top - outer.top) / scale,
@@ -87,13 +93,17 @@ export function ObjectConnections({
           to = box(link.to);
         if (!from || !to) return [];
         if (link.direction === "right-down" || link.direction === "left-down") {
+          const peers = connections.filter(
+            (item) => item.direction === link.direction,
+          );
+          const rank = peers.indexOf(link);
           // 矩阵内部取行先沿行轴离开表格，再在表下独立通道进入对应行代理。
           // [OM-FREEPLAY] 通道间距取 20px、箭头引入段至少 24px，与对应取行布局的留白配套。
           const left = link.direction === "left-down";
           const laneX = left
-            ? from.corridorLeft - 20 * (index + 1)
-            : from.corridorRight + 20 * (index + 1);
-          const laneY = to.top - 24 - 20 * (connections.length - index - 1);
+            ? from.corridorLeft - 20 * (rank + 1)
+            : from.corridorRight + 20 * (rank + 1);
+          const laneY = to.top - 24 - 20 * (peers.length - rank - 1);
           return [
             {
               ...link,
@@ -145,10 +155,17 @@ export function ObjectConnections({
           ];
         }
         // 投影输入/输出行比参数矩阵矮；转折要避开整组，不能擦过参数底边。
-        const lane =
+        let lane =
           from.groupBottom < to.groupTop
             ? (from.groupBottom + to.groupTop) / 2
             : (from.bottom + to.top) / 2;
+        if (link.direction === "down-rows") {
+          const peers = connections.filter(
+            (item) => item.direction === "down-rows",
+          );
+          const fraction = (peers.indexOf(link) + 1) / (peers.length + 1);
+          lane = from.groupBottom + (to.groupTop - from.groupBottom) * fraction;
+        }
         return [
           {
             ...link,

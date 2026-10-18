@@ -22,6 +22,8 @@ import {
   Scalar,
 } from "./architecture-blocks";
 import "./architecture-blocks.css";
+import { HeadBranches } from "./head-branches";
+import { RecipePort } from "./RecipePorts";
 
 const reps = (last: string | number) =>
   Number(last) <= 3
@@ -74,6 +76,7 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
     width: number | string,
     tone: "blue" | "violet" | "coral" | "orange",
     direction?: "in" | "out",
+    rowTrace?: (row: string) => string | undefined,
   ) => (
     <Matrix
       name={name}
@@ -82,12 +85,13 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
       columns={width === length && swa ? ["r", "r+1", "…", "t"] : reps(width)}
       tone={tone}
       direction={direction}
+      rowTrace={rowTrace}
       element={(b, j) => `${stem}_{${l},${b},t,${j}}`}
     />
   );
   const readCache = (
     kind: "K" | "V",
-    direction: "in" | "out",
+    direction: "in" | "out" | undefined,
     trace = false,
     highlightedRows: string | readonly string[] = "t",
   ) => (
@@ -190,36 +194,74 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
     "rope",
     "Q/K · 前 64 维成对旋转，后 128 维直通",
     <>
-      <Columns>
-        {[
-          heads(Q0, "\\widehat q", 64, 192, "blue", "in"),
-          heads(K0, "\\widehat k", a.kvHeads, 192, "violet", "in"),
-        ]}
-      </Columns>
-      <p className="architecture-note">
-        <M
-          tex={`(w_{${l},t},w'_{${l},t}):=(\\widehat q_{${l},h,t},q_{${l},h,t})\\;\\mathrm{or}\\;(\\widehat k_{${l},g,t},k_{${l},g,t})`}
-        />{" "}
-        · 每个 Head 使用同一个位置 t−1
-      </p>
-      <Down label="逐 Head 展开 32 对旋转" />
-      <HalfRoPE
-        input={`w_{${l},t}`}
-        output={`w'_{${l},t}`}
-        size={192}
-        rotary={64}
-        theta={swa ? c.swa_rope_theta : c.rope_theta}
-      />
-      <Down label="旋转部分与原样部分合成每头 192 维" />
-      <Columns>
-        {[
-          heads(Q, "q", 64, 192, "blue", "out"),
-          heads(Kt, "k", a.kvHeads, 192, "violet", "out"),
-        ]}
-      </Columns>
+      <div className="rope-kinds">
+        {(["Q", "K"] as const).map((kind) => {
+          const count = kind === "Q" ? 64 : a.kvHeads;
+          const stem = kind.toLowerCase();
+          const tone = kind === "Q" ? "blue" : "violet";
+          const shown = ["1", "2", String(count)];
+          return (
+            <section key={kind} data-rope-kind={kind}>
+              <p className="architecture-caption">
+                {kind} · 各 Head 分别旋转，写回同号行
+              </p>
+              <HeadBranches
+                sources={heads(
+                  kind === "Q" ? Q0 : K0,
+                  `\\widehat ${stem}`,
+                  count,
+                  192,
+                  tone,
+                  "in",
+                  (r) => `source-${r}`,
+                )}
+                branches={shown.map((head) => ({
+                  head,
+                  body: (
+                    <>
+                      <HalfRoPE
+                        input={`\\widehat ${stem}_{${l},${head},t}`}
+                        output={`${stem}_{${l},${head},t}`}
+                        size={192}
+                        rotary={64}
+                        theta={swa ? c.swa_rope_theta : c.rope_theta}
+                        inputTone={tone}
+                        outputTone={tone}
+                        inputTrace={`input-${head}`}
+                        outputTrace={`output-${head}`}
+                      />
+                    </>
+                  ),
+                }))}
+                result={heads(
+                  kind === "Q" ? Q : Kt,
+                  stem,
+                  count,
+                  192,
+                  tone,
+                  "out",
+                  (r) => `result-${r}`,
+                )}
+                links={shown.flatMap((head) => [
+                  {
+                    from: `source-${head}`,
+                    to: `input-${head}`,
+                    direction: "right" as const,
+                  },
+                  {
+                    from: `output-${head}`,
+                    to: `result-${head}`,
+                    direction: "right" as const,
+                  },
+                ])}
+              />
+            </section>
+          );
+        })}
+      </div>
     </>,
     Q,
-    2100,
+    6500,
   );
   edge("qkv", "rope", Q0);
   edge("qkv", "rope", K0);
@@ -236,7 +278,7 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
     Vt,
     1250,
   );
-  edge("qkv", "value-scale", V0);
+  edge("qkv", "value-scale", V0, { sourceSide: "right", targetSide: "left" });
   add(
     "cache",
     `${swa ? "SWA · 当前可读 128-token 窗口" : "全注意力 · 当前可读因果前缀"} · 本层每个 KV Head 独立`,
@@ -325,132 +367,252 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
   add(
     "attention",
     `GQA · 每 ${64 / a.kvHeads} 个 Query Head 共读一组 K/V`,
-    <>
-      <div className="architecture-score-top">
-        {heads(Q, "q", 64, 192, "blue", "in")}
-        <span className="architecture-arrow">→</span>
-        <div>
-          <div className="architecture-equation">
-            <Row name={`q_{${l},h,t}`} size={192} tone="blue" />
-            <span className="architecture-operator">×</span>
-            {readCache("K", "in")}
-            <M tex={"{}^\\top/\\sqrt{192}"} />
-            <span className="architecture-operator">=</span>
-            <Row
-              name={`s_{${l},h,t}`}
-              size={length}
-              columns={swa ? ["r", "r+1", "…", "t"] : reps("t")}
-              tone="plum"
-            />
-          </div>
-          <p className="architecture-note">
-            <M
-              tex={`g(h)=1+\\lfloor(h-1)/${64 / a.kvHeads}\\rfloor,\\quad h=1,\\ldots,64`}
-            />
-            {" · "}第 j 个分数对应同一原 token 的 Key
-            行；以下展示首、次、末三个可见位置。
-          </p>
-        </div>
-      </div>
-      <Down label="分数取指数，沿当前可见行归约" />
-      <div className="architecture-probability-grid">
-        <div>
-          <Sum
-            termSelector="[data-exponent]"
-            inputs={[start, swa ? "r+1" : "2", "t"].map((j) => (
-              <div key={j} data-exponent>
-                <M tex={exponentialTex(`s_{${l},h,t,${j}}`)} />
+    <HeadBranches
+      sources={heads(Q, "q", 64, 192, "blue", "in", (r) => `q-source-${r}`)}
+      branches={[1, 2, 64].map((head) => ({
+        head: String(head),
+        body: (
+          <>
+            <div className="architecture-score-top">
+              <div>
+                <div className="architecture-equation">
+                  <Row
+                    name={`q_{${l},${head},t}`}
+                    size={192}
+                    tone="blue"
+                    trace={`q-input-${head}`}
+                  />
+                  <span className="architecture-operator">×</span>
+                  {readCache("K", head === 1 ? "in" : undefined)}
+                  <M tex={"{}^\\top/\\sqrt{192}"} />
+                  <span className="architecture-operator">=</span>
+                  <Row
+                    name={`s_{${l},${head},t}`}
+                    size={length}
+                    columns={swa ? ["r", "r+1", "…", "t"] : reps("t")}
+                    tone="plum"
+                  />
+                </div>
+                <p className="architecture-note">
+                  <M
+                    tex={`g=g(${head})=${1 + Math.floor((head - 1) / (64 / a.kvHeads))}`}
+                  />
+                  {" · "}第 j 个分数对应同一原 token 的 Key
+                  行；以下展示首、次、末三个可见位置。
+                </p>
               </div>
-            ))}
-            result={<Scalar tex={`D_{${l},h,t}`} tone="gold" />}
-            ellipsis
-          />
-          {swa && (
-            <div className="architecture-equation">
-              <Scalar tex={`D_{${l},h,t}`} tone="gold" />
-              <span className="architecture-operator">+</span>
-              <M tex={exponentialTex(`b^{sink}_{${l},h}`)} />
-              <span className="architecture-operator">=</span>
-              <Scalar tex={`\\widetilde D_{${l},h,t}`} tone="gold" />
             </div>
-          )}
-        </div>
-        <div>
-          <Columns>
-            {[start, swa ? "r+1" : "2", "t"].map((j) => (
-              <div key={j} className="architecture-equation">
-                <M
-                  tex={`\\frac{${exponentialTex(`s_{${l},h,t,${j}}`)}}{${swa ? "\\widetilde D" : "D"}_{${l},h,t}}`}
+            <Down label="分数取指数，沿当前可见行归约" />
+            <div className="architecture-probability-grid">
+              <div>
+                <Sum
+                  termSelector="[data-exponent]"
+                  inputs={[start, swa ? "r+1" : "2", "t"].map((j) => (
+                    <div key={j} data-exponent>
+                      <M tex={exponentialTex(`s_{${l},${head},t,${j}}`)} />
+                    </div>
+                  ))}
+                  result={<Scalar tex={`D_{${l},${head},t}`} tone="gold" />}
+                  ellipsis
                 />
-                <span className="architecture-operator">=</span>
-                <Scalar tex={`a_{${l},h,t,${j}}`} tone="orange" />
+                {swa && (
+                  <div className="architecture-equation">
+                    <Scalar tex={`D_{${l},${head},t}`} tone="gold" />
+                    <span className="architecture-operator">+</span>
+                    <M tex={exponentialTex(`b^{sink}_{${l},${head}}`)} />
+                    <span className="architecture-operator">=</span>
+                    <Scalar
+                      tex={`\\widetilde D_{${l},${head},t}`}
+                      tone="gold"
+                    />
+                  </div>
+                )}
               </div>
-            ))}
-          </Columns>
-          {swa && (
-            <p className="architecture-note">
-              sink 是每头独立标量，只参与分母；缓存里没有对应的 Value 行。
-            </p>
-          )}
-          {heads(A, "a", 64, length, "orange", "out")}
-        </div>
-      </div>
-    </>,
+              <div>
+                <Columns>
+                  {[start, swa ? "r+1" : "2", "t"].map((j) => (
+                    <div key={j} className="architecture-equation">
+                      <M
+                        tex={`\\frac{${exponentialTex(`s_{${l},${head},t,${j}}`)}}{${swa ? "\\widetilde D" : "D"}_{${l},${head},t}}`}
+                      />
+                      <span className="architecture-operator">=</span>
+                      <Scalar tex={`a_{${l},${head},t,${j}}`} tone="orange" />
+                    </div>
+                  ))}
+                </Columns>
+                {swa && (
+                  <p className="architecture-note">
+                    sink 是每头独立标量，只参与分母；缓存里没有对应的 Value 行。
+                  </p>
+                )}
+                <Row
+                  name={`a_{${l},${head},t}`}
+                  size={length}
+                  tone="orange"
+                  columns={swa ? ["r", "r+1", "…", "t"] : reps("t")}
+                  trace={`a-output-${head}`}
+                />
+              </div>
+            </div>
+          </>
+        ),
+      }))}
+      result={heads(
+        A,
+        "a",
+        64,
+        length,
+        "orange",
+        "out",
+        (r) => `a-result-${r}`,
+      )}
+      links={[1, 2, 64].flatMap((head) => [
+        {
+          from: `q-source-${head}`,
+          to: `q-input-${head}`,
+          direction: "right" as const,
+        },
+        {
+          from: `a-output-${head}`,
+          to: `a-result-${head}`,
+          direction: "right" as const,
+        },
+      ])}
+    />,
     A,
-    1800,
+    2500,
   );
-  edge("rope", "attention", Q, { sourceSide: "left", targetSide: "left" });
+  edge("rope", "attention", Q, { sourceSide: "bottom", targetSide: "left" });
   edge("cache", "attention", K);
   add(
     "weighted",
     "各 Query Head · 权重乘对应 V 行，再沿 token 轴求和",
-    <ObjectConnections
-      links={[start, swa ? "r+1" : "2", "t"].map((j) => ({
-        from: `read-${j}`,
-        to: `value-${j}`,
-        direction: "right-down" as const,
-      }))}
-    >
-      <Columns>
-        {[
-          heads(A, "a", 64, length, "orange", "in"),
-          readCache("V", "in", true, [start, swa ? "r+1" : "2", "t"]),
-          <p className="architecture-note" style={{ maxWidth: 280 }}>
-            <M tex={`g=g(h)=1+\\lfloor(h-1)/${64 / a.kvHeads}\\rfloor`} />
-            ；权重列与 Value 行采用同一个原 token 行号。
-          </p>,
-        ]}
-      </Columns>
-      <div className="mimo-value-slices">
-        <Sum
-          ellipsis
-          termSelector="[data-sum-terminal] [data-expanded-tensor]"
-          inputs={[start, swa ? "r+1" : "2", "t"].map((j) => (
-            <div key={j}>
-              <div className="architecture-equation">
-                <Scalar tex={`a_{${l},h,t,${j}}`} tone="orange" />
-                <span className="architecture-operator">×</span>
-                <Row
-                  name={`v_{${l},g,${j}}`}
-                  size={128}
-                  tone="coral"
-                  trace={`value-${j}`}
+    <HeadBranches
+      sources={
+        <>
+          {heads(A, "a", 64, length, "orange", "in", (r) => `a-source-${r}`)}
+          <p className="architecture-note">
+            <M tex={`g(h)=1+\\lfloor(h-1)/${64 / a.kvHeads}\\rfloor`} />
+          </p>
+        </>
+      }
+      branches={[1, 2, 64].map((head) => {
+        const group = 1 + Math.floor((head - 1) / (64 / a.kvHeads));
+        const positions = [start, swa ? "r+1" : "2", "t"];
+        const values = (
+          <Matrix
+            name={`V^{read}_{${l},${group},t}`}
+            shape={`${length}\\times128`}
+            rows={
+              swa ? ["r", "r+1", "…", "t-1", "t"] : ["1", "2", "…", "t-1", "t"]
+            }
+            columns={reps(128)}
+            tone="coral"
+            selected={positions}
+            rowTrace={(j) => `read-${j}`}
+            element={(j, d) => `v_{${l},${group},${j},${d}}`}
+          />
+        );
+        return {
+          head: String(head),
+          body: (
+            <ObjectConnections
+              links={positions.flatMap((j) => [
+                {
+                  from: `weight-${j}`,
+                  to: `alpha-${j}`,
+                  direction: "down" as const,
+                },
+                {
+                  from: `read-${j}`,
+                  to: `value-${j}`,
+                  direction: "right-down" as const,
+                },
+              ])}
+            >
+              <div data-projection>
+                <Columns>
+                  {[
+                    <Row
+                      name={`a_{${l},${head},t}`}
+                      size={length}
+                      columns={swa ? ["r", "r+1", "…", "t"] : reps("t")}
+                      tone="orange"
+                      trace={`a-input-${head}`}
+                      columnTrace={(j) => `weight-${j}`}
+                      element={(j) => `a_{${l},${head},t,${j}}`}
+                    />,
+                    head === 1 ? (
+                      <RecipePort tex={V} direction="in">
+                        {values}
+                      </RecipePort>
+                    ) : (
+                      values
+                    ),
+                  ]}
+                </Columns>
+              </div>
+              <div className="mimo-value-slices">
+                <Sum
+                  ellipsis
+                  termSelector="[data-sum-terminal] [data-expanded-tensor]"
+                  inputs={positions.map((j) => (
+                    <div key={j}>
+                      <div className="architecture-equation">
+                        <span data-trace-object={`alpha-${j}`}>
+                          <Scalar
+                            tex={`a_{${l},${head},t,${j}}`}
+                            tone="orange"
+                          />
+                        </span>
+                        <span className="architecture-operator">×</span>
+                        <Row
+                          name={`v_{${l},${group},${j}}`}
+                          size={128}
+                          tone="coral"
+                          trace={`value-${j}`}
+                        />
+                      </div>
+                      <Down />
+                      <div data-sum-terminal>
+                        <Row
+                          name={`p^V_{${l},${head},t,${j}}`}
+                          size={128}
+                          tone="teal"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  result={
+                    <Row
+                      name={`o_{${l},${head},t}`}
+                      size={128}
+                      tone="coral"
+                      trace={`o-output-${head}`}
+                    />
+                  }
                 />
               </div>
-              <Down />
-              <div data-sum-terminal>
-                <Row name={`p^V_{${l},h,t,${j}}`} size={128} tone="teal" />
-              </div>
-            </div>
-          ))}
-          result={<Row name={`o_{${l},h,t}`} size={128} tone="coral" />}
-        />
-      </div>
-      <Down label="64 个 Head 分别执行；沿 Head 轴排列" />
-      {heads(O, "o", 64, 128, "coral", "out")}
-    </ObjectConnections>,
+            </ObjectConnections>
+          ),
+        };
+      })}
+      result={heads(O, "o", 64, 128, "coral", "out", (r) => `o-result-${r}`)}
+      links={[1, 2, 64].flatMap((head) => [
+        {
+          from: `a-source-${head}`,
+          to: `a-input-${head}`,
+          direction: "right" as const,
+        },
+        {
+          from: `o-output-${head}`,
+          to: `o-result-${head}`,
+          direction: "right" as const,
+        },
+      ])}
+    />,
     O,
-    1950,
+    2800,
   );
   edge("attention", "weighted", A);
   edge("cache", "weighted", V, { sourceSide: "right", targetSide: "top" });

@@ -7,6 +7,7 @@ import {
 import type { Recipe, RecipeLink, Stage, Phase } from "./recipes";
 import { MathFormula as M } from "../components/diagram-primitives";
 import { RecipePort } from "./RecipePorts";
+import { HeadBranches } from "./head-branches";
 import { ObjectConnections } from "../components/ObjectConnections";
 import { Down } from "./structure-blocks";
 import {
@@ -19,6 +20,7 @@ import {
   Rms,
   Sum,
   SwiGlu,
+  Scalar,
 } from "./architecture-blocks";
 import "./architecture-blocks.css";
 import { deepseekSelectionStages } from "./deepseek-selection";
@@ -80,6 +82,7 @@ export function deepseekLayerRecipe(
     direction: "in" | "out" | undefined,
     tone: "ocean" | "violet",
     highlightCurrent = true,
+    rowTrace?: (row: string) => string | undefined,
   ) => (
     <Matrix
       name={name}
@@ -89,6 +92,7 @@ export function deepseekLayerRecipe(
       tone={tone}
       selected={highlightCurrent ? "t" : undefined}
       direction={direction}
+      rowTrace={rowTrace}
       element={(r, j) => `${stem}_{${l},${r},${j}}`}
     />
   );
@@ -98,6 +102,7 @@ export function deepseekLayerRecipe(
     width: number | string,
     direction: "in" | "out" | undefined,
     tone: "blue" | "orange" | "coral" = "blue",
+    rowTrace?: (row: string) => string | undefined,
   ) => (
     <Matrix
       name={name}
@@ -106,6 +111,7 @@ export function deepseekLayerRecipe(
       columns={cols(width)}
       tone={tone}
       direction={direction}
+      rowTrace={rowTrace}
       element={(r, j) => `${stem}_{${l},${r},t,${j}}`}
     />
   );
@@ -471,53 +477,117 @@ export function deepseekLayerRecipe(
   add(
     "values",
     "每个 Head · 概率乘潜向量 → 求和 → Value 升维",
-    <>
-      <Columns>
-        {[
-          headMatrix(A, "a", "t", "in", "orange"),
-          cache(C, "c^{KV}", 512, "in", "ocean", id !== "v32"),
-        ]}
-      </Columns>
-      <p className="architecture-note">
-        {id === "v32"
-          ? "固定同一 Head h；展示原位置 1、2、t，未命中 Top-K 的行概率为 0，其余位置同构。"
-          : "固定同一 Head h；下列三项代表首、次、末可见行，省略中间同构项。"}
-      </p>
-      <Sum
-        ellipsis
-        inputs={["1", "2", "t"].map((j) => (
-          <div key={j}>
-            <Flow>
-              {[
-                <Operation
-                  key="mul"
-                  tex={`a_{${l},h,t,${j}}\\,c^{KV}_{${l},${j}}`}
-                  label={j === "t" ? "末行 · 其余项同样参与" : `第 ${j} 行`}
-                />,
-                <Row
-                  key="prod"
-                  name={`p_{${l},h,t,${j}}`}
-                  size={512}
-                  tone="teal"
-                />,
-              ]}
-            </Flow>
-          </div>
-        ))}
-        result={<Row name={`v^{low}_{${l},h,t}`} size={512} tone="coral" />}
-      />
-      <Project
-        input={`v^{low}_{${l},h,t}`}
-        weight={`W^{UV}_{${l},h}`}
-        output={`o_{${l},h,t}`}
-        from={512}
-        to={128}
-        tone="coral"
-      />
-      {headMatrix(O, "o", 128, "out", "coral")}
-    </>,
+    <HeadBranches
+      sources={
+        <>{headMatrix(A, "a", "t", "in", "orange", (r) => `a-source-${r}`)}</>
+      }
+      branches={[1, 2, qHeads].map((head) => ({
+        head: String(head),
+        body: (
+          <ObjectConnections
+            links={[
+              ...["1", "2", "t"].flatMap((j) => [
+                {
+                  from: `alpha-${j}`,
+                  to: `product-${j}`,
+                  direction: "down" as const,
+                },
+                {
+                  from: `c-source-${j}`,
+                  to: `c-input-${head}-${j}`,
+                  direction: "right-down" as const,
+                },
+              ]),
+              { from: "low-result", to: "low-project", direction: "down" },
+            ]}
+          >
+            <div data-projection>
+              <Columns>
+                {[
+                  <Row
+                    name={`a_{${l},${head},t}`}
+                    size="t"
+                    tone="orange"
+                    trace={`a-input-${head}`}
+                    columns={cols("t")}
+                    columnTrace={(j) => `alpha-${j}`}
+                  />,
+                  cache(
+                    C,
+                    "c^{KV}",
+                    512,
+                    head === 1 ? "in" : undefined,
+                    "ocean",
+                    id !== "v32",
+                    (j) => `c-source-${j}`,
+                  ),
+                ]}
+              </Columns>
+            </div>
+            <div className="mimo-value-slices">
+              <Sum
+                ellipsis
+                inputs={["1", "2", "t"].map((j) => (
+                  <div key={j}>
+                    <div className="architecture-equation">
+                      <span data-trace-object={`product-${j}`}>
+                        <Scalar tex={`a_{${l},${head},t,${j}}`} tone="orange" />
+                      </span>
+                      <span className="architecture-operator">×</span>
+                      <Row
+                        name={`c^{KV}_{${l},${j}}`}
+                        size={512}
+                        tone="ocean"
+                        trace={`c-input-${head}-${j}`}
+                      />
+                    </div>
+                    <Down />
+                    <Row
+                      name={`p_{${l},${head},t,${j}}`}
+                      size={512}
+                      tone="teal"
+                    />
+                  </div>
+                ))}
+                result={
+                  <Row
+                    name={`v^{low}_{${l},${head},t}`}
+                    size={512}
+                    tone="coral"
+                    trace="low-result"
+                  />
+                }
+              />
+            </div>
+            <Project
+              input={`v^{low}_{${l},${head},t}`}
+              weight={`W^{UV}_{${l},${head}}`}
+              output={`o_{${l},${head},t}`}
+              from={512}
+              to={128}
+              tone="coral"
+              outputTrace={`o-output-${head}`}
+              inputTrace="low-project"
+            />
+          </ObjectConnections>
+        ),
+      }))}
+      result={headMatrix(O, "o", 128, "out", "coral", (r) => `o-result-${r}`)}
+      links={[1, 2, qHeads].flatMap((head) => [
+        {
+          from: `a-source-${head}`,
+          to: `a-input-${head}`,
+          direction: "right" as const,
+        },
+        {
+          from: `o-output-${head}`,
+          to: `o-result-${head}`,
+          direction: "right" as const,
+        },
+      ])}
+    />,
     O,
-    1700,
+    2800,
   );
   edge("attention", "values", A);
   edge("kv", "values", C);

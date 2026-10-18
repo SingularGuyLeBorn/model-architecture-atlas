@@ -61,15 +61,19 @@ for (const layer of Array.from({ length: 48 }, (_, i) => i + 1))
       for (const [source, target] of [
         ["input", "residual-a"],
         ["residual-a", "residual-f"],
-        ["rope", "attention"],
       ]) {
         expect(
           recipe.links.find((e) => e.source === source && e.target === target),
         ).toMatchObject({ sourceSide: "left", targetSide: "left" });
       }
+      expect(
+        recipe.links.find(
+          (e) => e.source === "rope" && e.target === "attention",
+        ),
+      ).toMatchObject({ sourceSide: "bottom", targetSide: "left" });
       const weighted = doms.get("weighted")!;
       expect(
-        weighted.querySelector("[data-object-link-count='3']"),
+        weighted.querySelector("[data-object-link-count='6']"),
       ).not.toBeNull();
       for (const row of [
         arch.window ? "r" : "1",
@@ -78,10 +82,10 @@ for (const layer of Array.from({ length: 48 }, (_, i) => i + 1))
       ]) {
         expect(
           weighted.querySelectorAll(`[data-trace-object="read-${row}"]`),
-        ).toHaveLength(1);
+        ).toHaveLength(3);
         expect(
           weighted.querySelectorAll(`[data-trace-object="value-${row}"]`),
-        ).toHaveLength(1);
+        ).toHaveLength(3);
       }
       expect(recipe.stages.some((s) => s.id === "dense")).toBe(layer === 1);
       expect(recipe.stages.some((s) => s.id === "shared")).toBe(false);

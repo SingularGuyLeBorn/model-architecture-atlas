@@ -321,3 +321,42 @@
   flex-direction: column;
   justify-content: space-between;
 }
+.head-branch-layout {
+  display: grid;
+  grid-template-columns: max-content max-content max-content;
+  align-items: center;
+  gap: 120px;
+  width: max-content;
+  margin-inline: auto;
+}
+.head-branch-calculations {
+  display: grid;
+  gap: 60px;
+}
+.head-branch-calculations > [data-head-branch] {
+  border: 1px solid #c9d0ce;
+  border-radius: 6px;
+  padding: 18px;
+}
+.head-branch-calculations > [data-head-branch] > .architecture-caption {
+  width: max-content;
+  text-align: left;
+}
+.head-branch-sources {
+  display: grid;
+  gap: 32px;
+}
+.head-branch-result {
+  align-self: center;
+}
+.rope-kinds {
+  display: flex;
+  align-items: flex-start;
+  gap: 80px;
+  width: max-content;
+  margin-inline: auto;
+}
+.rope-kinds > section > .architecture-caption {
+  width: max-content;
+  margin-inline: auto;
+}

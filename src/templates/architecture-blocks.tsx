@@ -661,6 +661,8 @@ export function HalfRoPE({
   positionIndex = "t",
   inputTone = architectureTone(input),
   outputTone = architectureTone(output),
+  inputTrace,
+  outputTrace,
 }: {
   input: string;
   output: string;
@@ -672,66 +674,144 @@ export function HalfRoPE({
   positionIndex?: string;
   inputTone?: DiagramTone;
   outputTone?: DiagramTone;
+  inputTrace?: string;
+  outputTrace?: string;
 }) {
   const half = rotary / 2;
+  const connected = Boolean(inputTrace || outputTrace);
+  const indices = [1, 2, half];
+  const displayed = [
+    ...new Set([
+      "1",
+      "2",
+      String(half),
+      "…",
+      String(half + 1),
+      String(half + 2),
+      String(rotary),
+      String(size),
+    ]),
+  ];
   return (
-    <div className="architecture-rope">
-      <p className="architecture-note">
-        <M
-          tex={`\\phi_{${positionIndex},j}=(${position})\\,${frequency ?? `${theta}^{-2(j-1)/${rotary}}`},\\quad j=1,\\ldots,${half}`}
-        />
-      </p>
-      <Columns>
-        {[1, 2, half].map((j) => (
-          <div key={j}>
-            <p className="architecture-caption">
-              第 {j}、{j + half} 维
-            </p>
-            <div className="architecture-equation">
-              <Matrix
-                name={`R_{${positionIndex},${j}}`}
-                shape={"2\\times2"}
-                rows={["1", "2"]}
-                columns={["1", "2"]}
-                tone="crimson"
-                element={(r, c) =>
-                  r === c
-                    ? `\\cos\\phi_{${positionIndex},${j}}`
-                    : `${r === "1" ? "-" : ""}\\sin\\phi_{${positionIndex},${j}}`
-                }
-              />
-              <span className="architecture-operator">×</span>
-              <Matrix
-                name={`(${input})^{(${j})}`}
-                shape={"2\\times1"}
-                rows={["1", "2"]}
-                columns={["1"]}
-                tone={inputTone}
-                element={(r) =>
-                  elementIndex(input, String(r === "1" ? j : j + half))
-                }
-              />
-              <span className="architecture-operator">=</span>
-              <Matrix
-                name={`(${output})^{(${j})}`}
-                shape={"2\\times1"}
-                rows={["1", "2"]}
-                columns={["1"]}
-                tone={outputTone}
-                element={(r) =>
-                  elementIndex(output, String(r === "1" ? j : j + half))
-                }
-              />
+    <ObjectConnections
+      links={
+        connected
+          ? indices.flatMap((j) => [
+              {
+                from: `rotate-in-${j}`,
+                to: `pair-in-${j}`,
+                direction: "down" as const,
+              },
+              {
+                from: `pair-out-${j}`,
+                to: `rotate-out-${j}`,
+                direction: "down-rows" as const,
+              },
+            ])
+          : []
+      }
+    >
+      <div className="architecture-rope">
+        <p
+          className="architecture-note"
+          style={connected ? { textAlign: "left" } : undefined}
+        >
+          <M
+            tex={`\\phi_{${positionIndex},j}=(${position})\\,${frequency ?? `${theta}^{-2(j-1)/${rotary}}`},\\quad j=1,\\ldots,${half}`}
+          />
+        </p>
+        {connected && (
+          <Row
+            name={input}
+            size={size}
+            tone={inputTone}
+            trace={inputTrace}
+            columns={displayed}
+            selectedColumns={indices.flatMap((j) => [
+              String(j),
+              String(j + half),
+            ])}
+            columnTrace={(j) => `rotate-in-${j}`}
+          />
+        )}
+        <Columns>
+          {[1, 2, half].map((j) => (
+            <div
+              key={j}
+              style={
+                connected ? { paddingTop: 60, paddingBottom: 60 } : undefined
+              }
+            >
+              <p
+                className="architecture-caption"
+                style={connected ? { textAlign: "left" } : undefined}
+              >
+                <span>
+                  第 {j}、{j + half} 维
+                </span>
+              </p>
+              <div className="architecture-equation">
+                <Matrix
+                  name={`R_{${positionIndex},${j}}`}
+                  shape={"2\\times2"}
+                  rows={["1", "2"]}
+                  columns={["1", "2"]}
+                  tone="crimson"
+                  element={(r, c) =>
+                    r === c
+                      ? `\\cos\\phi_{${positionIndex},${j}}`
+                      : `${r === "1" ? "-" : ""}\\sin\\phi_{${positionIndex},${j}}`
+                  }
+                />
+                <span className="architecture-operator">×</span>
+                <Matrix
+                  name={`(${input})^{(${j})}`}
+                  shape={"2\\times1"}
+                  rows={["1", "2"]}
+                  columns={["1"]}
+                  tone={inputTone}
+                  trace={connected ? `pair-in-${j}` : undefined}
+                  element={(r) =>
+                    elementIndex(input, String(r === "1" ? j : j + half))
+                  }
+                />
+                <span className="architecture-operator">=</span>
+                <Matrix
+                  name={`(${output})^{(${j})}`}
+                  shape={"2\\times1"}
+                  rows={["1", "2"]}
+                  columns={["1"]}
+                  tone={outputTone}
+                  trace={connected ? `pair-out-${j}` : undefined}
+                  element={(r) =>
+                    elementIndex(output, String(r === "1" ? j : j + half))
+                  }
+                />
+              </div>
             </div>
-          </div>
-        ))}
-      </Columns>
-      <p className="architecture-note">
-        <M
-          tex={`${elementIndex(output, "d")}=${elementIndex(input, "d")},\\quad d=${rotary + 1},\\ldots,${size}`}
-        />{" "}
-        · 其余维原样传递
-      </p>
-    </div>
+          ))}
+        </Columns>
+        {connected && (
+          <Row
+            name={output}
+            size={size}
+            tone={outputTone}
+            trace={outputTrace}
+            columns={displayed}
+            selectedColumns={indices.flatMap((j) => [
+              String(j),
+              String(j + half),
+            ])}
+            columnTrace={(j) => `rotate-out-${j}`}
+          />
+        )}
+        <p className="architecture-note">
+          <M
+            tex={`${elementIndex(output, "d")}=${elementIndex(input, "d")},\\quad d=${rotary + 1},\\ldots,${size}`}
+          />
+          {" · 其余维原样传递"}
+        </p>
+      </div>
+    </ObjectConnections>
   );
 }

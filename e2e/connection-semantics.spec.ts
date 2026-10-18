@@ -9,13 +9,15 @@ test("MiMo Value 代表行直接连到消费行，选中包含线身与箭翼", 
     .locator(".stage-nav button")
     .filter({ hasText: "权重乘对应 V 行" })
     .click();
-  const stage = page.locator('[data-stage="weighted"]');
-  await expect(stage.locator("[data-object-link]")).toHaveCount(3);
+  const stage = page.locator('[data-stage="weighted"] [data-head-branch="1"]');
+  await expect(stage.locator('[data-object-link^="read-"]')).toHaveCount(3);
   await expect
     .poll(() =>
       stage.evaluate((root) => {
         const failures: string[] = [];
-        for (const group of root.querySelectorAll("[data-object-link]")) {
+        for (const group of root.querySelectorAll(
+          '[data-object-link^="read-"]',
+        )) {
           const [from, to] = group.getAttribute("data-object-link")!.split(":");
           const source = root
             .querySelector(`[data-trace-object="${from}"]`)!
@@ -47,7 +49,7 @@ test("MiMo Value 代表行直接连到消费行，选中包含线身与箭翼", 
     )
     .toEqual([]);
   await stage.screenshot({ path: info.outputPath("value-rows.png") });
-  const wire = stage.locator("[data-object-link]").first();
+  const wire = stage.locator('[data-object-link^="read-"]').first();
   const hit = await wire.locator("[data-wire-hit]").evaluate((el) => {
     const p = el as SVGPathElement;
     for (let at = 10; at < p.getTotalLength() - 10; at += 10) {

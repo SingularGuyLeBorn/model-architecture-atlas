@@ -15,6 +15,7 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "check:head-flow": "playwright test e2e/head-flow.spec.ts",
     "check": "pnpm lint && pnpm test && pnpm build",
     "format": "prettier --write src tests e2e",
     "format:check": "prettier --check src tests e2e"
