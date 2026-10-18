@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import { setImmediate } from "node:timers/promises";
 import { expect, it, vi } from "vitest";
 import katex from "katex";
 import { mimoLayerRecipe } from "../src/templates/mimo-layer";
@@ -10,18 +11,24 @@ vi.mock("@xyflow/react", async (original) => ({
   Handle: ({ id }: { id: string }) => <span data-handleid={id} />,
 }));
 
-for (const layer of [1, 2, 5, 6, 47, 48])
+for (const layer of Array.from({ length: 48 }, (_, i) => i + 1))
   for (const phase of ["prefill", "decode"] as const) {
-    it(`MiMo 第 ${layer} 层 ${phase} 的形状与真实对象端口`, () => {
+    it(`MiMo 第 ${layer} 层 ${phase} 的形状与真实对象端口`, async () => {
+      // 96 个同步 DOM/公式渲染间归还事件循环，让测试进程及时发送结果，不延长超时或省略断言。
+      await setImmediate();
       const recipe = mimoLayerRecipe(phase, layer),
         arch = layerArchitecture("mimo25", layer);
       const doms = new Map(
         recipe.stages.map((stage) => {
           const inputs = recipe.links.flatMap((e, i) =>
-            e.target === stage.id ? [{ id: `in-${i}`, tex: e.tex }] : [],
+            e.target === stage.id
+              ? [{ id: `in-${i}`, tex: e.tex, side: e.targetSide }]
+              : [],
           );
           const outputs = recipe.links.flatMap((e, i) =>
-            e.source === stage.id ? [{ id: `out-${i}`, tex: e.tex }] : [],
+            e.source === stage.id
+              ? [{ id: `out-${i}`, tex: e.tex, side: e.sourceSide }]
+              : [],
           );
           const html = renderToStaticMarkup(
             <RecipePortsContext.Provider value={{ inputs, outputs }}>
@@ -51,6 +58,15 @@ for (const layer of [1, 2, 5, 6, 47, 48])
           doms.get(e.target)?.querySelectorAll(`[data-handleid="in-${i}"]`),
         ).toHaveLength(1);
       });
+      for (const [source, target] of [
+        ["input", "residual-a"],
+        ["residual-a", "residual-f"],
+        ["rope", "attention"],
+      ]) {
+        expect(
+          recipe.links.find((e) => e.source === source && e.target === target),
+        ).toMatchObject({ sourceSide: "left", targetSide: "left" });
+      }
       const weighted = doms.get("weighted")!;
       expect(
         weighted.querySelector("[data-object-link-count='3']"),

@@ -114,7 +114,10 @@ export function inspectInternalTarget(
       return;
     if (
       current instanceof HTMLElement &&
-      (current.style.border || current.hasAttribute("data-sum-node"))
+      (current.style.border ||
+        current.matches(
+          "[data-sum-node], [data-expanded-tensor], [data-vector-cell], .scalar, .data-box",
+        ))
     ) {
       const tex =
         current.querySelector("span[aria-label]")?.getAttribute("aria-label") ??

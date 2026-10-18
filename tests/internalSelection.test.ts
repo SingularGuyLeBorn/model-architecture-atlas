@@ -6,6 +6,17 @@ import {
 import { inspectorReducer } from "../src/components/ModuleInspector";
 
 describe("内部对象选择", () => {
+  it("样式表定义边框的矩阵和元素仍可精确选中", () => {
+    const root = document.createElement("div");
+    root.innerHTML =
+      '<section data-expanded-tensor style="border-color:blue"><header><span aria-label="H">H</span></header><span class="scalar" data-vector-cell style="border-color:blue"><span aria-label="h_{1,1}">h</span></span></section>';
+    expect(
+      inspectInternalTarget(root.querySelector(".scalar span"), root)?.element,
+    ).toBe(root.querySelector(".scalar"));
+    expect(
+      inspectInternalTarget(root.querySelector("header span"), root)?.element,
+    ).toBe(root.firstElementChild);
+  });
   it("线身、命中带、箭翼命中同一连接；跨 SVG 的输出线同步选中且不污染相邻运算", () => {
     const root = document.createElement("div");
     const sum =

@@ -1309,11 +1309,12 @@ menclose[notation="box"] {
   color: #667c96;
 }
 /* 内部对象沿用父模块的点击解释；只给命中的对象轮廓，不改语义底色。 */
-.full-layer :is([data-vector-cell], [data-expanded-tensor], [data-sum-node]) {
+:is(.full-layer, .atlas-flow)
+  :is([data-vector-cell], [data-expanded-tensor], [data-sum-node]) {
   cursor: pointer;
 }
 /* [OM-FREEPLAY] 选中强调色使用亮蓝；仅改原有描边，取消选择恢复语义色。 */
-.full-layer [data-internal-selected] {
+:is(.full-layer, .atlas-flow) [data-internal-selected] {
   border-color: #1565d8 !important;
   outline: none;
 }

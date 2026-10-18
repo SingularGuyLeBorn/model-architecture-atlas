@@ -42,7 +42,13 @@ export type Stage = {
   formula?: string;
   inlinePorts?: boolean;
 };
-export type RecipeLink = { source: string; target: string; tex: string };
+export type RecipeLink = {
+  source: string;
+  target: string;
+  tex: string;
+  sourceSide?: "left" | "right" | "top" | "bottom";
+  targetSide?: "left" | "right" | "top" | "bottom";
+};
 export type Recipe = {
   introduction: string;
   exportName?: string;

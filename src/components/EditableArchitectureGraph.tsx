@@ -1603,6 +1603,28 @@ export function planArchitectureRoutes(
       (a, b) =>
         Number(Boolean(b.edge.data?.waypoints?.length)) -
           Number(Boolean(a.edge.data?.waypoints?.length)) ||
+        // 同侧旁路从短到长占道：内层先走，外层包住它，避免嵌套残差相互穿越。
+        Number(
+          !(
+            a.source.side === a.target.side &&
+            (a.source.side === Position.Left ||
+              a.source.side === Position.Right)
+          ),
+        ) -
+          Number(
+            !(
+              b.source.side === b.target.side &&
+              (b.source.side === Position.Left ||
+                b.source.side === Position.Right)
+            ),
+          ) ||
+        (a.source.side === a.target.side &&
+        b.source.side === b.target.side &&
+        (a.source.side === Position.Left || a.source.side === Position.Right) &&
+        (b.source.side === Position.Left || b.source.side === Position.Right)
+          ? Math.abs(a.target.y - a.source.y) -
+            Math.abs(b.target.y - b.source.y)
+          : 0) ||
         a.source.y - b.source.y ||
         a.source.x - b.source.x ||
         a.edge.id.localeCompare(b.edge.id),

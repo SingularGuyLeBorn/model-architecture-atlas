@@ -1,10 +1,14 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { Handle, Position } from "@xyflow/react";
 
-type Port = { id: string; tex: string };
+export type RecipeObjectPort = {
+  id: string;
+  tex: string;
+  side?: "left" | "right" | "top" | "bottom";
+};
 export const RecipePortsContext = createContext<{
-  inputs?: Port[];
-  outputs?: Port[];
+  inputs?: RecipeObjectPort[];
+  outputs?: RecipeObjectPort[];
 }>({});
 
 /** 供矩阵内部行使用，不额外插入包装框或改变行列布局。 */
@@ -22,27 +26,37 @@ export function RecipePortHandles({
     (direction === "in" ? ports.inputs : ports.outputs)?.filter(
       (p) => p.tex === tex,
     ) ?? [];
-  return matches.map((port, i) => (
-    <Handle
-      key={port.id}
-      id={port.id}
-      type={direction === "in" ? "target" : "source"}
-      position={
-        side === "left"
-          ? Position.Left
-          : side === "right"
-            ? Position.Right
-            : direction === "in"
-              ? Position.Top
-              : Position.Bottom
-      }
-      style={
-        side
-          ? { top: `${((i + 1) * 100) / (matches.length + 1)}%` }
-          : { left: `${((i + 1) * 100) / (matches.length + 1)}%` }
-      }
-    />
-  ));
+  return matches.map((port) => {
+    const actualSide =
+      port.side ?? side ?? (direction === "in" ? "top" : "bottom");
+    const siblings = matches.filter(
+      (p) =>
+        (p.side ?? side ?? (direction === "in" ? "top" : "bottom")) ===
+        actualSide,
+    );
+    const offset = `${((siblings.indexOf(port) + 1) * 100) / (siblings.length + 1)}%`;
+    return (
+      <Handle
+        key={port.id}
+        id={port.id}
+        type={direction === "in" ? "target" : "source"}
+        position={
+          actualSide === "left"
+            ? Position.Left
+            : actualSide === "right"
+              ? Position.Right
+              : actualSide === "top"
+                ? Position.Top
+                : Position.Bottom
+        }
+        style={
+          actualSide === "left" || actualSide === "right"
+            ? { top: offset }
+            : { left: offset }
+        }
+      />
+    );
+  });
 }
 
 /** 数据对象自己拥有端口；分组框与说明文字不承担数据出口。 */

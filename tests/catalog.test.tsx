@@ -86,4 +86,14 @@ it("布局使用实测高度，不依赖固定卡片高度", () => {
   }));
   const result = layoutStages(items);
   expect(result.map((node) => node.position.y)).toEqual([30, 250, 1120]);
+  const wired = layoutStages(
+    items.map((item) => ({
+      ...item,
+      data: {
+        ...item.data,
+        outputs: ["Q", "K", "V"].map((tex) => ({ id: tex, tex })),
+      },
+    })),
+  );
+  expect(wired.map((node) => node.position.y)).toEqual([30, 382, 1384]);
 });

@@ -7,6 +7,7 @@ type Connection = {
     | "down"
     | "right"
     | "right-down"
+    | "left-down"
     | "down-left"
     | "join-left"
     | "join-right";
@@ -85,15 +86,18 @@ export function ObjectConnections({
         const from = box(link.from),
           to = box(link.to);
         if (!from || !to) return [];
-        if (link.direction === "right-down") {
+        if (link.direction === "right-down" || link.direction === "left-down") {
           // 矩阵内部取行先沿行轴离开表格，再在表下独立通道进入对应行代理。
           // [OM-FREEPLAY] 通道间距取 20px、箭头引入段至少 24px，与对应取行布局的留白配套。
-          const laneX = from.corridorRight + 20 * (index + 1);
+          const left = link.direction === "left-down";
+          const laneX = left
+            ? from.corridorLeft - 20 * (index + 1)
+            : from.corridorRight + 20 * (index + 1);
           const laneY = to.top - 24 - 20 * (connections.length - index - 1);
           return [
             {
               ...link,
-              d: `M${from.right} ${from.y} H${laneX} V${laneY} H${to.x} V${to.top}`,
+              d: `M${left ? from.left : from.right} ${from.y} H${laneX} V${laneY} H${to.x} V${to.top}`,
               tip: `M${to.x - 4} ${to.top - 6} L${to.x} ${to.top} L${to.x + 4} ${to.top - 6}`,
             },
           ];

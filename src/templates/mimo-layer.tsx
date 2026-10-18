@@ -61,8 +61,12 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
     output: string,
     width = 1600,
   ) => stages.push({ id, title, body, output, width, inlinePorts: true });
-  const edge = (source: string, target: string, tex: string) =>
-    links.push({ source, target, tex });
+  const edge = (
+    source: string,
+    target: string,
+    tex: string,
+    sides: Pick<RecipeLink, "sourceSide" | "targetSide"> = {},
+  ) => links.push({ source, target, tex, ...sides });
   const heads = (
     name: string,
     stem: string,
@@ -103,7 +107,13 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
   add(
     "input",
     `Layer ${layer} · 归一化与输入旁路`,
-    <>
+    <ObjectConnections
+      links={
+        phase === "prefill"
+          ? [{ from: "input-row", to: "norm-input", direction: "left-down" }]
+          : []
+      }
+    >
       <p className="architecture-note">
         {phase === "prefill"
           ? "Prefill：N 行同时计算；以下固定当前查询 t 展开。"
@@ -117,10 +127,11 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
             rows={["1", "2", "…", "t", "…", "N"]}
             columns={reps(d)}
             selected="t"
+            rowTrace={(row) => (row === "t" ? "input-row" : undefined)}
             tone="blue"
             element={(r, j) => `h_{${l},${r},${j}}`}
           />
-          <Down label="第 t 行" />
+          <p className="architecture-caption">第 t 行</p>
         </>
       )}
       <Rms
@@ -130,9 +141,10 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
         gamma={`\\gamma^A_{${l}}`}
         eps={p.eps}
         inputSource
+        inputTrace="norm-input"
         outputPort
       />
-    </>,
+    </ObjectConnections>,
     x,
   );
   add(
@@ -148,6 +160,11 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
         inputPort
       />
       <Down label="同一输出的三个连续切片" />
+      <p className="architecture-note">
+        <M
+          tex={`u^{QKV}_{${l},t}=[\\operatorname{vec}(${Q0});\\operatorname{vec}(${K0});\\operatorname{vec}(${V0})]`}
+        />
+      </p>
       <Columns>
         {[
           <div key="q">
@@ -164,11 +181,6 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
           </div>,
         ]}
       </Columns>
-      <p className="architecture-note">
-        <M
-          tex={`u^{QKV}_{${l},t}=[\\operatorname{vec}(${Q0});\\operatorname{vec}(${K0});\\operatorname{vec}(${V0})]`}
-        />
-      </p>
     </>,
     Q0,
     1900,
@@ -240,6 +252,11 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
           tex={`g=1,2,\\ldots,${a.kvHeads};\\quad ${swa ? "r=\\max(1,t-127),\\quad m_t=\\min(128,t)" : "1\\le j\\le t"}`}
         />
       </p>
+      <p className="architecture-note">
+        {swa
+          ? "本图展开窗口已满（t>128）的更新；短前缀只包含已有行。图示读取语义，缓存后端决定物理存储。"
+          : "各查询只读自身因果前缀；历史行沿原 token 顺序保留。"}
+      </p>
       <Columns>
         {(["K", "V"] as const).map((kind) => {
           const stem = kind.toLowerCase(),
@@ -299,16 +316,6 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
           );
         })}
       </Columns>
-      <p className="architecture-note">
-        {swa ? (
-          <>
-            本图展开窗口已满（t&gt;128）的更新；短前缀只包含已有行。
-            图示读取语义，缓存后端决定物理存储。
-          </>
-        ) : (
-          "各查询只读自身因果前缀；历史行沿原 token 顺序保留。"
-        )}
-      </p>
     </>,
     K,
     2400,
@@ -323,11 +330,6 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
         {heads(Q, "q", 64, 192, "blue", "in")}
         <span className="architecture-arrow">→</span>
         <div>
-          <p className="architecture-note">
-            <M
-              tex={`g(h)=1+\\lfloor(h-1)/${64 / a.kvHeads}\\rfloor,\\quad h=1,\\ldots,64`}
-            />
-          </p>
           <div className="architecture-equation">
             <Row name={`q_{${l},h,t}`} size={192} tone="blue" />
             <span className="architecture-operator">×</span>
@@ -342,7 +344,10 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
             />
           </div>
           <p className="architecture-note">
-            第 j 个分数对应同一原 token 的 Key
+            <M
+              tex={`g(h)=1+\\lfloor(h-1)/${64 / a.kvHeads}\\rfloor,\\quad h=1,\\ldots,64`}
+            />
+            {" · "}第 j 个分数对应同一原 token 的 Key
             行；以下展示首、次、末三个可见位置。
           </p>
         </div>
@@ -394,7 +399,7 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
     A,
     1800,
   );
-  edge("rope", "attention", Q);
+  edge("rope", "attention", Q, { sourceSide: "left", targetSide: "left" });
   edge("cache", "attention", K);
   add(
     "weighted",
@@ -448,7 +453,7 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
     1950,
   );
   edge("attention", "weighted", A);
-  edge("cache", "weighted", V);
+  edge("cache", "weighted", V, { sourceSide: "right", targetSide: "top" });
   add(
     "residual-a",
     "Head 拼接 → 输出投影 → 第一条残差",
@@ -473,7 +478,7 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
     y,
   );
   edge("weighted", "residual-a", O);
-  edge("input", "residual-a", h);
+  edge("input", "residual-a", h, { sourceSide: "left", targetSide: "left" });
   add(
     "norm-f",
     "FFN · 独立的本层归一化",
@@ -595,8 +600,8 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
       f,
       2300,
     );
-    edge("norm-f", "experts", z);
-    edge("router", "experts", E);
+    edge("norm-f", "experts", z, { sourceSide: "right", targetSide: "left" });
+    edge("router", "experts", E, { sourceSide: "left", targetSide: "left" });
     edge("router", "experts", alpha);
   }
   add(
@@ -617,7 +622,10 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
     `h_{${layer + 1},t}`,
     1200,
   );
-  edge("residual-a", "residual-f", y);
+  edge("residual-a", "residual-f", y, {
+    sourceSide: "left",
+    targetSide: "left",
+  });
   edge(a.ffn === "dense" ? "dense" : "experts", "residual-f", f);
   return {
     introduction: `MiMo-V2.5 · Layer ${layer}/48 · ${swa ? "128-token SWA + sink" : "Full GQA"} · ${a.kvHeads} KV Heads · ${a.ffn === "dense" ? "Dense" : "256 选 8，无共享专家"}。t 为当前查询位置。`,

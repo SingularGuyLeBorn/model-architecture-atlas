@@ -24,7 +24,7 @@ import {
 } from "../components/EditableArchitectureGraph";
 import { MathFormula as M } from "../components/diagram-primitives";
 import { type Recipe, type Stage } from "./recipes";
-import { RecipePortsContext } from "./RecipePorts";
+import { RecipePortsContext, type RecipeObjectPort } from "./RecipePorts";
 import {
   inspectInternalTarget,
   setInternalSelected,
@@ -38,8 +38,8 @@ type StageNode = Node<
   Stage & {
     ordinal: number;
     level?: number;
-    inputs?: { id: string; tex: string }[];
-    outputs?: { id: string; tex: string }[];
+    inputs?: RecipeObjectPort[];
+    outputs?: RecipeObjectPort[];
   },
   "stage"
 >;
@@ -62,7 +62,13 @@ export function layoutStages(nodes: StageNode[]) {
     // [OM-FREEPLAY] 按同排最大实测高度与边数预留路由通道，禁止靠固定卡片高度排版。
     y +=
       Math.max(...row.map((node) => node.measured?.height ?? 400)) +
-      Math.max(120, row.length * 90);
+      // 出入口标签、安全区与并行通道必须同时放得下，否则会挤出窄 U 形折返。
+      Math.max(
+        row.some((node) => node.data.outputs?.length) ? 200 : 120,
+        row.length * 90,
+        120 +
+          44 * Math.max(...row.map((node) => node.data.outputs?.length ?? 0)),
+      );
   }
   return nodes.map((node) => ({ ...node, position: positions.get(node.id)! }));
 }
@@ -148,10 +154,14 @@ export function RecipeCanvas({
         ordinal: i + 1,
         level: levels.get(stage.id),
         inputs: recipe.links.flatMap((link, i) =>
-          link.target === stage.id ? [{ id: `in-${i}`, tex: link.tex }] : [],
+          link.target === stage.id
+            ? [{ id: `in-${i}`, tex: link.tex, side: link.targetSide }]
+            : [],
         ),
         outputs: recipe.links.flatMap((link, i) =>
-          link.source === stage.id ? [{ id: `out-${i}`, tex: link.tex }] : [],
+          link.source === stage.id
+            ? [{ id: `out-${i}`, tex: link.tex, side: link.sourceSide }]
+            : [],
         ),
       },
       style: {
@@ -181,7 +191,12 @@ export function RecipeCanvas({
   const [notice, setNotice] = useState("");
   const { fitView, setViewport, getNode } = useReactFlow();
   const canvasRef = useRef<HTMLDivElement>(null);
-  const selectedWire = useRef<Element | null>(null);
+  const selectedObject = useRef<Element | null>(null);
+  const clearInternalSelection = useCallback(() => {
+    setInternalSelected(selectedObject.current, false);
+    selectedObject.current = null;
+  }, []);
+  useEffect(() => clearInternalSelection, [clearInternalSelection, recipe]);
   const focus = useCallback(
     (id: string) => {
       const node = getNode(id);
@@ -427,11 +442,18 @@ export function RecipeCanvas({
               const selection = root
                 ? inspectInternalTarget(event.target, root)
                 : undefined;
-              setInternalSelected(selectedWire.current, false);
-              selectedWire.current =
-                selection?.detail.kind === "wire" ? selection.element : null;
-              setInternalSelected(selectedWire.current, true);
+              clearInternalSelection();
+              selectedObject.current = selection?.element ?? null;
+              setInternalSelected(selectedObject.current, true);
+              if (selection)
+                setNodes((values) =>
+                  values.map((node) =>
+                    node.selected ? { ...node, selected: false } : node,
+                  ),
+                );
             }}
+            onPaneClick={clearInternalSelection}
+            onEdgeClick={clearInternalSelection}
             onConnect={(connection) => {
               beginHistory();
               setEdges((values) =>

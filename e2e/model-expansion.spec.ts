@@ -132,9 +132,14 @@ for (const [id, layer, phase, chapter = "layer"] of [
                 .querySelector(`[data-trace-object="${to}"]`)!
                 .getBoundingClientRect();
               const direction = link.getAttribute("data-direction");
-              if (direction === "right-down")
+              if (direction === "right-down" || direction === "left-down")
                 return [
-                  Math.abs(start.x - (a.right - bounds.left) / scale),
+                  Math.abs(
+                    start.x -
+                      ((direction === "left-down" ? a.left : a.right) -
+                        bounds.left) /
+                        scale,
+                  ),
                   Math.abs(
                     start.y - (a.top + a.height / 2 - bounds.top) / scale,
                   ),

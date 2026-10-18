@@ -127,6 +127,7 @@ export function Tensor({
                   <span
                     key={i}
                     className="scalar"
+                    data-vector-cell
                     data-trace-object={columnTrace?.(col)}
                     style={{
                       borderColor: (isPickedRow(row) ||
