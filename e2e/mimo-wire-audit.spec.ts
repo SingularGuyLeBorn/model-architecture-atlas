@@ -1,18 +1,56 @@
 import { test, expect, type Page } from "@playwright/test";
+test.use({ screenshot: "only-on-failure" });
+
+for (const first of [1, 13, 25, 37])
+  test(`MiMo ${first}–${first + 11} 层 · 两种模式完整路网`, async ({
+    page,
+  }, info) => {
+    test.setTimeout(180000);
+    await page.setViewportSize({ width: 2800, height: 2000 });
+    await page.goto("/#model=mimo25&chapter=layer");
+    const reports = [];
+    for (let layer = first; layer < first + 12; layer++) {
+      await page
+        .getByRole("combobox", { name: "层", exact: true })
+        .selectOption(String(layer));
+      for (const phase of ["Prefill · N 行", "Decode · 当前一行"]) {
+        await page.getByRole("button", { name: phase, exact: true }).click();
+        await page.getByRole("button", { name: "全图", exact: true }).click();
+        await expect(page.locator("[data-stage]")).toHaveCount(
+          layer === 1 ? 11 : 12,
+        );
+        await expect(page.locator(".react-flow__edge-path")).toHaveCount(
+          layer === 1 ? 16 : 19,
+        );
+        await expect
+          .poll(async () => (await auditWires(page)).problems, {
+            message: `${layer} / ${phase}`,
+          })
+          .toEqual([]);
+        reports.push({ layer, phase, ...(await auditWires(page)) });
+      }
+    }
+    await info.attach("all-layer-routes", {
+      body: JSON.stringify(reports),
+      contentType: "application/json",
+    });
+  });
 
 /** 读取实际 SVG 子路径；M 是标签断口，不能补成假线再检查穿字。 */
-async function auditWires(page: Page) {
-  return page.evaluate(() => {
+async function auditWires(page: Page, residualOnly = false) {
+  return page.evaluate((residualOnly) => {
     type Point = { x: number; y: number };
     type Segment = { a: Point; b: Point };
     const problems: string[] = [];
     const boxes = [
       ...document.querySelectorAll(
-        "[data-stage] [data-expanded-tensor], [data-stage] .data-box, [data-stage] .architecture-note [aria-label], [data-stage] .architecture-caption",
+        "[data-stage], [data-stage] [data-expanded-tensor], [data-stage] .data-box, [data-stage] .architecture-note [aria-label], [data-stage] .architecture-caption",
       ),
     ].map((el) => ({
       rect: el.getBoundingClientRect(),
-      name: el.querySelector("[aria-label]")?.getAttribute("aria-label"),
+      name:
+        el.getAttribute("data-stage") ??
+        el.querySelector("[aria-label]")?.getAttribute("aria-label"),
     }));
     for (const note of document.querySelectorAll(
       "[data-stage] .architecture-note",
@@ -30,8 +68,15 @@ async function auditWires(page: Page) {
           boxes.push({ rect, name: text.textContent.trim() });
       }
     }
-    const records = [...document.querySelectorAll(".react-flow__edge")].map(
-      (edge) => {
+    const records = [...document.querySelectorAll(".react-flow__edge")]
+      .filter(
+        (edge) =>
+          !residualOnly ||
+          /^(input-residual-a|residual-a-residual-f)-/.test(
+            edge.getAttribute("data-id") ?? "",
+          ),
+      )
+      .map((edge) => {
         const path = edge.querySelector(
           ".react-flow__edge-path",
         ) as SVGPathElement;
@@ -133,18 +178,27 @@ async function auditWires(page: Page) {
           }
         }
         return { id, points: simplify, segments };
-      },
-    );
-    const bypasses = records.filter((r) =>
-      /input-residual-a|rope-attention|residual-a-residual-f/.test(r.id),
-    );
+      });
+    const bypasses = records;
     for (let i = 0; i < bypasses.length; i++)
       for (const other of bypasses.slice(i + 1)) {
         for (const a of bypasses[i].segments)
           for (const b of other.segments) {
             const av = Math.abs(a.a.x - a.b.x) < 0.1,
               bv = Math.abs(b.a.x - b.b.x) < 0.1;
-            if (av === bv) continue;
+            if (av === bv) {
+              const distance = av
+                ? Math.abs(a.a.x - b.a.x)
+                : Math.abs(a.a.y - b.a.y);
+              const overlap = av
+                ? Math.min(Math.max(a.a.y, a.b.y), Math.max(b.a.y, b.b.y)) -
+                  Math.max(Math.min(a.a.y, a.b.y), Math.min(b.a.y, b.b.y))
+                : Math.min(Math.max(a.a.x, a.b.x), Math.max(b.a.x, b.b.x)) -
+                  Math.max(Math.min(a.a.x, a.b.x), Math.min(b.a.x, b.b.x));
+              if (distance < 1 && overlap > 2)
+                problems.push(`${bypasses[i].id} 重叠 ${other.id}`);
+              continue;
+            }
             const v = av ? a : b,
               h = av ? b : a;
             if (
@@ -160,8 +214,66 @@ async function auditWires(page: Page) {
       problems: [...new Set(problems)],
       routes: records.map(({ id, points }) => ({ id, points })),
     };
-  });
+  }, residualOnly);
 }
+
+for (const model of ["v3", "r1", "v31", "v32"])
+  test(`DeepSeek ${model} · 两条残差旁路不穿归一化和投影框`, async ({
+    page,
+  }, info) => {
+    test.setTimeout(180000);
+    await page.setViewportSize({ width: 2800, height: 2000 });
+    await page.goto(`/#model=${model}&chapter=layer`);
+    for (const layer of [1, 4, 61]) {
+      await page
+        .getByRole("combobox", { name: "层", exact: true })
+        .selectOption(String(layer));
+      for (const phase of ["Prefill · N 行", "Decode · 当前一行"]) {
+        await page.getByRole("button", { name: phase, exact: true }).click();
+        await page.getByRole("button", { name: "全图", exact: true }).click();
+        await expect
+          .poll(async () => (await auditWires(page, true)).routes.length)
+          .toBe(2);
+        await expect
+          .poll(async () => (await auditWires(page, true)).problems, {
+            message: `${model} L${layer} ${phase}`,
+          })
+          .toEqual([]);
+        const report = await auditWires(page, true);
+        for (const { points } of report.routes) {
+          expect(points[1].x).toBeLessThan(points[0].x);
+          expect(points.at(-2)!.x).toBeLessThan(points.at(-1)!.x);
+        }
+        await info.attach(`L${layer}-${phase}`, {
+          body: JSON.stringify(report),
+          contentType: "application/json",
+        });
+      }
+    }
+    await page
+      .getByRole("combobox", { name: "层", exact: true })
+      .selectOption("1");
+    await page
+      .getByRole("button", { name: "Prefill · N 行", exact: true })
+      .click();
+    for (const id of ["input", "residual-a", "residual-f"]) {
+      await page
+        .locator(".stage-nav button")
+        .filter({
+          hasText:
+            id === "input"
+              ? "行归一化与残差旁路"
+              : id === "residual-a"
+                ? "Head 拼接"
+                : "FFN 汇合",
+        })
+        .click();
+      await expect
+        .poll(async () => (await auditWires(page, true)).problems)
+        .toEqual([]);
+      await page.screenshot({ path: info.outputPath(`${id}.png`) });
+    }
+  });
 
 for (const [layer, phase] of [
   [1, "prefill"],
@@ -232,10 +344,9 @@ for (const [layer, phase] of [
           `${String(index + 1).padStart(2, "0")}-${await stage.getAttribute("data-stage")}.png`,
         ),
       });
-      if (index < 2)
-        await page.screenshot({
-          path: info.outputPath(`context-${index + 1}.png`),
-        });
+      await page.screenshot({
+        path: info.outputPath(`context-${index + 1}.png`),
+      });
     }
     await info.attach("routes", {
       body: JSON.stringify(reports, null, 2),
@@ -244,3 +355,71 @@ for (const [layer, phase] of [
     expect(errors).toEqual([]);
   });
 }
+
+test("连线检查器必须抓住穿框、重叠、交叉、折返和错端口", async ({ page }) => {
+  await page.setViewportSize({ width: 2800, height: 2000 });
+  await page.goto("/#model=mimo25&chapter=layer");
+  await page.getByRole("button", { name: "全图", exact: true }).click();
+  await expect(page.locator("[data-stage]")).toHaveCount(11);
+  await expect.poll(async () => (await auditWires(page)).problems).toEqual([]);
+  const paths = await page
+    .locator(".react-flow__edge-path")
+    .evaluateAll((elements) => elements.map((e) => e.getAttribute("d")!));
+  for (const fault of ["穿框", "重叠", "交叉", "折返", "错端口"] as const) {
+    await page.evaluate(
+      ({ fault, paths }) => {
+        const elements = [
+          ...document.querySelectorAll<SVGPathElement>(
+            ".react-flow__edge-path",
+          ),
+        ];
+        elements.forEach((e, i) => e.setAttribute("d", paths[i]));
+        const path = elements[0];
+        const rect = document
+          .querySelector('[data-stage="rope"]')!
+          .getBoundingClientRect();
+        const inverse = path.getScreenCTM()!.inverse();
+        const a = new DOMPoint(
+          rect.left - 20,
+          rect.top + rect.height / 2,
+        ).matrixTransform(inverse);
+        const b = new DOMPoint(
+          rect.right + 20,
+          rect.top + rect.height / 2,
+        ).matrixTransform(inverse);
+        if (fault === "穿框")
+          path.setAttribute("d", `M ${a.x},${a.y} L ${b.x},${b.y}`);
+        if (fault === "重叠") elements[1].setAttribute("d", paths[0]);
+        if (fault === "交叉") {
+          path.setAttribute("d", "M -100,-200 L 100,-200");
+          elements[1].setAttribute("d", "M 0,-300 L 0,-100");
+        }
+        if (fault === "折返")
+          path.setAttribute("d", "M 0,0 L 0,100 L 0,50 L 150,50");
+        if (fault === "错端口")
+          path.setAttribute("d", `M ${a.x + 60},${a.y} L ${b.x},${b.y}`);
+      },
+      { fault, paths },
+    );
+    const report = await auditWires(page);
+    const marker = {
+      穿框: "穿过 rope",
+      重叠: "重叠",
+      交叉: " × ",
+      折返: "原路折返",
+      错端口: "未贴合真实变量端口",
+    }[fault];
+    expect(
+      report.problems.some((p) => p.includes(marker)),
+      fault,
+    ).toBe(true);
+  }
+  await page
+    .locator(".react-flow__edge-path")
+    .evaluateAll(
+      (elements, paths) =>
+        elements.forEach((e, i) => e.setAttribute("d", paths[i])),
+      paths,
+    );
+  expect((await auditWires(page)).problems).toEqual([]);
+});

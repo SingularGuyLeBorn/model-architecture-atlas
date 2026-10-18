@@ -67,8 +67,12 @@ export function deepseekLayerRecipe(
     formula?: string,
   ) =>
     stages.push({ id, title, body, output, width, formula, inlinePorts: true });
-  const edge = (source: string, target: string, tex: string) =>
-    links.push({ source, target, tex });
+  const edge = (
+    source: string,
+    target: string,
+    tex: string,
+    ports: Pick<RecipeLink, "sourceSide" | "targetSide"> = {},
+  ) => links.push({ source, target, tex, ...ports });
   const cache = (
     name: string,
     stem: string,
@@ -547,7 +551,11 @@ export function deepseekLayerRecipe(
     y,
   );
   edge("values", "residual-a", O);
-  edge("input", "residual-a", h);
+  // 残差从真实 h 行左侧绕出，不能穿过下方 RMSNorm 的分子行。
+  edge("input", "residual-a", h, {
+    sourceSide: "left",
+    targetSide: "left",
+  });
   add(
     "norm-f",
     "FFN · 独立归一化",
@@ -761,7 +769,10 @@ export function deepseekLayerRecipe(
     `h_{${layer + 1},t}`,
     1450,
   );
-  edge("residual-a", "residual-f", y);
+  edge("residual-a", "residual-f", y, {
+    sourceSide: "left",
+    targetSide: "left",
+  });
   if (a.ffn === "dense") edge("dense", "residual-f", f);
   else {
     edge("experts", "residual-f", `f^{routed}_{${l},t}`);

@@ -15,6 +15,74 @@ import {
 } from "../src/components/EditableArchitectureGraph";
 import { buildGraph } from "../src/compositions/DeepSeekV41Layer";
 
+it("长导线也优先避免交叉，不能用短路径抵消一次横穿", () => {
+  const wire = { start: { x: -1200, y: 1000 }, end: { x: 1200, y: 1000 } };
+  const path = automaticOrthogonalPoints(
+    0,
+    0,
+    0,
+    2000,
+    Position.Bottom,
+    Position.Top,
+    [],
+    [wire],
+  );
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1],
+      b = path[i];
+    expect(
+      a.x === b.x &&
+        a.x > -1200 &&
+        a.x < 1200 &&
+        Math.min(a.y, b.y) < 1000 &&
+        Math.max(a.y, b.y) > 1000,
+    ).toBe(false);
+  }
+});
+
+it("出入边对照：左侧入口不会穿过目标分组内上方矩阵，顶边入口会", () => {
+  const source = { left: -700, right: -300, top: 0, bottom: 300 };
+  const target = { left: 0, right: 900, top: 500, bottom: 1700 };
+  const operand = { left: 300, right: 600, top: 650, bottom: 1100 };
+  const matrix = { left: 300, right: 600, top: 1300, bottom: 1400 };
+  const candidates = [
+    { side: Position.Left, x: matrix.left, y: 1350 },
+    { side: Position.Top, x: 450, y: matrix.top },
+    { side: Position.Right, x: matrix.right, y: 1350 },
+    { side: Position.Bottom, x: 450, y: matrix.bottom },
+  ].map((port) => {
+    const path = automaticOrthogonalPoints(
+      -500,
+      300,
+      port.x,
+      port.y,
+      Position.Bottom,
+      port.side,
+      [source, target, operand],
+      [],
+      [source],
+      [target],
+    );
+    const hits = path.slice(1).filter((b, i) => {
+      const a = path[i];
+      return a.x === b.x
+        ? a.x > operand.left &&
+            a.x < operand.right &&
+            Math.max(a.y, b.y) > operand.top &&
+            Math.min(a.y, b.y) < operand.bottom
+        : a.y > operand.top &&
+            a.y < operand.bottom &&
+            Math.max(a.x, b.x) > operand.left &&
+            Math.min(a.x, b.x) < operand.right;
+    }).length;
+    return { side: port.side, hits };
+  });
+  expect(candidates.find((c) => c.side === Position.Left)!.hits).toBe(0);
+  expect(candidates.find((c) => c.side === Position.Top)!.hits).toBeGreaterThan(
+    0,
+  );
+});
+
 it("拖动延用安全通道；新障碍挡住旧通道时重新避让", () => {
   const previous = [
     { x: 0, y: 0 },

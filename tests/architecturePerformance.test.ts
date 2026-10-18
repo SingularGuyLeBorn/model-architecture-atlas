@@ -167,6 +167,55 @@ function fixture() {
 }
 
 describe("架构图增量路由", () => {
+  it("同组多路输出先分配靠近目标的内侧通道，左右镜像一致", () => {
+    for (const direction of [1, -1]) {
+      const f = fixture();
+      const group = { id: "group", position: { x: 0, y: 0 }, data: {} };
+      f.nodes.push(group);
+      f.internals.set("group", {
+        ...f.internals.get("a")!,
+        ...group,
+        measured: { width: 800, height: 100 },
+        internals: {
+          ...f.internals.get("a")!.internals,
+          handleBounds: { source: [], target: [] },
+        },
+      });
+      for (const id of ["a", "c"]) {
+        Object.assign(f.nodes.find((n) => n.id === id)!, { parentId: "group" });
+        f.internals.get(id)!.parentId = "group";
+      }
+      f.internals.get("d")!.internals.positionAbsolute.x = direction * 1600;
+      f.edges[0].target = "d";
+      f.edges[0].data = { targetAnchor: { side: Position.Top, offset: 0.25 } };
+      f.edges[1].data = { targetAnchor: { side: Position.Top, offset: 0.75 } };
+      const routes = planArchitectureRoutes(
+        f.owner,
+        f.nodes,
+        f.edges,
+        f.getNode,
+      );
+      expect([...routes.keys()]).toEqual(
+        direction === 1 ? ["cd", "ab"] : ["ab", "cd"],
+      );
+      expect(sharedRouteLength(routes.get("ab")!, routes.get("cd")!)).toBe(0);
+    }
+  });
+  it("自动测量收敛后的完整路线与直接使用最终几何一致", () => {
+    const f = fixture();
+    planArchitectureRoutes(f.owner, f.nodes, f.edges, f.getNode);
+    f.internals.get("a")!.measured.height = 240;
+    f.internals.get("c")!.internals.positionAbsolute = { x: 150, y: 100 };
+    f.internals.get("d")!.internals.positionAbsolute = { x: 80, y: 700 };
+    const settled = planArchitectureRoutes(
+      f.owner,
+      f.nodes,
+      f.edges,
+      f.getNode,
+    );
+    const fresh = planArchitectureRoutes({}, f.nodes, f.edges, f.getNode);
+    expect(settled).toEqual(fresh);
+  });
   it("实测标签变宽会重新规划通道，重复测量与视口更新仍复用路由", () => {
     const f = fixture();
     f.edges[0].data = { labelTex: "G" };

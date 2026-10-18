@@ -555,7 +555,7 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
       E,
       1850,
     );
-    edge("norm-f", "router", z);
+    edge("norm-f", "router", z, { sourceSide: "right" });
     add(
       "experts",
       "8 个独立 SwiGLU 专家 · 按选中系数汇合",
@@ -600,7 +600,7 @@ export function mimoLayerRecipe(phase: Phase, layer: number): Recipe {
       f,
       2300,
     );
-    edge("norm-f", "experts", z, { sourceSide: "right", targetSide: "left" });
+    edge("norm-f", "experts", z, { sourceSide: "bottom", targetSide: "left" });
     edge("router", "experts", E, { sourceSide: "left", targetSide: "left" });
     edge("router", "experts", alpha);
   }

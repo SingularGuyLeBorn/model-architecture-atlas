@@ -658,7 +658,8 @@ function routeScore(
               Math.min(segment.start.y, segment.end.y),
             );
         if (overlap > 0 && separation < EDGE_LANE_GAP)
-          crowding += overlap * (EDGE_LANE_GAP - separation) * 100;
+          // 紧贴平行线比一次交叉更难辨认，不能用短距离重叠逃避交叉惩罚。
+          crowding += 2_000_000 + overlap * (EDGE_LANE_GAP - separation) * 100;
       } else if (
         segmentCrossesObstacle(start, end, {
           left: Math.min(segment.start.x, segment.end.x) - 0.1,
@@ -667,7 +668,8 @@ function routeScore(
           bottom: Math.max(segment.start.y, segment.end.y) + 0.1,
         })
       )
-        crowding += 800;
+        // 交叉优先于长度与折点；不能为了少绕几百像素让两根不同变量线相交。
+        crowding += 1_000_000;
       if (
         !cache &&
         crossings * 100_000_000 + crowding + complexity >= upperBound
@@ -726,6 +728,13 @@ function defaultOrthogonalPoints(
           segment.start.y - EDGE_LANE_GAP,
           segment.start.y + EDGE_LANE_GAP,
         ]),
+      // 绕过竖线的端部也是候选，不能只枚举与其平行的通道。
+      ...reserved
+        .filter((s) => s.start.x === s.end.x)
+        .flatMap((s) => [
+          Math.min(s.start.y, s.end.y) - EDGE_LANE_GAP,
+          Math.max(s.start.y, s.end.y) + EDGE_LANE_GAP,
+        ]),
     ]),
   ];
   const verticalChannels = [
@@ -741,6 +750,12 @@ function defaultOrthogonalPoints(
         .flatMap((segment) => [
           segment.start.x - EDGE_LANE_GAP,
           segment.start.x + EDGE_LANE_GAP,
+        ]),
+      ...reserved
+        .filter((s) => s.start.y === s.end.y)
+        .flatMap((s) => [
+          Math.min(s.start.x, s.end.x) - EDGE_LANE_GAP,
+          Math.max(s.start.x, s.end.x) + EDGE_LANE_GAP,
         ]),
     ]),
   ];
@@ -1603,27 +1618,50 @@ export function planArchitectureRoutes(
       (a, b) =>
         Number(Boolean(b.edge.data?.waypoints?.length)) -
           Number(Boolean(a.edge.data?.waypoints?.length)) ||
-        // 同侧旁路从短到长占道：内层先走，外层包住它，避免嵌套残差相互穿越。
+        // 侧向旁路从短到长占道：内层先走，外层包住它，避免嵌套残差相互穿越。
         Number(
           !(
-            a.source.side === a.target.side &&
-            (a.source.side === Position.Left ||
-              a.source.side === Position.Right)
+            a.source.side === Position.Left ||
+            a.target.side === Position.Left ||
+            a.source.side === Position.Right ||
+            a.target.side === Position.Right
           ),
         ) -
           Number(
             !(
-              b.source.side === b.target.side &&
-              (b.source.side === Position.Left ||
-                b.source.side === Position.Right)
+              b.source.side === Position.Left ||
+              b.target.side === Position.Left ||
+              b.source.side === Position.Right ||
+              b.target.side === Position.Right
             ),
           ) ||
-        (a.source.side === a.target.side &&
-        b.source.side === b.target.side &&
-        (a.source.side === Position.Left || a.source.side === Position.Right) &&
-        (b.source.side === Position.Left || b.source.side === Position.Right)
+        ((a.source.side === Position.Left ||
+          a.target.side === Position.Left ||
+          a.source.side === Position.Right ||
+          a.target.side === Position.Right) &&
+        (b.source.side === Position.Left ||
+          b.target.side === Position.Left ||
+          b.source.side === Position.Right ||
+          b.target.side === Position.Right)
           ? Math.abs(a.target.y - a.source.y) -
             Math.abs(b.target.y - b.source.y)
+          : 0) ||
+        // 同组的多路向下输出绕到同一目标时，靠近目标的内侧支路先占道。
+        // 按源 x 从左到右抢道会让最右支路被外侧长线包住，只能交叉或紧贴。
+        (a.edge.source !== b.edge.source &&
+        frames.get(a.edge.source)?.parentId &&
+        frames.get(a.edge.source)?.parentId ===
+          frames.get(b.edge.source)?.parentId &&
+        a.edge.target === b.edge.target &&
+        a.source.side === Position.Bottom &&
+        b.source.side === Position.Bottom &&
+        a.target.side === Position.Top &&
+        b.target.side === Position.Top &&
+        Math.abs(a.source.y - b.source.y) < 1 &&
+        Math.abs(a.target.y - b.target.y) < 1 &&
+        Math.sign(a.target.x - a.source.x) ===
+          Math.sign(b.target.x - b.source.x)
+          ? Math.sign(a.target.x - a.source.x) * (b.source.x - a.source.x)
           : 0) ||
         a.source.y - b.source.y ||
         a.source.x - b.source.x ||
@@ -1725,11 +1763,18 @@ export function planArchitectureRoutes(
         cached?.edgeKeys.get(edge.id) !== edgeKeys.get(edge.id),
     );
   const reserve = (id: string, points: XYPosition[]) => {
+    // 几何重规划后形状未变的线继续使用同一引用，避免无关边重新渲染。
+    const previous = cached?.routes.get(id);
+    if (
+      previous?.length === points.length &&
+      previous.every((p, i) => p.x === points[i].x && p.y === points[i].y)
+    )
+      points = previous;
     routes.set(id, points);
     for (let i = 1; i < points.length; i++)
       reserved.push({ start: points[i - 1], end: points[i] });
   };
-  // 固定人工线与仍然合法的自动线先占通道；移动一个框只使相连边和被新障碍挡住的边失效。
+  // 人工线固定；拖动中增量更新。测量收敛时按完整优先级重排，不能让临时旧线提前占道。
   for (const { edge, source, target } of items) {
     const previous = cached?.routes.get(edge.id);
     const waypoints = edge.data?.waypoints;
@@ -1749,6 +1794,7 @@ export function planArchitectureRoutes(
             ),
       );
     } else if (
+      localEdit &&
       previous &&
       !topologyChanged &&
       cached?.edgeKeys.get(edge.id) === edgeKeys.get(edge.id)

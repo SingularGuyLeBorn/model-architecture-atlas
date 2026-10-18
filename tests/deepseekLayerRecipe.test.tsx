@@ -114,11 +114,15 @@ describe("真实依赖与模型身份", () => {
       source: "input",
       target: "residual-a",
       tex: "h_{4,t}",
+      sourceSide: "left",
+      targetSide: "left",
     });
     expect(recipe.links).toContainEqual({
       source: "residual-a",
       target: "residual-f",
       tex: "y_{4,t}",
+      sourceSide: "left",
+      targetSide: "left",
     });
   });
 });
